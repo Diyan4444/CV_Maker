@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit"
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit",
+    "copy:pdf-worker": "node -e \"const fs = require('fs'); fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs', 'public/pdf.worker.min.mjs'); console.log('Copied pdf.worker.min.mjs to public/');\"",
+    "postinstall": "npm run copy:pdf-worker"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
@@ -19,6 +21,7 @@
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.75.0",
     "next": "16.4.6",
+    "pdfjs-dist": "^6.5.438",
     "postgres": "^4.1.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -39,7 +42,6 @@
     "eslint-config-next": "16.4.6",
     "pdf-parse": "^2.4.5",
     "pdf-to-png-converter": "^4.3.0",
-    "pdfjs-dist": "^6.5.438",
     "pdfreader": "^3.0.8",
     "playwright": "^1.65.1",
     "postcss": "^8.5.33",

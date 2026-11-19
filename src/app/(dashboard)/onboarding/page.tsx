@@ -98,29 +98,33 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-6 sm:p-12">
-      <header className="flex items-center justify-between max-w-4xl mx-auto w-full pb-8 border-b border-[var(--border-muted)]">
-        <a href="/dashboard" className="font-display text-2xl font-bold tracking-tight text-[var(--text)]">
-          {PRODUCT_NAME}
-        </a>
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8">
+      {/* Header Panel */}
+      <header className="max-w-4xl mx-auto w-full mb-6 relative z-10">
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl shadow-sm px-6 py-4 flex items-center justify-between">
+          <a href="/dashboard" className="font-display text-2xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] transition-colors">
+            {PRODUCT_NAME}
+          </a>
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#333333]">
+            Profile Setup
+          </span>
         </div>
       </header>
 
-      <main className="max-w-2xl w-full mx-auto my-10 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-8 sm:p-10 shadow-sm">
+      <main className="max-w-2xl w-full mx-auto my-6 bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-8 sm:p-10 shadow-sm relative z-10">
         {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          <span className={currentWizardStep === 0 ? 'text-[var(--accent)] font-bold' : ''}>
+        <div className="flex items-center gap-2 mb-8 text-xs font-semibold uppercase tracking-wider text-[#333333]">
+          <span className={currentWizardStep === 0 ? 'text-[#800021] font-bold' : 'text-[#333333]'}>
             1. Background &amp; Intent
           </span>
           <span>&gt;</span>
-          <span className={currentWizardStep > 0 ? 'text-[var(--accent)] font-bold' : ''}>
+          <span className={currentWizardStep > 0 ? 'text-[#800021] font-bold' : 'text-[#333333]'}>
             2. Department Profile
           </span>
         </div>
 
         {errorMsg && (
-          <div className="p-3.5 rounded-md mb-6 text-xs bg-red-50 text-red-900 border border-red-200">
+          <div className="p-3.5 rounded-md mb-6 text-xs bg-[#FFE4D8] text-[#800021] border border-[#800021] font-medium">
             {errorMsg}
           </div>
         )}
@@ -129,10 +133,10 @@ export default function OnboardingPage() {
         {currentWizardStep === 0 && (
           <div className="space-y-8">
             <div>
-              <h1 className="font-display text-2xl font-bold text-[var(--text)] tracking-tight">
+              <h1 className="font-display text-2xl font-bold text-[#0B0B0B] tracking-tight">
                 What are you building first?
               </h1>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
+              <p className="text-xs text-[#333333] mt-1">
                 You can generate the others anytime from your single master profile.
               </p>
 
@@ -140,48 +144,48 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setOutputType('resume')}
-                  className={`p-4 rounded-md border text-left flex flex-col justify-between transition-colors ${
+                  className={`p-4 rounded-lg border text-left flex flex-col justify-between transition-colors ${
                     outputType === 'resume'
-                      ? 'border-[var(--accent)] bg-[var(--surface-alt)] text-[var(--text)]'
-                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                      ? 'border-[#800021] bg-[#FFE4D8] text-[#800021]'
+                      : 'border-[#6B6B6B] bg-[#FFFFFF] text-[#333333] hover:border-[#0B0B0B]'
                   }`}
                 >
-                  <FileText className="w-5 h-5 mb-3 text-[var(--accent)]" />
+                  <FileText className="w-5 h-5 mb-3 text-[#800021]" />
                   <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">Resume</div>
-                    <div className="text-[11px] mt-0.5">1-page, ATS-optimized for jobs</div>
+                    <div className="font-semibold text-sm text-[#0B0B0B]">Resume</div>
+                    <div className="text-[11px] text-[#333333] mt-0.5">1-page, ATS-optimized for jobs</div>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setOutputType('cv')}
-                  className={`p-4 rounded-md border text-left flex flex-col justify-between transition-colors ${
+                  className={`p-4 rounded-lg border text-left flex flex-col justify-between transition-colors ${
                     outputType === 'cv'
-                      ? 'border-[var(--accent)] bg-[var(--surface-alt)] text-[var(--text)]'
-                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                      ? 'border-[#800021] bg-[#FFE4D8] text-[#800021]'
+                      : 'border-[#6B6B6B] bg-[#FFFFFF] text-[#333333] hover:border-[#0B0B0B]'
                   }`}
                 >
-                  <GraduationCap className="w-5 h-5 mb-3 text-[var(--accent)]" />
+                  <GraduationCap className="w-5 h-5 mb-3 text-[#800021]" />
                   <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">Academic CV</div>
-                    <div className="text-[11px] mt-0.5">Scholarly dossier, research &amp; pubs</div>
+                    <div className="font-semibold text-sm text-[#0B0B0B]">Academic CV</div>
+                    <div className="text-[11px] text-[#333333] mt-0.5">Scholarly dossier, research &amp; pubs</div>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setOutputType('website')}
-                  className={`p-4 rounded-md border text-left flex flex-col justify-between transition-colors ${
+                  className={`p-4 rounded-lg border text-left flex flex-col justify-between transition-colors ${
                     outputType === 'website'
-                      ? 'border-[var(--accent)] bg-[var(--surface-alt)] text-[var(--text)]'
-                      : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                      ? 'border-[#800021] bg-[#FFE4D8] text-[#800021]'
+                      : 'border-[#6B6B6B] bg-[#FFFFFF] text-[#333333] hover:border-[#0B0B0B]'
                   }`}
                 >
-                  <Globe className="w-5 h-5 mb-3 text-[var(--accent)]" />
+                  <Globe className="w-5 h-5 mb-3 text-[#800021]" />
                   <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">Public Website</div>
-                    <div className="text-[11px] mt-0.5">Clean responsive portfolio</div>
+                    <div className="font-semibold text-sm text-[#0B0B0B]">Public Website</div>
+                    <div className="text-[11px] text-[#333333] mt-0.5">Clean responsive portfolio</div>
                   </div>
                 </button>
               </div>
@@ -189,7 +193,7 @@ export default function OnboardingPage() {
 
             {/* Background Group */}
             <div>
-              <label htmlFor="bg-group" className="block text-xs font-semibold uppercase tracking-wider text-[var(--text)] mb-2">
+              <label htmlFor="bg-group" className="block text-xs font-semibold uppercase tracking-wider text-[#0B0B0B] mb-2">
                 Educational / Professional Background
               </label>
               <select
@@ -202,7 +206,7 @@ export default function OnboardingPage() {
                     BACKGROUND_GROUPS.find((g) => g.id === grp)?.specializations[0] || '';
                   setSpecialization(firstSpec);
                 }}
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-sm focus:border-[#800021] focus:ring-1 focus:ring-[#800021] transition-colors"
               >
                 {BACKGROUND_GROUPS.map((g) => (
                   <option key={g.id} value={g.id}>
@@ -214,14 +218,14 @@ export default function OnboardingPage() {
 
             {/* Specialization */}
             <div>
-              <label htmlFor="spec-select" className="block text-xs font-semibold uppercase tracking-wider text-[var(--text)] mb-2">
+              <label htmlFor="spec-select" className="block text-xs font-semibold uppercase tracking-wider text-[#0B0B0B] mb-2">
                 Specialization / Field
               </label>
               <select
                 id="spec-select"
                 value={specialization}
                 onChange={(e) => setSpecialization(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-sm focus:border-[#800021] focus:ring-1 focus:ring-[#800021] transition-colors"
               >
                 {currentGroupConfig?.specializations.map((spec) => (
                   <option key={spec} value={spec}>
@@ -237,21 +241,21 @@ export default function OnboardingPage() {
                   placeholder="Specify your field or branch"
                   value={customSpecialization}
                   onChange={(e) => setCustomSpecialization(e.target.value)}
-                  className="mt-2.5 w-full px-3.5 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                  className="mt-2.5 w-full px-3.5 py-2 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-sm focus:border-[#800021] focus:ring-1 focus:ring-[#800021] transition-colors"
                 />
               )}
             </div>
 
             {/* Stage */}
             <div>
-              <label htmlFor="career-stage" className="block text-xs font-semibold uppercase tracking-wider text-[var(--text)] mb-2">
+              <label htmlFor="career-stage" className="block text-xs font-semibold uppercase tracking-wider text-[#0B0B0B] mb-2">
                 Current Career / Academic Stage
               </label>
               <select
                 id="career-stage"
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-sm focus:border-[#800021] focus:ring-1 focus:ring-[#800021] transition-colors"
               >
                 {CAREER_STAGES.map((stg) => (
                   <option key={stg.id} value={stg.id}>
@@ -263,7 +267,7 @@ export default function OnboardingPage() {
 
             {/* Purpose (Multiple) */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text)] mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#0B0B0B] mb-2">
                 Primary Purposes (select all that apply)
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -276,23 +280,23 @@ export default function OnboardingPage() {
                       onClick={() => togglePurpose(p.id)}
                       className={`px-3.5 py-2 rounded-md border text-left text-xs font-medium flex items-center justify-between transition-colors ${
                         isChecked
-                          ? 'border-[var(--accent)] bg-[var(--surface-alt)] text-[var(--text)]'
-                          : 'border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--text-muted)]'
+                          ? 'border-[#800021] bg-[#FFE4D8] text-[#800021]'
+                          : 'border-[#6B6B6B] bg-[#FFFFFF] text-[#333333] hover:border-[#0B0B0B]'
                       }`}
                     >
-                      <span>{p.label}</span>
-                      {isChecked && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                      <span className="text-[#0B0B0B]">{p.label}</span>
+                      {isChecked && <Check className="w-3.5 h-3.5 text-[#800021]" />}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="pt-4 border-t border-[var(--border-muted)] flex justify-end">
+            <div className="pt-4 border-t border-[#6B6B6B] flex justify-end">
               <button
                 type="button"
                 onClick={() => setCurrentWizardStep(1)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-[var(--accent)] text-[var(--surface)] font-medium text-sm hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
               >
                 Continue to Department Questions <ArrowRight className="w-4 h-4" />
               </button>
@@ -304,11 +308,11 @@ export default function OnboardingPage() {
         {currentWizardStep > 0 && (
           <div className="space-y-8">
             <div>
-              <h2 className="font-display text-2xl font-bold text-[var(--text)] tracking-tight">
+              <h2 className="font-display text-2xl font-bold text-[#0B0B0B] tracking-tight">
                 {dynamicSteps[currentWizardStep - 1]?.stepTitle || 'Department Questions'}
               </h2>
               {dynamicSteps[currentWizardStep - 1]?.stepDescription && (
-                <p className="text-xs text-[var(--text-muted)] mt-1">
+                <p className="text-xs text-[#333333] mt-1">
                   {dynamicSteps[currentWizardStep - 1].stepDescription}
                 </p>
               )}
@@ -320,11 +324,11 @@ export default function OnboardingPage() {
               onChange={handleFieldChange}
             />
 
-            <div className="pt-6 border-t border-[var(--border-muted)] flex items-center justify-between">
+            <div className="pt-6 border-t border-[#6B6B6B] flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setCurrentWizardStep((prev) => prev - 1)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface-alt)] transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-medium hover:bg-[#F1F7F7] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </button>
@@ -334,7 +338,7 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleFinish}
                   disabled={loading}
-                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors px-2"
+                  className="text-xs text-[#333333] hover:text-[#0B0B0B] transition-colors px-2 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
                 >
                   Skip and complete later
                 </button>
@@ -343,7 +347,7 @@ export default function OnboardingPage() {
                   <button
                     type="button"
                     onClick={() => setCurrentWizardStep((prev) => prev + 1)}
-                    className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[var(--accent)] text-[var(--surface)] font-medium text-xs hover:opacity-90 transition-opacity"
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-medium text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
                   >
                     Next Step <ArrowRight className="w-3.5 h-3.5" />
                   </button>
@@ -352,7 +356,7 @@ export default function OnboardingPage() {
                     type="button"
                     onClick={handleFinish}
                     disabled={loading}
-                    className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[var(--accent)] text-[var(--surface)] font-medium text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-medium text-xs transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
                   >
                     {loading ? 'Saving...' : 'Finish & Open Document'}
                   </button>

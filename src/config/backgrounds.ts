@@ -1,5 +1,12 @@
 import { PaletteKey, PALETTE_RAMPS } from '@/lib/color/oklab';
 
+/**
+ * Global control flag for cursor-following attractor & lightness bloom.
+ * When false: pointer event listeners are not attached and shader pointer influence is disabled (0).
+ * When true: smooth spring-interpolated cursor warping and lightness bloom are active.
+ */
+export const CURSOR_FOLLOW = false;
+
 export interface AnchorConfig {
   palette: PaletteKey;
   /** Normalized position [x, y] in range [0, 1] */

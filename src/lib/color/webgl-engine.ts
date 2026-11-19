@@ -239,31 +239,23 @@ export interface WebGLRenderer {
  * Initializes the WebGL engine for ColorField
  */
 export function createWebGLRenderer(canvas: HTMLCanvasElement): WebGLRenderer | null {
+  const contextOpts: WebGLContextAttributes = {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    powerPreference: 'low-power',
+    preserveDrawingBuffer: true,
+  };
+
   const gl =
-    (canvas.getContext('webgl2', {
-      alpha: false,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      powerPreference: 'low-power',
-      preserveDrawingBuffer: false,
-    }) as WebGLRenderingContext | null) ||
-    canvas.getContext('webgl', {
-      alpha: false,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      powerPreference: 'low-power',
-      preserveDrawingBuffer: false,
-    }) ||
-    (canvas.getContext('experimental-webgl', {
-      alpha: false,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      powerPreference: 'low-power',
-      preserveDrawingBuffer: false,
-    }) as WebGLRenderingContext | null);
+    (canvas.getContext('webgl2', contextOpts) as WebGLRenderingContext | null) ||
+    canvas.getContext('webgl', contextOpts) ||
+    (canvas.getContext('experimental-webgl', contextOpts) as WebGLRenderingContext | null);
+
+  if (typeof window !== 'undefined' && gl) {
+    (window as unknown as { __COLORFIELD_GL__?: WebGLRenderingContext }).__COLORFIELD_GL__ = gl;
+  }
 
   if (!gl) {
     console.warn('WebGL not supported for ColorField; falling back to CSS.');

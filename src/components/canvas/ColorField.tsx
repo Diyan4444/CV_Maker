@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   BACKGROUND_RECIPES,
   BackgroundRecipe,
+  CURSOR_FOLLOW,
   getRecipeForPathname,
 } from '@/config/backgrounds';
 import { createWebGLRenderer, WebGLRenderer } from '@/lib/color/webgl-engine';
@@ -74,8 +75,13 @@ function ColorFieldRenderer({
     }
   }, [recipe]);
 
-  // Window pointer tracker (passive, works everywhere including over cards)
+  // Window pointer tracker (passive, attached only when CURSOR_FOLLOW is enabled)
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __COLORFIELD_POINTER_ATTACHED__?: boolean }).__COLORFIELD_POINTER_ATTACHED__ = CURSOR_FOLLOW;
+    }
+    if (!CURSOR_FOLLOW) return;
+
     const handlePointerMove = (e: PointerEvent) => {
       const x = Math.max(0, Math.min(1, e.clientX / window.innerWidth));
       const y = Math.max(0, Math.min(1, e.clientY / window.innerHeight));
@@ -83,7 +89,12 @@ function ColorFieldRenderer({
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    return () => window.removeEventListener('pointermove', handlePointerMove);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      if (typeof window !== 'undefined') {
+        (window as unknown as { __COLORFIELD_POINTER_ATTACHED__?: boolean }).__COLORFIELD_POINTER_ATTACHED__ = false;
+      }
+    };
   }, []);
 
   // WebGL initialization & Render loop
@@ -136,8 +147,10 @@ function ColorFieldRenderer({
     const onPointerActivity = () => {
       lastPointerTime = performance.now();
     };
-    window.addEventListener('pointermove', onPointerActivity, { passive: true });
-    window.addEventListener('pointerdown', onPointerActivity, { passive: true });
+    if (CURSOR_FOLLOW) {
+      window.addEventListener('pointermove', onPointerActivity, { passive: true });
+      window.addEventListener('pointerdown', onPointerActivity, { passive: true });
+    }
 
     // Adaptive quality metrics: rolling 2-second window
     let windowStartTime = performance.now();
@@ -263,10 +276,31 @@ function ColorFieldRenderer({
         }
 
         const aspect = canvas.width / canvas.height;
+        const renderMotion = CURSOR_FOLLOW
+          ? activeRenderRecipe
+          : {
+              ...activeRenderRecipe,
+              motion: {
+                ...activeRenderRecipe.motion,
+                pointerSensitivity: 0.0,
+                pointerBloom: 0.0,
+              },
+            };
+        const renderCoords: [number, number] = CURSOR_FOLLOW ? pointerCurrent.current : [0.5, 0.5];
+
+        if (typeof window !== 'undefined') {
+          (window as unknown as { __COLORFIELD_MOTION_STATE__?: { cursorFollow: boolean; pointerCoords: [number, number]; pointerSensitivity: number; pointerBloom: number } }).__COLORFIELD_MOTION_STATE__ = {
+            cursorFollow: CURSOR_FOLLOW,
+            pointerCoords: renderCoords,
+            pointerSensitivity: renderMotion.motion.pointerSensitivity,
+            pointerBloom: renderMotion.motion.pointerBloom,
+          };
+        }
+
         rendererRef.current.render(
           elapsedSeconds,
-          pointerCurrent.current,
-          activeRenderRecipe,
+          renderCoords,
+          renderMotion,
           reducedMotion,
           aspect
         );
@@ -284,8 +318,10 @@ function ColorFieldRenderer({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('blur', onBlur);
-      window.removeEventListener('pointermove', onPointerActivity);
-      window.removeEventListener('pointerdown', onPointerActivity);
+      if (CURSOR_FOLLOW) {
+        window.removeEventListener('pointermove', onPointerActivity);
+        window.removeEventListener('pointerdown', onPointerActivity);
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (rendererRef.current) {
         rendererRef.current.destroy();

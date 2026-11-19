@@ -5,10 +5,10 @@
   --bg: transparent;
   --surface: #FFFFFF;     /* P2: Ink #FFFFFF */
   --surface-alt: #F1F7F7; /* P4: Mist #F1F7F7 */
-  --border: #D9D9D9;      /* P2: Ink #D9D9D9 */
-  --border-muted: #DDD3D3;/* P4: Mist #DDD3D3 */
-  --text: #1A1A1A;        /* P2: Ink #1A1A1A (replaces invented #1A2424) */
-  --text-muted: #5D6B6B;  /* P4: Mist #5D6B6B */
+  --border: #6B6B6B;      /* P2: Ink #6B6B6B (>= 3:1 contrast on #FFFFFF) */
+  --border-muted: #6B6B6B;/* P2: Ink #6B6B6B */
+  --text: #1A1A1A;        /* P2: Ink #1A1A1A (14.8:1 contrast on #FFFFFF) */
+  --text-muted: #333333;  /* P2: Ink #333333 (10.6:1 contrast on #FFFFFF) */
   --accent: #800021;      /* P1: Wine #800021 */
   --accent-hover: #881144;/* P1: Wine #881144 */
 
@@ -28,6 +28,12 @@ html, body {
 
 h1, h2, h3, .font-display {
   font-family: var(--font-serif), Georgia, serif;
+}
+
+/* Accessible placeholder contrast (>= 4.5:1 against #FFFFFF) */
+input::placeholder, textarea::placeholder {
+  color: #6B6B6B !important;
+  opacity: 1 !important;
 }
 
 /* Accessible focus ring style */

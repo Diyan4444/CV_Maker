@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { PRODUCT_NAME } from '@/config/app';
-import { ArrowRight, Mail } from 'lucide-react';
+import { Mail, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,8 +15,6 @@ export default function LoginPage() {
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-
     setLoading(true);
     setMessage(null);
 
@@ -27,14 +25,15 @@ export default function LoginPage() {
       },
     });
 
-    setLoading(false);
     if (error) {
       setMessage({ text: error.message, error: true });
     } else {
       setMessage({
-        text: 'A magic link has been sent to your email. Check your inbox to sign in.',
+        text: 'A secure sign-in link has been sent to your email address.',
+        error: false,
       });
     }
+    setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
@@ -52,29 +51,35 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-6 sm:p-12">
-      <header className="flex items-center justify-between max-w-5xl mx-auto w-full pb-8 border-b border-[var(--border-muted)]">
-        <Link href="/" className="font-display text-2xl font-bold tracking-tight text-[var(--text)]">
+    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 relative text-[#0B0B0B]">
+      {/* Top Header Panel */}
+      <header className="max-w-md mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 shadow-sm flex items-center justify-between">
+        <Link
+          href="/"
+          className="font-display text-xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
+        >
           {PRODUCT_NAME}
         </Link>
+        <span className="text-xs font-semibold text-[#333333]">Sign in</span>
       </header>
 
-      <main className="max-w-md w-full mx-auto my-12 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-8 sm:p-10 shadow-sm">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-[var(--text)] tracking-tight">
+      {/* Main Authentication Card Panel */}
+      <main className="max-w-md w-full mx-auto my-auto bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-md">
+        <div className="mb-6">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0B] tracking-tight">
             Sign in
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-2">
+          <p className="text-xs sm:text-sm text-[#333333] mt-1.5 leading-relaxed">
             One master profile for your Resume, Academic CV, and public site.
           </p>
         </div>
 
         {message && (
           <div
-            className={`p-4 rounded-md mb-6 text-sm border ${
+            className={`p-3.5 rounded-lg mb-6 text-xs font-semibold border ${
               message.error
-                ? 'bg-red-50 text-red-900 border-red-200'
-                : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                ? 'bg-[#FFE4D8] text-[#800021] border-[#800021]'
+                : 'bg-[#DAF1DE] text-[#051F20] border-[#235347]'
             }`}
           >
             {message.text}
@@ -82,11 +87,12 @@ export default function LoginPage() {
         )}
 
         <button
+          type="button"
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-alt)] font-medium text-sm transition-colors mb-6 disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] hover:bg-[#F1F7F7] font-semibold text-xs transition-colors mb-5 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -107,18 +113,21 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-        <div className="relative mb-6 flex items-center justify-center">
+        <div className="relative mb-5 flex items-center justify-center">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-[var(--border-muted)]"></div>
+            <div className="w-full border-t border-[#6B6B6B]"></div>
           </div>
-          <span className="relative bg-[var(--surface)] px-3 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+          <span className="relative bg-[#FFFFFF] px-3 text-[11px] font-bold text-[#6B6B6B] uppercase tracking-wider">
             Or with email
           </span>
         </div>
 
         <form onSubmit={handleEmailSignIn} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+            <label
+              htmlFor="email"
+              className="block text-xs font-semibold uppercase tracking-wider text-[#0B0B0B] mb-1.5"
+            >
               Email Address
             </label>
             <div className="relative">
@@ -129,28 +138,29 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@university.edu or you@work.com"
                 required
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs placeholder:text-[#6B6B6B] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
               />
-              <Mail className="w-4 h-4 text-[var(--text-muted)] absolute right-3.5 top-3.5 pointer-events-none" />
+              <Mail className="w-4 h-4 text-[#6B6B6B] absolute right-3.5 top-3.5 pointer-events-none" />
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-[var(--accent)] text-[var(--surface)] font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-semibold text-xs shadow-xs hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50"
           >
             {loading ? 'Sending link...' : 'Send Magic Link'}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <p className="mt-8 text-xs text-center text-[var(--text-muted)] leading-relaxed">
+        <p className="mt-6 text-[11px] text-center text-[#333333] leading-relaxed">
           By signing in, you agree to store your career and academic facts securely. We never use your profile data to train public models.
         </p>
       </main>
 
-      <footer className="text-center text-xs text-[var(--text-muted)] py-6">
+      {/* Footer Panel */}
+      <footer className="max-w-md mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3 text-center text-xs text-[#333333] shadow-sm">
         {PRODUCT_NAME} &bull; Editorial Profile &amp; Document Engine
       </footer>
     </div>

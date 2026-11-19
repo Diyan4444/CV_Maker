@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 'use client';
 
 import React, { useState } from 'react';
@@ -16,6 +16,9 @@ import {
   ShieldCheck,
   LayoutGrid,
   Compass,
+  User,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface MasterProfileEditorProps {
@@ -56,6 +59,29 @@ export function MasterProfileEditor({
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  const contactInfo = profile.contactInfo || profile.contact_info || {};
+  const socialLinks = profile.socialLinks || profile.social_links || {};
+
+  const handleUpdateContact = (field: string, value: string) => {
+    setProfile((prev: any) => ({
+      ...prev,
+      contactInfo: {
+        ...(prev.contactInfo || prev.contact_info || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleUpdateSocial = (field: string, value: string) => {
+    setProfile((prev: any) => ({
+      ...prev,
+      socialLinks: {
+        ...(prev.socialLinks || prev.social_links || {}),
+        [field]: value,
+      },
+    }));
+  };
+
   const handleSaveAll = async () => {
     setSaving(true);
     setSaveStatus(null);
@@ -65,7 +91,11 @@ export function MasterProfileEditor({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          profile,
+          profile: {
+            ...profile,
+            version: profile.version,
+          },
+          clientVersion: profile.version,
           educations,
           experiences,
           projects,
@@ -78,19 +108,27 @@ export function MasterProfileEditor({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-      if (data.version) {
-        setProfile((prev: any) => ({ ...prev, version: data.version }));
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          setSaveStatus('Error: Conflict detected (profile updated in another session). Please reload.');
+        } else {
+          setSaveStatus(`Error: ${data.error || 'Failed to save profile'}`);
+        }
+      } else {
+        setSaveStatus('All facts and identity details synchronized successfully.');
+        if (data.version) {
+          setProfile((prev: any) => ({ ...prev, version: data.version }));
+        }
       }
-      setSaveStatus('All profile facts saved successfully.');
-    } catch (err: any) {
-      setSaveStatus('Error saving profile: ' + (err.message || 'Check connection'));
+    } catch {
+      setSaveStatus('Network error while saving profile.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Helper to add discovery prompt to state as an EMPTY draft for user to fill
+  // Helper to add discovery prompt to state as an EMPTY draft
   const handleApplyDiscoveryPrompt = (prompt: ExperienceDiscoveryPrompt) => {
     if (prompt.suggestedSection === 'experiences') {
       setExperiences((prev) => [
@@ -132,159 +170,214 @@ export function MasterProfileEditor({
   };
 
   return (
-    <div className="space-y-8">
-      {/* Save status notification */}
+    <div className="space-y-6">
+      {/* Save status notification panel */}
       {saveStatus && (
         <div
-          className={`p-3.5 rounded-md text-xs font-medium border ${
+          role="status"
+          className={`p-4 rounded-xl text-xs font-semibold border flex items-center gap-2.5 shadow-sm ${
             saveStatus.includes('Error')
-              ? 'bg-red-50 text-red-900 border-red-200'
-              : 'bg-[var(--surface-alt)] text-[var(--text)] border-[var(--border)]'
+              ? 'bg-[#FFE4D8] text-[#800021] border-[#800021]'
+              : 'bg-[#DAF1DE] text-[#051F20] border-[#235347]'
           }`}
         >
-          {saveStatus}
+          {saveStatus.includes('Error') ? (
+            <AlertCircle className="w-4 h-4 shrink-0 text-[#800021]" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#0B2B26]" />
+          )}
+          <span>{saveStatus}</span>
         </div>
       )}
 
-      {/* TOP BAR ACTION */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
-        <span className="text-xs text-[var(--text-muted)]">
-          Manage your normalized facts once; synchronize across outputs anytime.
-        </span>
+      {/* TOP BAR ACTION PANEL */}
+      <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-medium text-[#333333]">
+            Manage your normalized facts once; synchronize across resumes, CVs, and personal website anytime.
+          </span>
+          <div className="text-[11px] text-[#6B6B6B] mt-0.5">
+            Database Version: <span className="font-mono font-bold text-[#0B0B0B]">{profile.version || 1}</span>
+          </div>
+        </div>
         <button
           type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-md bg-[var(--accent)] text-[var(--surface)] text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50 w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50 w-full sm:w-auto"
         >
           <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save All Facts'}
         </button>
       </div>
 
-      {/* SECTION 1: Identity, Summary & Social Links */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <h2 className="font-display text-base font-bold text-[var(--text)] border-b border-[var(--border-muted)] pb-2">
-          1. Identity, Summary &amp; Contact
-        </h2>
+      {/* SECTION 1: Step 1 Basic Identity & Contact Information (per docs/PRODUCT_VISION.md) */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-6 shadow-sm">
+        <div className="flex items-center gap-2.5 pb-3 border-b border-[#6B6B6B]">
+          <User className="w-5 h-5 text-[#800021]" />
+          <div>
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">
+              1. Basic Identity &amp; Contact Information
+            </h2>
+            <p className="text-xs text-[#333333] mt-0.5">
+              Collected per Step 1 of the product specification. Photo stays out of the UI; never required.
+            </p>
+          </div>
+        </div>
+
+        {/* Identity Inputs Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--text)]">Professional Headline</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Full Name</label>
             <input
               type="text"
-              placeholder="e.g. Final Year CSE Student | Embedded Systems Enthusiast"
+              placeholder="e.g. Alexandra Vance"
+              value={contactInfo.fullName || ''}
+              onChange={(e) => handleUpdateContact('fullName', e.target.value)}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Preferred Professional Name</label>
+            <input
+              type="text"
+              placeholder="e.g. Alex Vance"
+              value={contactInfo.preferredName || ''}
+              onChange={(e) => handleUpdateContact('preferredName', e.target.value)}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Professional Email</label>
+            <input
+              type="email"
+              placeholder="e.g. alex.vance@university.edu"
+              value={contactInfo.email || ''}
+              onChange={(e) => handleUpdateContact('email', e.target.value)}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Phone Number (Optional)</label>
+            <input
+              type="tel"
+              placeholder="e.g. +1 (555) 019-2834"
+              value={contactInfo.phone || ''}
+              onChange={(e) => handleUpdateContact('phone', e.target.value)}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Current City</label>
+            <input
+              type="text"
+              placeholder="e.g. San Francisco"
+              value={contactInfo.city || ''}
+              onChange={(e) => handleUpdateContact('city', e.target.value)}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Current Country</label>
+            <input
+              type="text"
+              placeholder="e.g. United States"
+              value={contactInfo.country || ''}
+              onChange={(e) => handleUpdateContact('country', e.target.value)}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+        </div>
+
+        {/* Professional Overview */}
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Professional Headline</label>
+            <input
+              type="text"
+              placeholder="e.g. Computer Science Researcher | Distributed Systems Builder"
               value={profile.headline || ''}
               onChange={(e) => setProfile({ ...profile, headline: e.target.value })}
-              className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface-alt)]/30 text-[var(--text)] text-xs focus:outline-none focus:border-[var(--accent)]"
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-[var(--text)]">Primary Location</label>
-            <input
-              type="text"
-              placeholder="e.g. Bengaluru, India"
-              value={profile.contactInfo?.location || ''}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  contactInfo: { ...profile.contactInfo, location: e.target.value },
-                })
-              }
-              className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface-alt)]/30 text-[var(--text)] text-xs focus:outline-none focus:border-[var(--accent)]"
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#0B0B0B]">Professional Summary / Bio</label>
+            <textarea
+              rows={3}
+              placeholder="Concise overview of your career, research interests, or academic focus..."
+              value={profile.summary || ''}
+              onChange={(e) => setProfile({ ...profile, summary: e.target.value })}
+              className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-[var(--text)]">Professional Summary / Bio</label>
-          <textarea
-            rows={3}
-            placeholder="Brief professional profile or research objective..."
-            value={profile.summary || ''}
-            onChange={(e) => setProfile({ ...profile, summary: e.target.value })}
-            className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--surface-alt)]/30 text-[var(--text)] text-xs focus:outline-none focus:border-[var(--accent)]"
-          />
-        </div>
-
-        <div className="pt-2 border-t border-[var(--border-muted)]">
-          <h3 className="text-xs font-semibold text-[var(--text)] mb-3">Links &amp; Profiles</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <input
-              type="text"
-              placeholder="LinkedIn URL"
-              value={profile.socialLinks?.linkedin || ''}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  socialLinks: { ...profile.socialLinks, linkedin: e.target.value },
-                })
-              }
-              className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface-alt)]/30 text-[var(--text)] text-xs focus:outline-none focus:border-[var(--accent)]"
-            />
-            <input
-              type="text"
-              placeholder="GitHub / GitLab URL"
-              value={profile.socialLinks?.github || ''}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  socialLinks: { ...profile.socialLinks, github: e.target.value },
-                })
-              }
-              className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface-alt)]/30 text-[var(--text)] text-xs focus:outline-none focus:border-[var(--accent)]"
-            />
-            <input
-              type="text"
-              placeholder="Portfolio / Personal URL"
-              value={profile.socialLinks?.portfolio || ''}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  socialLinks: { ...profile.socialLinks, portfolio: e.target.value },
-                })
-              }
-              className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface-alt)]/30 text-[var(--text)] text-xs focus:outline-none focus:border-[var(--accent)]"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* DISCOVERY CHECKLIST FOR FRESHERS */}
-      <section className="bg-[var(--surface-alt)]/40 border border-[var(--border)] rounded-lg p-4 sm:p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <Compass className="w-4 h-4 text-[var(--accent)]" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
-            Experience Discovery Checklist (Uncover Overlooked Projects)
+        {/* Step 1 Social & Web Links */}
+        <div className="pt-4 border-t border-[#6B6B6B] space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#0B0B0B]">
+            Professional Links &amp; Profiles
           </h3>
-        </div>
-        <p className="text-xs text-[var(--text-muted)]">
-          Freshers often overlook non-corporate experiences that demonstrate initiative. Click a prompt below to create an empty draft section ready for your details:
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-          {DISCOVERY_PROMPTS.map((prompt) => (
-            <button
-              key={prompt.id}
-              type="button"
-              onClick={() => handleApplyDiscoveryPrompt(prompt)}
-              className="text-left p-3 rounded border border-[var(--border-muted)] bg-[var(--surface)] hover:border-[var(--accent)] transition-colors flex flex-col justify-between group"
-            >
-              <div className="text-xs font-semibold text-[var(--text)] group-hover:text-[var(--accent)]">
-                + {prompt.title}
-              </div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-1">
-                {prompt.helperText}
-              </div>
-            </button>
-          ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#0B0B0B]">LinkedIn Profile</label>
+              <input
+                type="url"
+                placeholder="https://linkedin.com/in/username"
+                value={socialLinks.linkedin || ''}
+                onChange={(e) => handleUpdateSocial('linkedin', e.target.value)}
+                className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#0B0B0B]">GitHub Profile (where relevant)</label>
+              <input
+                type="url"
+                placeholder="https://github.com/username"
+                value={socialLinks.github || ''}
+                onChange={(e) => handleUpdateSocial('github', e.target.value)}
+                className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#0B0B0B]">Personal Website (if exists)</label>
+              <input
+                type="url"
+                placeholder="https://yourname.com"
+                value={socialLinks.website || ''}
+                onChange={(e) => handleUpdateSocial('website', e.target.value)}
+                className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#0B0B0B]">Other Relevant Professional Links</label>
+              <input
+                type="text"
+                placeholder="Comma-separated or portfolio URL"
+                value={socialLinks.otherLinks || socialLinks.other || ''}
+                onChange={(e) => handleUpdateSocial('otherLinks', e.target.value)}
+                className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              />
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* SECTION 2: Education CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-[var(--accent)]" />
-            <h2 className="font-display text-base font-bold text-[var(--text)]">2. Education</h2>
+      {/* SECTION 2: Education CRUD Panel */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <BookOpen className="w-5 h-5 text-[#800021]" />
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">2. Background &amp; Education</h2>
           </div>
           <button
             type="button"
@@ -301,61 +394,73 @@ export function MasterProfileEditor({
                 },
               ])
             }
-            className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
-            <Plus className="w-3 h-3" /> Add Education
+            <Plus className="w-3.5 h-3.5" /> Add Degree / Institution
           </button>
         </div>
 
         {educations.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] py-2">No education entries added yet.</p>
+          <p className="text-xs text-[#333333] py-2">No educational history entered yet.</p>
         ) : (
           <div className="space-y-4">
             {educations.map((edu, idx) => (
-              <div key={edu.id || idx} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 space-y-3">
+              <div key={edu.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--text)]">Education #{idx + 1}</span>
+                  <span className="text-xs font-bold text-[#0B0B0B]">Entry #{idx + 1}</span>
                   <button
                     type="button"
                     onClick={() => setEducations((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs"
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1 rounded text-xs"
+                    title="Delete entry"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
-                    placeholder="Institution / College"
+                    placeholder="Institution Name"
                     value={edu.institution || ''}
                     onChange={(e) => {
                       const updated = [...educations];
                       updated[idx].institution = e.target.value;
                       setEducations(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                   <input
                     type="text"
-                    placeholder="Degree (e.g. B.Tech, B.Sc)"
+                    placeholder="Degree (e.g. B.Tech, B.S., M.S.)"
                     value={edu.degree || ''}
                     onChange={(e) => {
                       const updated = [...educations];
                       updated[idx].degree = e.target.value;
                       setEducations(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                   <input
                     type="text"
-                    placeholder="CGPA / Percentage (optional)"
+                    placeholder="Field of Study / Department"
+                    value={edu.fieldOfStudy || ''}
+                    onChange={(e) => {
+                      const updated = [...educations];
+                      updated[idx].fieldOfStudy = e.target.value;
+                      setEducations(updated);
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="CGPA / Percentage"
                     value={edu.gradeValue || ''}
                     onChange={(e) => {
                       const updated = [...educations];
                       updated[idx].gradeValue = e.target.value;
                       setEducations(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                 </div>
               </div>
@@ -364,12 +469,12 @@ export function MasterProfileEditor({
         )}
       </section>
 
-      {/* SECTION 3: Experience CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-[var(--accent)]" />
-            <h2 className="font-display text-base font-bold text-[var(--text)]">3. Experience</h2>
+      {/* SECTION 3: Experience & Internships CRUD Panel */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <Briefcase className="w-5 h-5 text-[#800021]" />
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">3. Experience &amp; Internships</h2>
           </div>
           <button
             type="button"
@@ -386,29 +491,30 @@ export function MasterProfileEditor({
                 },
               ])
             }
-            className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
-            <Plus className="w-3 h-3" /> Add Experience
+            <Plus className="w-3.5 h-3.5" /> Add Experience
           </button>
         </div>
 
         {experiences.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] py-2">No experience entries added yet.</p>
+          <p className="text-xs text-[#333333] py-2">No experiences added yet.</p>
         ) : (
           <div className="space-y-4">
             {experiences.map((exp, idx) => (
-              <div key={exp.id || idx} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 space-y-3">
+              <div key={exp.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--text)]">Experience #{idx + 1}</span>
+                  <span className="text-xs font-bold text-[#0B0B0B]">Role #{idx + 1}</span>
                   <button
                     type="button"
                     onClick={() => setExperiences((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs"
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1 rounded text-xs"
+                    title="Delete role"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
                     placeholder="Organization / Company"
@@ -418,34 +524,19 @@ export function MasterProfileEditor({
                       updated[idx].organization = e.target.value;
                       setExperiences(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                   <input
                     type="text"
-                    placeholder="Role / Title"
+                    placeholder="Role Title"
                     value={exp.role || ''}
                     onChange={(e) => {
                       const updated = [...experiences];
                       updated[idx].role = e.target.value;
                       setExperiences(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
-                  <select
-                    value={exp.type || 'internship'}
-                    onChange={(e) => {
-                      const updated = [...experiences];
-                      updated[idx].type = e.target.value;
-                      setExperiences(updated);
-                    }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
-                  >
-                    <option value="internship">Internship</option>
-                    <option value="job">Full-time Job</option>
-                    <option value="research">Research</option>
-                    <option value="volunteering">Volunteering / Club</option>
-                    <option value="freelance">Freelance</option>
-                  </select>
                 </div>
               </div>
             ))}
@@ -453,12 +544,12 @@ export function MasterProfileEditor({
         )}
       </section>
 
-      {/* SECTION 4: Projects CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
-          <div className="flex items-center gap-2">
-            <FolderGit2 className="w-4 h-4 text-[var(--accent)]" />
-            <h2 className="font-display text-base font-bold text-[var(--text)]">4. Projects</h2>
+      {/* SECTION 4: Projects CRUD Panel */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <FolderGit2 className="w-5 h-5 text-[#800021]" />
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">4. Projects &amp; Initiatives</h2>
           </div>
           <button
             type="button"
@@ -475,24 +566,25 @@ export function MasterProfileEditor({
                 },
               ])
             }
-            className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
-            <Plus className="w-3 h-3" /> Add Project
+            <Plus className="w-3.5 h-3.5" /> Add Project
           </button>
         </div>
 
         {projects.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] py-2">No projects added yet.</p>
+          <p className="text-xs text-[#333333] py-2">No projects added yet.</p>
         ) : (
           <div className="space-y-4">
             {projects.map((proj, idx) => (
-              <div key={proj.id || idx} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 space-y-3">
+              <div key={proj.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--text)]">Project #{idx + 1}</span>
+                  <span className="text-xs font-bold text-[#0B0B0B]">Project #{idx + 1}</span>
                   <button
                     type="button"
                     onClick={() => setProjects((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs"
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1 rounded text-xs"
+                    title="Delete project"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -507,18 +599,18 @@ export function MasterProfileEditor({
                       updated[idx].title = e.target.value;
                       setProjects(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                   <input
                     type="text"
-                    placeholder="Role / Subtitle (e.g. Lead Prototyper)"
+                    placeholder="Role (e.g. Lead Developer, Researcher)"
                     value={proj.role || ''}
                     onChange={(e) => {
                       const updated = [...projects];
                       updated[idx].role = e.target.value;
                       setProjects(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                 </div>
               </div>
@@ -527,12 +619,12 @@ export function MasterProfileEditor({
         )}
       </section>
 
-      {/* SECTION 5: Skills & Competencies CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-[var(--accent)]" />
-            <h2 className="font-display text-base font-bold text-[var(--text)]">5. Skills &amp; Competencies</h2>
+      {/* SECTION 5: Skills & Competencies CRUD Panel */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <Cpu className="w-5 h-5 text-[#800021]" />
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">5. Skills &amp; Competencies</h2>
           </div>
           <button
             type="button"
@@ -547,24 +639,25 @@ export function MasterProfileEditor({
                 },
               ])
             }
-            className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
-            <Plus className="w-3 h-3" /> Add Skill Category
+            <Plus className="w-3.5 h-3.5" /> Add Skill Category
           </button>
         </div>
 
         {skills.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] py-2">No skill categories added yet.</p>
+          <p className="text-xs text-[#333333] py-2">No skill categories added yet.</p>
         ) : (
           <div className="space-y-4">
             {skills.map((sk, idx) => (
-              <div key={sk.id || idx} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 space-y-3">
+              <div key={sk.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--text)]">Category #{idx + 1}</span>
+                  <span className="text-xs font-bold text-[#0B0B0B]">Category #{idx + 1}</span>
                   <button
                     type="button"
                     onClick={() => setSkills((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs"
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1 rounded text-xs"
+                    title="Delete category"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -572,18 +665,18 @@ export function MasterProfileEditor({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
-                    placeholder="Category (e.g. Languages, Tools, Laboratory)"
+                    placeholder="Category (e.g. Languages, Tools)"
                     value={sk.category || ''}
                     onChange={(e) => {
                       const updated = [...skills];
                       updated[idx].category = e.target.value;
                       setSkills(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                   <input
                     type="text"
-                    placeholder="Comma-separated items (e.g. Python, SQL, C++)"
+                    placeholder="Comma-separated items (e.g. Python, SQL)"
                     value={(sk.items || []).map((i: any) => i.name || i).join(', ')}
                     onChange={(e) => {
                       const updated = [...skills];
@@ -594,7 +687,7 @@ export function MasterProfileEditor({
                         .map((name) => ({ name }));
                       setSkills(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                 </div>
               </div>
@@ -603,12 +696,12 @@ export function MasterProfileEditor({
         )}
       </section>
 
-      {/* SECTION 6: Publications & Research CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-[var(--accent)]" />
-            <h2 className="font-display text-base font-bold text-[var(--text)]">6. Publications &amp; Research</h2>
+      {/* SECTION 6: Publications Panel */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-5 h-5 text-[#800021]" />
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">6. Publications &amp; Papers</h2>
           </div>
           <button
             type="button"
@@ -620,30 +713,28 @@ export function MasterProfileEditor({
                   profileId: profile.id,
                   title: '',
                   venue: '',
-                  publicationDate: '',
-                  doiOrUrl: '',
-                  summary: '',
                 },
               ])
             }
-            className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
-            <Plus className="w-3 h-3" /> Add Publication
+            <Plus className="w-3.5 h-3.5" /> Add Publication
           </button>
         </div>
 
         {publications.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] py-2">No publications added yet.</p>
+          <p className="text-xs text-[#333333] py-2">No publications recorded yet.</p>
         ) : (
           <div className="space-y-4">
             {publications.map((pub, idx) => (
-              <div key={pub.id || idx} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 space-y-3">
+              <div key={pub.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[var(--text)]">Publication #{idx + 1}</span>
+                  <span className="text-xs font-bold text-[#0B0B0B]">Publication #{idx + 1}</span>
                   <button
                     type="button"
                     onClick={() => setPublications((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs"
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1 rounded text-xs"
+                    title="Delete publication"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -651,25 +742,25 @@ export function MasterProfileEditor({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
-                    placeholder="Title of Paper / Book Chapter"
+                    placeholder="Title of Paper / Article"
                     value={pub.title || ''}
                     onChange={(e) => {
                       const updated = [...publications];
                       updated[idx].title = e.target.value;
                       setPublications(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                   <input
                     type="text"
-                    placeholder="Conference / Journal / Venue"
+                    placeholder="Venue / Journal / Conference"
                     value={pub.venue || ''}
                     onChange={(e) => {
                       const updated = [...publications];
                       updated[idx].venue = e.target.value;
                       setPublications(updated);
                     }}
-                    className="px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
                 </div>
               </div>
@@ -678,155 +769,164 @@ export function MasterProfileEditor({
         )}
       </section>
 
-      {/* SECTION 7: Achievements & Certifications CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-6">
-        {/* Achievements */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-2">
-            <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-[var(--accent)]" />
-              <h2 className="font-display text-base font-bold text-[var(--text)]">7. Achievements &amp; Honors</h2>
+      {/* SECTION 7: Achievements & Honors Panel (Item 4c: Separate solid panel) */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <Award className="w-5 h-5 text-[#800021]" />
+            <div>
+              <h2 className="font-display text-lg font-bold text-[#0B0B0B]">7. Achievements &amp; Honors</h2>
+              <p className="text-xs text-[#333333] mt-0.5">
+                Awards, academic honors, hackathons, and distinction records.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={() =>
-                setAchievements((prev) => [
-                  ...prev,
-                  {
-                    id: `temp-${Date.now()}`,
-                    profileId: profile.id,
-                    title: '',
-                    issuerOrOrg: '',
-                    date: '',
-                  },
-                ])
-              }
-              className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
-            >
-              <Plus className="w-3 h-3" /> Add Achievement
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              setAchievements((prev) => [
+                ...prev,
+                {
+                  id: `temp-${Date.now()}`,
+                  profileId: profile.id,
+                  title: '',
+                  issuerOrOrg: '',
+                  date: '',
+                },
+              ])
+            }
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Achievement
+          </button>
+        </div>
 
-          {achievements.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] py-1">No achievements recorded yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {achievements.map((ach, idx) => (
-                <div key={ach.id || idx} className="p-3 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 flex flex-col sm:flex-row sm:items-center gap-3">
+        {achievements.length === 0 ? (
+          <p className="text-xs text-[#333333] py-2">No achievements recorded yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {achievements.map((ach, idx) => (
+              <div key={ach.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex flex-col sm:flex-row sm:items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Achievement Title (e.g. 1st Place National Hackathon)"
+                  value={ach.title || ''}
+                  onChange={(e) => {
+                    const updated = [...achievements];
+                    updated[idx].title = e.target.value;
+                    setAchievements(updated);
+                  }}
+                  className="flex-1 w-full px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
+                />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <input
                     type="text"
-                    placeholder="Title (e.g. 1st Place National Hackathon)"
-                    value={ach.title || ''}
+                    placeholder="Awarding Body / Organization"
+                    value={ach.issuerOrOrg || ''}
                     onChange={(e) => {
                       const updated = [...achievements];
-                      updated[idx].title = e.target.value;
+                      updated[idx].issuerOrOrg = e.target.value;
                       setAchievements(updated);
                     }}
-                    className="flex-1 w-full px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="flex-1 sm:w-48 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
                   />
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <input
-                      type="text"
-                      placeholder="Awarding Body / Organization"
-                      value={ach.issuerOrOrg || ''}
-                      onChange={(e) => {
-                        const updated = [...achievements];
-                        updated[idx].issuerOrOrg = e.target.value;
-                        setAchievements(updated);
-                      }}
-                      className="flex-1 sm:w-48 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setAchievements((prev) => prev.filter((_, i) => i !== idx))}
-                      className="text-red-600 hover:text-red-700 text-xs px-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAchievements((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1.5 rounded text-xs"
+                    title="Delete achievement"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Certifications */}
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-2">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[var(--accent)]" />
-              <h2 className="font-display text-base font-bold text-[var(--text)]">8. Certifications &amp; Licenses</h2>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setCertifications((prev) => [
-                  ...prev,
-                  {
-                    id: `temp-${Date.now()}`,
-                    profileId: profile.id,
-                    name: '',
-                    issuer: '',
-                    issueDate: '',
-                  },
-                ])
-              }
-              className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
-            >
-              <Plus className="w-3 h-3" /> Add Certification
-            </button>
+              </div>
+            ))}
           </div>
-
-          {certifications.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)] py-1">No certifications recorded yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {certifications.map((cert, idx) => (
-                <div key={cert.id || idx} className="p-3 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <input
-                    type="text"
-                    placeholder="Certification Name"
-                    value={cert.name || ''}
-                    onChange={(e) => {
-                      const updated = [...certifications];
-                      updated[idx].name = e.target.value;
-                      setCertifications(updated);
-                    }}
-                    className="flex-1 w-full px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
-                  />
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <input
-                      type="text"
-                      placeholder="Issuing Authority"
-                      value={cert.issuer || ''}
-                      onChange={(e) => {
-                        const updated = [...certifications];
-                        updated[idx].issuer = e.target.value;
-                        setCertifications(updated);
-                      }}
-                      className="flex-1 sm:w-48 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCertifications((prev) => prev.filter((_, i) => i !== idx))}
-                      className="text-red-600 hover:text-red-700 text-xs px-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </section>
 
-      {/* SECTION 8: Custom Sections CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-[var(--accent)]" />
-            <h2 className="font-display text-base font-bold text-[var(--text)]">9. Custom Sections</h2>
+      {/* SECTION 8: Certifications & Licenses Panel (Item 4c: Separate solid panel) */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-5 h-5 text-[#800021]" />
+            <div>
+              <h2 className="font-display text-lg font-bold text-[#0B0B0B]">8. Certifications &amp; Licenses</h2>
+              <p className="text-xs text-[#333333] mt-0.5">
+                Industry credentials, coursework credentials, and professional licenses.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setCertifications((prev) => [
+                ...prev,
+                {
+                  id: `temp-${Date.now()}`,
+                  profileId: profile.id,
+                  name: '',
+                  issuer: '',
+                  issueDate: '',
+                },
+              ])
+            }
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Certification
+          </button>
+        </div>
+
+        {certifications.length === 0 ? (
+          <p className="text-xs text-[#333333] py-2">No certifications recorded yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {certifications.map((cert, idx) => (
+              <div key={cert.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex flex-col sm:flex-row sm:items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Certification Name"
+                  value={cert.name || ''}
+                  onChange={(e) => {
+                    const updated = [...certifications];
+                    updated[idx].name = e.target.value;
+                    setCertifications(updated);
+                  }}
+                  className="flex-1 w-full px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
+                />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    placeholder="Issuing Authority"
+                    value={cert.issuer || ''}
+                    onChange={(e) => {
+                      const updated = [...certifications];
+                      updated[idx].issuer = e.target.value;
+                      setCertifications(updated);
+                    }}
+                    className="flex-1 sm:w-48 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCertifications((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-[#800021] hover:bg-[#FFE4D8] p-1.5 rounded text-xs"
+                    title="Delete certification"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* SECTION 9: Custom Sections Panel */}
+      <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+          <div className="flex items-center gap-2.5">
+            <LayoutGrid className="w-5 h-5 text-[#800021]" />
+            <h2 className="font-display text-lg font-bold text-[#0B0B0B]">9. Custom Sections</h2>
           </div>
           <button
             type="button"
@@ -841,51 +941,73 @@ export function MasterProfileEditor({
                 },
               ])
             }
-            className="inline-flex items-center gap-1 px-3 py-1 rounded border border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs font-semibold hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
-            <Plus className="w-3 h-3" /> Add Custom Section
+            <Plus className="w-3.5 h-3.5" /> Add Custom Section
           </button>
         </div>
 
         {customSections.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)] py-2">No custom sections added yet.</p>
+          <p className="text-xs text-[#333333] py-2">No custom sections added yet.</p>
         ) : (
           <div className="space-y-4">
             {customSections.map((cs, idx) => (
-              <div key={cs.id || idx} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 space-y-3">
-                <div className="flex items-center justify-between">
-                  <input
-                    type="text"
-                    placeholder="Section Title (e.g. Exhibitions, Patents, Leadership)"
-                    value={cs.sectionTitle || ''}
-                    onChange={(e) => {
-                      const updated = [...customSections];
-                      updated[idx].sectionTitle = e.target.value;
-                      setCustomSections(updated);
-                    }}
-                    className="font-semibold text-xs px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] w-2/3"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setCustomSections((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+              <div key={cs.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex items-center justify-between gap-3">
+                <input
+                  type="text"
+                  placeholder="Section Title (e.g. Leadership, Patents, Volunteer Work)"
+                  value={cs.sectionTitle || ''}
+                  onChange={(e) => {
+                    const updated = [...customSections];
+                    updated[idx].sectionTitle = e.target.value;
+                    setCustomSections(updated);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:ring-2 focus:ring-[#800021]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCustomSections((prev) => prev.filter((_, i) => i !== idx))}
+                  className="text-[#800021] hover:bg-[#FFE4D8] p-1.5 rounded text-xs"
+                  title="Delete section"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* Bottom Save Action */}
-      <div className="pt-4 border-t border-[var(--border-muted)] flex justify-end">
+      {/* Discovery Prompt Sidebar Panel */}
+      <section className="bg-[#FFE4D8] border border-[#800021] rounded-xl p-6 shadow-sm space-y-3">
+        <div className="flex items-center gap-2 text-[#800021]">
+          <Compass className="w-5 h-5 shrink-0" />
+          <h3 className="font-display font-bold text-sm">Experience &amp; Activity Prompts</h3>
+        </div>
+        <p className="text-xs text-[#800021] leading-relaxed">
+          The platform helps you recall valuable non-traditional experiences. Tap any prompt to add an empty record to your profile facts:
+        </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          {DISCOVERY_PROMPTS.slice(0, 5).map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleApplyDiscoveryPrompt(p)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#FFFFFF] border border-[#800021] text-[#800021] hover:bg-[#800021] hover:text-[#FFFFFF] transition-colors shadow-2xs"
+            >
+              + {p.title}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Bottom Save Action Panel */}
+      <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-sm flex justify-end">
         <button
           type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-md bg-[var(--accent)] text-[var(--surface)] text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save All Facts'}
