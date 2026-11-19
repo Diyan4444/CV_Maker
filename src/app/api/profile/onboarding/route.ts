@@ -322,6 +322,9 @@ export async function POST(request: Request) {
       documentId: documentId!,
     });
   } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    }
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('Onboarding API error:', error);
     return NextResponse.json(

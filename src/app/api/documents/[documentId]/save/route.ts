@@ -70,8 +70,34 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    // 3. Validate each section content payload (schema and 64KB size limit)
+    // 3. Normalize and sanitize section content payloads before validation
     for (const sec of body.sections) {
+      if (sec.sectionType === 'certifications' && sec.content && typeof sec.content === 'object') {
+        const c = sec.content as Record<string, unknown>;
+        if (Array.isArray(c.entries)) {
+          c.entries = c.entries.map((entry: Record<string, unknown>) => ({
+            ...entry,
+            name: (entry.name || entry.title || 'Certification Name')?.toString().trim().slice(0, 500),
+            issuingOrg: (entry.issuingOrg || entry.issuer || 'Certification Authority')?.toString().trim().slice(0, 300),
+          }));
+        }
+      } else if (sec.sectionType === 'achievements' && sec.content && typeof sec.content === 'object') {
+        const c = sec.content as Record<string, unknown>;
+        if (Array.isArray(c.entries)) {
+          c.entries = c.entries.map((entry: Record<string, unknown>) => ({
+            ...entry,
+            title: (entry.title || entry.name || 'Achievement Title')?.toString().trim().slice(0, 500),
+            issuer: entry.issuer ? entry.issuer.toString().trim().slice(0, 300) : undefined,
+          }));
+        }
+      } else if (sec.sectionType === 'header' && sec.content && typeof sec.content === 'object') {
+        const c = sec.content as Record<string, unknown>;
+        if (c.phone) c.phone = c.phone.toString().trim().slice(0, 100);
+        if (c.city) c.city = c.city.toString().trim().slice(0, 255);
+        if (c.country) c.country = c.country.toString().trim().slice(0, 255);
+        if (c.location) c.location = c.location.toString().trim().slice(0, 255);
+      }
+
       const valResult = validateSectionContent(sec.sectionType, sec.content);
       if (!valResult.valid) {
         return NextResponse.json(
@@ -167,6 +193,9 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       updatedAt: now.toISOString(),
     });
   } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    }
     console.error('Error saving document:', err);
     const message = err instanceof Error ? err.message : 'Failed to save document.';
     return NextResponse.json({ error: message }, { status: 500 });

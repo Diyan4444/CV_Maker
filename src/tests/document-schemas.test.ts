@@ -4,6 +4,7 @@ import {
   documentSectionSchema,
   fullDocumentSchema,
   validateDocumentSize,
+  validateSectionContent,
 } from '@/lib/documents/schemas';
 import { ONE_PAGE_RESUME_FIXTURE } from '@/lib/fixtures/document-fixtures';
 
@@ -99,5 +100,49 @@ describe('Document Schemas and Limits', () => {
       },
     };
     expect(validateDocumentSize(oversizedSection)).toBe(false);
+  });
+
+  it('validates robust field limits for certifications, achievements, and header', () => {
+    // 1. Certifications: supports empty or default issuingOrg and long name up to 500 chars
+    const certSection = {
+      schema_version: '1.0.0',
+      entries: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          name: 'AWS Certified Solutions Architect – Professional (SAP-C02) Specialization with Cloud Security Architecture & Governance In High Availability Environments '.repeat(2).slice(0, 450),
+          issuingOrg: '',
+        },
+      ],
+    };
+    const certVal = validateSectionContent('certifications', certSection);
+    expect(certVal.valid).toBe(true);
+
+    // 2. Achievements: supports titles up to 500 characters
+    const achSection = {
+      schema_version: '1.0.0',
+      entries: [
+        {
+          id: '22222222-2222-4222-8222-222222222222',
+          title: "Dean's Distinguished Award for Highest Academic Excellence and Exemplary Research Contributions Across Interdisciplinary Science, Mathematics, and Computer Systems Engineering ".repeat(2).slice(0, 400),
+          issuer: 'University Faculty Senate',
+          description: 'Awarded annually to top 0.1% students with peer-reviewed publications.',
+        },
+      ],
+    };
+    const achVal = validateSectionContent('achievements', achSection);
+    expect(achVal.valid).toBe(true);
+
+    // 3. Header: supports phone numbers up to 100 characters and city/country/location up to 255
+    const headerSection = {
+      schema_version: '1.0.0',
+      fullName: 'Dr. Alexander Montgomery-Chamberlain',
+      email: 'alexander@example.org',
+      phone: '+1 (555) 019-2834 ext. 89201 / direct: +44 20 7946 0912 (Available 09:00 - 17:00 CET)',
+      city: 'São Paulo Metropolitan Region & Federal District Research Corridor',
+      country: 'Federative Republic of Brazil & European Union Cooperative Territory',
+      location: 'São Paulo, Brazil & Göttingen, Lower Saxony, Germany',
+    };
+    const headerVal = validateSectionContent('header', headerSection);
+    expect(headerVal.valid).toBe(true);
   });
 });

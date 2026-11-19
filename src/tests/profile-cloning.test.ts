@@ -149,8 +149,41 @@ describe('Profile Cloning and Document Independence', () => {
     };
 
     const emptyDocSections = createDocumentSectionsFromProfile('doc-empty-1', 'resume', emptyDataset);
-    const expSec = emptyDocSections.find((s) => s.sectionType === 'experience');
-    expect((expSec?.content as any).entries.length).toBe(0);
-    expect(expSec?.isVisible).toBe(false);
+
+    // 1. Verify every entries-based section has 0 entries and is set to hidden (isVisible: false)
+    const entrySectionTypes = ['education', 'experience', 'projects', 'skills', 'certifications', 'publications', 'achievements', 'custom'];
+    for (const secType of entrySectionTypes) {
+      const sec = emptyDocSections.find((s) => s.sectionType === secType);
+      if (sec) {
+        expect((sec.content as any).entries, `${secType} must have empty entries array`).toHaveLength(0);
+        expect(sec.isVisible, `${secType} must not be visible when empty`).toBe(false);
+      }
+    }
+
+    // 2. Summary section must be empty and not visible
+    const summarySec = emptyDocSections.find((s) => s.sectionType === 'summary');
+    if (summarySec) {
+      expect((summarySec.content as any).text || '').toBe('');
+      expect(summarySec.isVisible).toBe(false);
+    }
+
+    // 3. Header must contain only provided userMeta (no invented phone, headline, or links)
+    const headerSec = emptyDocSections.find((s) => s.sectionType === 'header');
+    expect(headerSec).toBeDefined();
+    const hContent = headerSec!.content as any;
+    expect(hContent.fullName).toBe('Empty User');
+    expect(hContent.email).toBe('empty@example.com');
+    expect(hContent.phone).toBeUndefined();
+    expect(hContent.city).toBeUndefined();
+    expect(hContent.country).toBeUndefined();
+    expect(hContent.headline).toBeUndefined();
+    expect(hContent.otherLinks || []).toHaveLength(0);
+
+    // 4. Verify no sample/placeholder keywords exist anywhere in serialized JSON
+    const jsonString = JSON.stringify(emptyDocSections).toLowerCase();
+    expect(jsonString).not.toContain('lorem');
+    expect(jsonString).not.toContain('placeholder');
+    expect(jsonString).not.toContain('acme');
+    expect(jsonString).not.toContain('software engineer at');
   });
 });

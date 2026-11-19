@@ -34,6 +34,9 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       sections,
     });
   } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    }
     const message = err instanceof Error ? err.message : 'Failed to fetch document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -56,6 +59,9 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json({ success: true, deletedId: deleted.id });
   } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    }
     console.error('Error deleting document:', err);
     const message = err instanceof Error ? err.message : 'Failed to delete document.';
     return NextResponse.json({ error: message }, { status: 500 });

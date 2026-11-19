@@ -36,6 +36,8 @@ test.describe('GPU WebGL Color Pipeline Verification', () => {
   test('Renders /login recipe on WebGL canvas and verifies OKLab color values with strict tolerance', async ({
     page,
   }) => {
+    // 1. Force deterministic static composition via prefers-reduced-motion: reduce
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/login', { waitUntil: 'networkidle' });
 
     // Ensure WebGL context is initialized and attached
@@ -43,6 +45,9 @@ test.describe('GPU WebGL Color Pipeline Verification', () => {
       () => Boolean((window as unknown as { __COLORFIELD_GL__?: WebGLRenderingContext }).__COLORFIELD_GL__),
       { timeout: 15000 }
     );
+
+    // Wait 500ms for static frame to settle
+    await page.waitForTimeout(500);
 
     const pixelSamples = await page.evaluate(() => {
       const canvas = document.querySelector('canvas') as HTMLCanvasElement;
@@ -55,53 +60,54 @@ test.describe('GPU WebGL Color Pipeline Verification', () => {
       const height = gl.drawingBufferHeight;
 
       function readAtNormalized(nx: number, ny: number) {
-        const px = Math.min(Math.max(Math.floor(nx * width), 0), width - 1);
-        const py = Math.min(Math.max(Math.floor((1.0 - ny) * height), 0), height - 1);
+        const px = Math.min(Math.max(Math.floor(nx * (width - 1)), 0), width - 1);
+        const py = Math.min(Math.max(Math.floor((1.0 - ny) * (height - 1)), 0), height - 1);
         const pixel = new Uint8Array(4);
         gl!.readPixels(px, py, 1, 1, gl!.RGBA, gl!.UNSIGNED_BYTE, pixel);
         return { r: pixel[0], g: pixel[1], b: pixel[2], a: pixel[3] };
       }
 
       return {
-        topLeftForest: readAtNormalized(0.15, 0.20),
-        bottomRightMist: readAtNormalized(0.85, 0.80),
-        center: readAtNormalized(0.50, 0.50),
+        anchor0ForestExtreme: readAtNormalized(0.0, 0.0), // Exact top-left corner
+        anchor1MistExtreme: readAtNormalized(1.0, 1.0),   // Exact bottom-right corner
+        center: readAtNormalized(0.50, 0.50),             // Exact center
       };
     });
 
     expect(pixelSamples).not.toBeNull();
     if (!pixelSamples) return;
 
-    const { topLeftForest, bottomRightMist, center } = pixelSamples;
+    const { anchor0ForestExtreme, anchor1MistExtreme, center } = pixelSamples;
 
     // Convert sampled raw pixels to OKLab
-    const oklabForest = rgbToOklab(topLeftForest.r, topLeftForest.g, topLeftForest.b);
-    const oklabMist = rgbToOklab(bottomRightMist.r, bottomRightMist.g, bottomRightMist.b);
+    const oklabForest = rgbToOklab(anchor0ForestExtreme.r, anchor0ForestExtreme.g, anchor0ForestExtreme.b);
+    const oklabMist = rgbToOklab(anchor1MistExtreme.r, anchor1MistExtreme.g, anchor1MistExtreme.b);
     const oklabCenter = rgbToOklab(center.r, center.g, center.b);
 
-    console.log('Measured OKLab Forest (Anchor 0):', oklabForest);
-    console.log('Measured OKLab Mist (Anchor 1):', oklabMist);
-    console.log('Measured OKLab Center (Blended):', oklabCenter);
+    console.log('Deterministic Static OKLab Forest (Anchor 0 at 0,0):', oklabForest);
+    console.log('Deterministic Static OKLab Mist (Anchor 1 at 1,1):', oklabMist);
+    console.log('Deterministic Static OKLab Center (at 0.5,0.5):', oklabCenter);
 
-    // Expected target OKLab values:
-    // Anchor 0 is P3 (Forest) centered around #163832 / #235347:
-    // Expected L ~ 0.35, a ~ -0.045 (negative/green), b ~ 0.00
-    const expectedForest = { L: 0.35, a: -0.045, b: 0.00 };
+    // Expected analytical OKLab values under deterministic static composition:
+    // Anchor 0 is P3 (Forest) at (0.0, 0.0). At d=0, rampT=0, yielding Stop 0 (#051F20):
+    // Analytical OKLab: L ≈ 0.2198, a ≈ -0.0301, b ≈ -0.0101
+    const expectedForest = { L: 0.2198, a: -0.0301, b: -0.0101 };
     const distForest = deltaEOk(oklabForest, expectedForest);
-    // Explicit tolerance: Delta E in OKLab < 0.22 ensures it belongs to Forest palette
-    expect(distForest, `Forest anchor Delta E (${distForest.toFixed(3)}) exceeds tolerance 0.22`).toBeLessThan(0.22);
-    expect(oklabForest.a, 'Forest anchor must have negative a (green hue)').toBeLessThan(0);
+    console.log(`Delta E (Forest Anchor 0): ${distForest.toFixed(4)}`);
+    expect(distForest, `Forest anchor Delta E (${distForest.toFixed(4)}) exceeds tolerance 0.05`).toBeLessThanOrEqual(0.05);
 
-    // Anchor 1 is P4 (Mist) centered around high lightness pastel stops (#BDD7D8 / #D5E5E5):
-    // Expected L ~ 0.88, a ~ -0.015, b ~ -0.005
-    const expectedMist = { L: 0.88, a: -0.015, b: -0.005 };
+    // Anchor 1 is P4 (Mist) at (1.0, 1.0). At d=0, rampT=0, yielding Stop 0 (#5D6B6B):
+    // Analytical OKLab: L ≈ 0.5196, a ≈ -0.0162, b ≈ -0.0049
+    const expectedMist = { L: 0.5196, a: -0.0162, b: -0.0049 };
     const distMist = deltaEOk(oklabMist, expectedMist);
-    expect(distMist, `Mist anchor Delta E (${distMist.toFixed(3)}) exceeds tolerance 0.22`).toBeLessThan(0.22);
-    expect(oklabMist.L, 'Mist anchor must have high perceived lightness (> 0.75)').toBeGreaterThan(0.75);
+    console.log(`Delta E (Mist Anchor 1): ${distMist.toFixed(4)}`);
+    expect(distMist, `Mist anchor Delta E (${distMist.toFixed(4)}) exceeds tolerance 0.05`).toBeLessThanOrEqual(0.05);
 
-    // Center is a smooth gradient blend between Forest and Mist:
-    // It maintains a high-lightness wash (> 0.60) with blended green/teal chromaticity (a < 0)
-    expect(oklabCenter.L).toBeGreaterThan(0.60);
-    expect(oklabCenter.a).toBeLessThan(0);
+    // Center at (0.5, 0.5) blends lighter stops:
+    // Analytical OKLab: L ≈ 0.9067, a ≈ -0.0250, b ≈ 0.0093
+    const expectedCenter = { L: 0.9067, a: -0.0250, b: 0.0093 };
+    const distCenter = deltaEOk(oklabCenter, expectedCenter);
+    console.log(`Delta E (Center): ${distCenter.toFixed(4)}`);
+    expect(distCenter, `Center blend Delta E (${distCenter.toFixed(4)}) exceeds tolerance 0.05`).toBeLessThanOrEqual(0.05);
   });
 });

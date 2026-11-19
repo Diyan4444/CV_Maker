@@ -11,6 +11,7 @@ import {
   HeaderContent,
   SummaryContent,
   EntriesContent,
+  SectionContent,
 } from '@/lib/documents/types';
 import { LivePdfPreview } from '@/components/editor/LivePdfPreview';
 import { scanDocumentForNonLatin } from '@/lib/validation/pdf-text';
@@ -191,14 +192,53 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             accentColor: meta.accentColor,
             targetRole: meta.targetRole,
           },
-          sections: sections.map((s, idx) => ({
-            id: s.id,
-            sectionType: s.sectionType,
-            title: s.title,
-            orderIndex: idx,
-            isVisible: s.isVisible,
-            content: s.content,
-          })),
+          sections: sections.map((s, idx) => {
+            let contentPayload: SectionContent = s.content;
+            if (s.sectionType === 'certifications' && contentPayload && typeof contentPayload === 'object') {
+              const c = contentPayload as unknown as Record<string, unknown>;
+              if (Array.isArray(c.entries)) {
+                contentPayload = {
+                  ...c,
+                  entries: c.entries.map((entry: Record<string, unknown>) => ({
+                    ...entry,
+                    id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cert-${Date.now()}`),
+                    name: (entry.name || entry.title || 'Certification Name')?.toString().trim().slice(0, 500),
+                    issuingOrg: (entry.issuingOrg || entry.issuer || 'Certification Authority')?.toString().trim().slice(0, 300),
+                  })),
+                } as unknown as SectionContent;
+              }
+            } else if (s.sectionType === 'achievements' && contentPayload && typeof contentPayload === 'object') {
+              const c = contentPayload as unknown as Record<string, unknown>;
+              if (Array.isArray(c.entries)) {
+                contentPayload = {
+                  ...c,
+                  entries: c.entries.map((entry: Record<string, unknown>) => ({
+                    ...entry,
+                    id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ach-${Date.now()}`),
+                    title: (entry.title || entry.name || 'Achievement Title')?.toString().trim().slice(0, 500),
+                    issuer: entry.issuer ? entry.issuer.toString().trim().slice(0, 300) : undefined,
+                  })),
+                } as unknown as SectionContent;
+              }
+            } else if (s.sectionType === 'header' && contentPayload && typeof contentPayload === 'object') {
+              const h = contentPayload as HeaderContent;
+              contentPayload = {
+                ...h,
+                phone: h.phone ? String(h.phone).trim().slice(0, 100) : undefined,
+                city: h.city ? String(h.city).trim().slice(0, 255) : undefined,
+                country: h.country ? String(h.country).trim().slice(0, 255) : undefined,
+                location: h.location ? String(h.location).trim().slice(0, 255) : undefined,
+              } as HeaderContent;
+            }
+            return {
+              id: s.id,
+              sectionType: s.sectionType,
+              title: s.title,
+              orderIndex: idx,
+              isVisible: s.isVisible,
+              content: contentPayload,
+            };
+          }),
         }),
       });
 
@@ -712,44 +752,63 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </label>
                       <input
                         type="text"
+                        maxLength={100}
                         value={(sec.content as HeaderContent).phone || ''}
                         onChange={(e) =>
                           updateSection(sec.id, (s) => ({
                             ...s,
                             content: {
                               ...(s.content as HeaderContent),
-                              phone: e.target.value,
+                              phone: e.target.value.slice(0, 100),
                             },
                           }))
                         }
                         className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
-                        City &amp; Country
-                      </label>
-                      <input
-                        type="text"
-                        value={[
-                          (sec.content as HeaderContent).city,
-                          (sec.content as HeaderContent).country,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')}
-                        onChange={(e) => {
-                          const parts = e.target.value.split(',').map((p) => p.trim());
-                          updateSection(sec.id, (s) => ({
-                            ...s,
-                            content: {
-                              ...(s.content as HeaderContent),
-                              city: parts[0] || '',
-                              country: parts[1] || '',
-                            },
-                          }));
-                        }}
-                        className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
+                          City
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={100}
+                          value={(sec.content as HeaderContent).city || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.slice(0, 100);
+                            updateSection(sec.id, (s) => ({
+                              ...s,
+                              content: {
+                                ...(s.content as HeaderContent),
+                                city: val,
+                              },
+                            }));
+                          }}
+                          className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
+                          Country
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={100}
+                          value={(sec.content as HeaderContent).country || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.slice(0, 100);
+                            updateSection(sec.id, (s) => ({
+                              ...s,
+                              content: {
+                                ...(s.content as HeaderContent),
+                                country: val,
+                              },
+                            }));
+                          }}
+                          className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                        />
+                      </div>
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
@@ -814,29 +873,102 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         className="p-3.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] space-y-2.5 text-xs shadow-xs"
                       >
                         <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-2">
-                          <span className="font-semibold text-[#0B0B0B]">
-                            Entry #{eIdx + 1}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const currentEntries = [
-                                ...(((sec.content as any).entries as any[]) || []),
-                              ];
-                              currentEntries.splice(eIdx, 1);
-                              updateSection(sec.id, (s) => ({
-                                ...s,
-                                content: {
-                                  ...s.content,
-                                  entries: currentEntries,
-                                } as any,
-                              }));
-                            }}
-                            className="text-red-700 hover:text-red-900 transition-colors"
-                            title="Remove entry"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[#0B0B0B]">
+                              Entry #{eIdx + 1}
+                            </span>
+                            {entry.isVisible === false && (
+                              <span className="text-[10px] bg-[#FFE4D8] text-[#800021] px-1.5 py-0.5 rounded font-medium">
+                                Hidden
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {/* Move Up */}
+                            <button
+                              type="button"
+                              disabled={eIdx === 0}
+                              onClick={() => {
+                                if (eIdx === 0) return;
+                                const currentEntries = [...(((sec.content as any).entries as any[]) || [])];
+                                const temp = currentEntries[eIdx];
+                                currentEntries[eIdx] = currentEntries[eIdx - 1];
+                                currentEntries[eIdx - 1] = temp;
+                                updateSection(sec.id, (s) => ({
+                                  ...s,
+                                  content: { ...s.content, entries: currentEntries } as any,
+                                }));
+                              }}
+                              className="p-1 rounded text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-30 disabled:hover:bg-transparent"
+                              title="Move entry up"
+                            >
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Move Down */}
+                            <button
+                              type="button"
+                              disabled={eIdx === (((sec.content as any).entries as any[]) || []).length - 1}
+                              onClick={() => {
+                                const currentEntries = [...(((sec.content as any).entries as any[]) || [])];
+                                if (eIdx >= currentEntries.length - 1) return;
+                                const temp = currentEntries[eIdx];
+                                currentEntries[eIdx] = currentEntries[eIdx + 1];
+                                currentEntries[eIdx + 1] = temp;
+                                updateSection(sec.id, (s) => ({
+                                  ...s,
+                                  content: { ...s.content, entries: currentEntries } as any,
+                                }));
+                              }}
+                              className="p-1 rounded text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-30 disabled:hover:bg-transparent"
+                              title="Move entry down"
+                            >
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                            {/* Toggle Entry Visibility */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentEntries = [...(((sec.content as any).entries as any[]) || [])];
+                                currentEntries[eIdx] = {
+                                  ...currentEntries[eIdx],
+                                  isVisible: currentEntries[eIdx].isVisible === false ? true : false,
+                                };
+                                updateSection(sec.id, (s) => ({
+                                  ...s,
+                                  content: { ...s.content, entries: currentEntries } as any,
+                                }));
+                              }}
+                              className="p-1 rounded text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7]"
+                              title={entry.isVisible === false ? 'Show entry in PDF' : 'Hide entry from PDF'}
+                            >
+                              {entry.isVisible === false ? (
+                                <EyeOff className="w-3.5 h-3.5 text-[#800021]" />
+                              ) : (
+                                <Eye className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            {/* Remove Entry */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentEntries = [
+                                  ...(((sec.content as any).entries as any[]) || []),
+                                ];
+                                currentEntries.splice(eIdx, 1);
+                                updateSection(sec.id, (s) => ({
+                                  ...s,
+                                  content: {
+                                    ...s.content,
+                                    entries: currentEntries,
+                                  } as any,
+                                }));
+                              }}
+                              className="p-1 rounded text-red-700 hover:text-red-900 hover:bg-[#F1F7F7] transition-colors ml-1"
+                              title="Remove entry"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Education entry fields */}
@@ -911,11 +1043,121 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                           </div>
                         )}
 
-                        {/* Project / Publication / Achievement / Custom fields */}
+                        {/* Certifications entry fields */}
+                        {sec.sectionType === 'certifications' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                Certification Name
+                              </label>
+                              <input
+                                type="text"
+                                maxLength={300}
+                                value={(entry.name as string) || (entry.title as string) || ''}
+                                onChange={(e) => {
+                                  const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                  entries[eIdx] = {
+                                    ...entries[eIdx],
+                                    name: e.target.value.slice(0, 300),
+                                    title: e.target.value.slice(0, 300),
+                                  };
+                                  updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                }}
+                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                Issuing Organization
+                              </label>
+                              <input
+                                type="text"
+                                maxLength={200}
+                                value={(entry.issuingOrg as string) || (entry.issuer as string) || ''}
+                                onChange={(e) => {
+                                  const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                  entries[eIdx] = {
+                                    ...entries[eIdx],
+                                    issuingOrg: e.target.value.slice(0, 200),
+                                    issuer: e.target.value.slice(0, 200),
+                                  };
+                                  updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                }}
+                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Achievements entry fields */}
+                        {sec.sectionType === 'achievements' && (
+                          <div className="space-y-2.5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                  Award / Honor Title
+                                </label>
+                                <input
+                                  type="text"
+                                  maxLength={300}
+                                  value={(entry.title as string) || (entry.name as string) || ''}
+                                  onChange={(e) => {
+                                    const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                    entries[eIdx] = {
+                                      ...entries[eIdx],
+                                      title: e.target.value.slice(0, 300),
+                                      name: e.target.value.slice(0, 300),
+                                    };
+                                    updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                  }}
+                                  className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                  Grantor / Organization (optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  maxLength={200}
+                                  value={(entry.issuer as string) || ''}
+                                  onChange={(e) => {
+                                    const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                    entries[eIdx] = {
+                                      ...entries[eIdx],
+                                      issuer: e.target.value.slice(0, 200),
+                                    };
+                                    updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                  }}
+                                  className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                Description (optional)
+                              </label>
+                              <textarea
+                                rows={2}
+                                maxLength={1500}
+                                value={(entry.description as string) || ''}
+                                onChange={(e) => {
+                                  const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                  entries[eIdx] = {
+                                    ...entries[eIdx],
+                                    description: e.target.value.slice(0, 1500),
+                                  };
+                                  updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                }}
+                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B] text-xs leading-relaxed"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Project / Publication / Custom fields */}
                         {(sec.sectionType === 'projects' ||
                           sec.sectionType === 'publications' ||
-                          sec.sectionType === 'achievements' ||
-                          sec.sectionType === 'certifications' ||
                           sec.sectionType === 'custom') && (
                           <div>
                             <label className="block text-[11px] font-semibold text-[#0B0B0B]">
@@ -923,6 +1165,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                             </label>
                             <input
                               type="text"
+                              maxLength={300}
                               value={
                                 (entry.title as string) ||
                                 (entry.name as string) ||
@@ -932,8 +1175,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                 const entries = [...(((sec.content as any).entries as any[]) || [])];
                                 entries[eIdx] = {
                                   ...entries[eIdx],
-                                  title: e.target.value,
-                                  name: e.target.value,
+                                  title: e.target.value.slice(0, 300),
+                                  name: e.target.value.slice(0, 300),
                                 };
                                 updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                               }}
@@ -976,16 +1219,18 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         ];
                         currentEntries.push({
                           id: newEntryId,
-                          institution: '',
-                          degree: '',
-                          role: '',
-                          organization: '',
-                          title: '',
-                          category: 'New Category',
+                          institution: sec.sectionType === 'education' ? 'Institution Name' : '',
+                          degree: sec.sectionType === 'education' ? 'Degree / Program' : '',
+                          role: sec.sectionType === 'experience' ? 'Role / Title' : '',
+                          organization: sec.sectionType === 'experience' ? 'Company Name' : '',
+                          title: sec.sectionType === 'achievements' ? 'Achievement Title' : sec.sectionType === 'projects' || sec.sectionType === 'publications' || sec.sectionType === 'custom' ? 'Title' : '',
+                          category: sec.sectionType === 'skills' ? 'New Category' : '',
                           items: [],
                           authors: [],
-                          name: '',
-                          issuingOrg: '',
+                          name: sec.sectionType === 'certifications' ? 'Certification Name' : '',
+                          issuingOrg: sec.sectionType === 'certifications' ? 'Issuing Organization' : '',
+                          issuer: sec.sectionType === 'achievements' ? 'Organization' : sec.sectionType === 'certifications' ? 'Issuing Organization' : '',
+                          description: '',
                           bullets: [],
                         });
                         updateSection(sec.id, (s) => ({

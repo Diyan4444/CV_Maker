@@ -7,6 +7,8 @@ import {
   TWO_PAGE_RESUME_FIXTURE,
   THREE_PAGE_ACADEMIC_CV_FIXTURE,
   EXTREME_EDGE_CASE_FIXTURE,
+  FORTY_BULLETS_FIXTURE,
+  FONT_SPEC_FIXTURE,
 } from '@/lib/fixtures/document-fixtures';
 import { LivePdfPreview } from '@/components/editor/LivePdfPreview';
 import { TemplateId, FullDocument } from '@/lib/documents/types';
@@ -17,6 +19,8 @@ const FIXTURES: { id: string; name: string; doc: FullDocument }[] = [
   { id: '2page', name: '2-Page Senior Engineer Resume', doc: TWO_PAGE_RESUME_FIXTURE },
   { id: '3page', name: '3-Page Academic Scholarly CV', doc: THREE_PAGE_ACADEMIC_CV_FIXTURE },
   { id: 'extreme', name: 'Extreme Edge Case (Long text, 60 skills, null dates)', doc: EXTREME_EDGE_CASE_FIXTURE },
+  { id: '40bullets', name: 'Multi-Page Entry Flow (40 bullets & 600ch bullet)', doc: FORTY_BULLETS_FIXTURE },
+  { id: 'fontspec', name: 'Font Diacritics & Typographical Symbols', doc: FONT_SPEC_FIXTURE },
 ];
 
 const TEMPLATES: { id: TemplateId; name: string }[] = [
@@ -39,8 +43,22 @@ export function TemplatesGallery() {
   const [selectedFixtureId, setSelectedFixtureId] = useState<string>('1page');
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>('ats_single_column');
   const [selectedAccent, setSelectedAccent] = useState<string>('#0B0B0B');
+  const [liveEditValue, setLiveEditValue] = useState<string>('');
 
   const currentFixture = FIXTURES.find((f) => f.id === selectedFixtureId) || FIXTURES[0];
+
+  const overriddenSections = currentFixture.doc.sections.map((s) => {
+    if (s.sectionType === 'header' && liveEditValue !== '') {
+      return {
+        ...s,
+        content: {
+          ...(s.content as any),
+          fullName: liveEditValue,
+        },
+      };
+    }
+    return s;
+  });
 
   const activeDoc: FullDocument = {
     ...currentFixture.doc,
@@ -49,6 +67,7 @@ export function TemplatesGallery() {
       template_id: selectedTemplateId,
       accent_color: selectedAccent,
     },
+    sections: overriddenSections,
   };
 
   return (
@@ -81,6 +100,21 @@ export function TemplatesGallery() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
         {/* Controls Column */}
         <div className="lg:col-span-4 space-y-6">
+          {/* Live Benchmark Input */}
+          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm">
+            <label htmlFor="benchmark-live-edit-input" className="block text-xs font-bold text-[#0B0B0B] mb-2">
+              Live Benchmark Edit Input
+            </label>
+            <input
+              id="benchmark-live-edit-input"
+              type="text"
+              value={liveEditValue}
+              onChange={(e) => setLiveEditValue(e.target.value)}
+              placeholder="Type to trigger live preview update..."
+              className="w-full text-xs p-2.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] focus:outline-none focus:ring-2 focus:ring-[#800021]"
+            />
+          </div>
+
           {/* Fixture Selector */}
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-3 text-xs font-bold text-[#0B0B0B]">

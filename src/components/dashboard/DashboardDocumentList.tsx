@@ -251,7 +251,9 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
                         </>
                       )}
                       <span>&bull;</span>
-                      <span>Updated {new Date(doc.updated_at).toLocaleDateString()}</span>
+                      <span suppressHydrationWarning>
+                        Updated {doc.updated_at ? new Date(doc.updated_at).toISOString().slice(0, 10) : ''}
+                      </span>
                     </div>
                   </div>
                 </div>

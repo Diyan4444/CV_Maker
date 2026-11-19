@@ -704,3 +704,141 @@ export const EXTREME_EDGE_CASE_FIXTURE: FullDocument = {
     },
   ],
 };
+
+export const FORTY_BULLETS_FIXTURE: FullDocument = {
+  meta: {
+    id: 'fixture-40-bullets',
+    user_id: 'dev-user',
+    type: 'resume',
+    title: 'Multi-Page Flow Stress Test - 40 Bullets',
+    target_role: 'Staff Systems Architect',
+    template_id: 'ats_single_column',
+    accent_color: '#800021',
+    font_size: 'regular',
+    margin_size: 'regular',
+    version: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  sections: [
+    {
+      id: 'sec-header-flow',
+      document_id: 'fixture-40-bullets',
+      section_type: 'header',
+      title: 'Header & Contact Information',
+      custom_title: null,
+      section_order: 0,
+      is_visible: true,
+      content: {
+        full_name: 'Dr. Alexander Montgomery-Chamberlain',
+        email: 'alexander@example.org',
+        phone: '+1 555 019 2834',
+        location: 'Zürich, Switzerland',
+      },
+    },
+    {
+      id: 'sec-exp-flow',
+      document_id: 'fixture-40-bullets',
+      section_type: 'experience',
+      title: 'Professional Experience',
+      custom_title: null,
+      section_order: 1,
+      is_visible: true,
+      content: {
+        entries: [
+          {
+            id: 'exp-flow-1',
+            role: 'Principal Systems Architect',
+            organization: 'Distributed Computing Systems Laboratory',
+            location: 'Zürich, Switzerland',
+            startDate: '2018-01',
+            endDate: 'Present',
+            isCurrent: true,
+            bullets: [
+              ...Array.from({ length: 19 }, (_, i) => `Bullet ${i + 1}: Engineered ultra-low-latency consensus pipelines across heterogeneous node topographies, ensuring strict serializability without deadlocks under continuous fault injection simulations.`),
+              'Bullet 20 (600+ characters): ' + 'Architected, formally verified, and deployed across seven geographically dispersed regions an autonomous Byzantine-fault-tolerant consensus mechanism capable of sustaining forty-five thousand transactions per second during simulated partition events. Implemented comprehensive formal TLA+ specifications comprising over four thousand lines of rigorous invariants verified under TLC model checking across twenty-four compute nodes running continuously for fourteen days without a single state anomaly or serialization failure across distributed shards in real-time execution testing under load.',
+              ...Array.from({ length: 20 }, (_, i) => `Bullet ${i + 21}: Validated end-to-end memory safety and bounds verification across clustered nodes, preventing resource exhaustion and maintaining sub-millisecond p99 latency during synthetic burst loads.`),
+            ],
+          },
+        ],
+      },
+    },
+  ],
+};
+
+export const FONT_SPEC_FIXTURE: FullDocument = {
+  meta: {
+    id: 'fixture-font-spec',
+    user_id: 'dev-user',
+    type: 'resume',
+    title: 'Noto Font Diacritics & Typographical Symbols Verification',
+    target_role: 'International Typography Scholar',
+    template_id: 'modern_professional',
+    accent_color: '#800021',
+    font_size: 'regular',
+    margin_size: 'regular',
+    version: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  sections: [
+    {
+      id: 'sec-header-font',
+      document_id: 'fixture-font-spec',
+      section_type: 'header',
+      title: 'Header & Contact Information',
+      custom_title: null,
+      section_order: 0,
+      is_visible: true,
+      content: {
+        full_name: 'Łukasz Żółć • Şahin Çelik • Nguyễn Văn Đạt',
+        headline: 'Řehoř Dvořák & Søren Müller — “Verified Typography” & ‘Accurate Glyphs’',
+        email: 'typography@example.org',
+        phone: '+48 22 123 4567 – +420 2 1234 5678',
+        location: 'Kraków, Poland • Praha, Czechia • Tromsø, Norway',
+      },
+    },
+    {
+      id: 'sec-summary-font',
+      document_id: 'fixture-font-spec',
+      section_type: 'summary',
+      title: 'Typographical Specification Summary',
+      custom_title: null,
+      section_order: 1,
+      is_visible: true,
+      content: {
+        text: 'Rigorous verification of Polish, Turkish, Vietnamese, Czech, and Nordic diacritics rendered with bundled Noto Sans and Noto Serif TTF fonts: Łukasz Żółć, Şahin Çelik, Nguyễn Văn Đạt, Řehoř Dvořák, and Søren Müller. Typographical dashes and quotes: en dash (2020 – 2024), em dash (High-performance — zero lag), bullet (•), curly double quotes (“Double Quotes”), and curly single quotes (‘Single Quotes’).',
+      },
+    },
+    {
+      id: 'sec-exp-font',
+      document_id: 'fixture-font-spec',
+      section_type: 'experience',
+      title: 'International Research Experience',
+      custom_title: null,
+      section_order: 2,
+      is_visible: true,
+      content: {
+        entries: [
+          {
+            id: 'exp-font-1',
+            role: 'Research Chair of Slavic & Nordic Computational Linguistics',
+            organization: 'Uniwersytet Jagielloński w Krakowie — České vysoké učení technické',
+            location: 'Kraków, Poland – Praha, Czechia',
+            startDate: '2020 – 01',
+            endDate: 'Present',
+            isCurrent: true,
+            bullets: [
+              '• Polish test strings: “Łukasz Żółć zdobył pierwsze miejsce w zawodach informatycznych.”',
+              '• Turkish test strings: “Şahin Çelik, İstanbul Teknik Üniversitesi’nde araştırmacıdır.”',
+              '• Vietnamese test strings: “Nguyễn Văn Đạt đạt thành tích xuất sắc trong nghiên cứu học thuật.”',
+              '• Czech test strings: “Řehoř Dvořák vedl mezinárodní výzkumný tým v oblasti distribuovaných systémů.”',
+              '• Nordic test strings: “Søren Müller publiserte nye resultater om feiltolerante datasystemer.”',
+              '• Typographical punctuation: 2019 – 2026 en dash, production — staging em dash, ‘nested’ “quotes”.',
+            ],
+          },
+        ],
+      },
+    },
+  ],
+};

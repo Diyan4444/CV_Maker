@@ -35,6 +35,9 @@ export function LivePdfPreview({ meta, sections, onPageCountChange }: LivePdfPre
     const timer = setTimeout(async () => {
       setIsCompiling(true);
       setErrorMsg(null);
+      if (canvasContainerRef.current) {
+        canvasContainerRef.current.setAttribute('data-compiling', 'true');
+      }
 
       try {
         // 1. Compile with @react-pdf/renderer
@@ -93,6 +96,17 @@ export function LivePdfPreview({ meta, sections, onPageCountChange }: LivePdfPre
         // Restore scroll position cleanly
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = currentScrollTop;
+        }
+
+        container.setAttribute('data-rendered-version', String(currentVersion));
+        container.setAttribute('data-rendered-at', String(performance.now()));
+        container.setAttribute('data-compiling', 'false');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('preview-canvas-rendered', {
+              detail: { version: currentVersion, timestamp: performance.now() },
+            })
+          );
         }
 
         setIsCompiling(false);

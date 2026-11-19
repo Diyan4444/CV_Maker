@@ -356,8 +356,8 @@ export function createDocumentSectionsFromProfile(
   const certificationEntries: CertificationEntry[] = (data.certifications || []).map((c) => ({
     id: randomUUID(),
     sourceId: c.id,
-    name: c.name,
-    issuingOrg: c.issuingOrg,
+    name: c.name || 'Certification Name',
+    issuingOrg: c.issuingOrg || 'Certification Authority',
     issueDate: c.issueDate || undefined,
     expiryDate: c.expiryDate || undefined,
     credentialId: c.credentialId || undefined,

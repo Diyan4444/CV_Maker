@@ -189,7 +189,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 3. Education Section
           if (type === 'education') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -231,7 +231,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 4. Experience Section
           if (type === 'experience') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -272,7 +272,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 5. Projects Section
           if (type === 'projects') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -309,7 +309,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 6. Skills Section
           if (type === 'skills') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -333,7 +333,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 7. Publications Section
           if (type === 'publications') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -360,7 +360,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 8. Achievements Section
           if (type === 'achievements') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -386,7 +386,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 9. Certifications Section
           if (type === 'certifications') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -413,7 +413,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
 
           // 10. Custom Section
           if (type === 'custom') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (

@@ -388,6 +388,9 @@ export async function POST(request: Request) {
       updatedAt: newUpdatedAt.toISOString(),
     });
   } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    }
     if (err instanceof Error && err.message === 'STALE_SAVE_CONFLICT') {
       return NextResponse.json(
         {

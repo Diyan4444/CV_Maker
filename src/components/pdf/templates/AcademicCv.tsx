@@ -210,7 +210,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
 
           // 3. Education Section
           if (type === 'education') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -251,7 +251,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
 
           // 4. Experience / Appointments Section
           if (type === 'experience') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -292,7 +292,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
 
           // 5. Academic Publications (Numbered [1], [2], ...)
           if (type === 'publications') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -332,7 +332,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
 
           // 6. Projects Section
           if (type === 'projects') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (
@@ -369,7 +369,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
 
           // 7. Custom Sections (e.g. Grants, Fellowships)
           if (type === 'custom') {
-            const entries = (sec.content as any).entries || [];
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 
             return (

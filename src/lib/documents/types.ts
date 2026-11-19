@@ -49,6 +49,7 @@ export type SectionType =
 export interface BaseEntry {
   id: string;
   sourceId?: string | null;
+  isVisible?: boolean;
   [key: string]: unknown;
 }
 

@@ -5,6 +5,7 @@ export const MAX_SECTION_PAYLOAD_BYTES = 64 * 1024; // 64KB DB limit
 export const BaseEntrySchema = z.object({
   id: z.string().uuid(),
   sourceId: z.string().uuid().nullable().optional(),
+  isVisible: z.boolean().optional(),
 });
 
 export const EducationEntrySchema = BaseEntrySchema.extend({
@@ -61,43 +62,48 @@ export const PublicationEntrySchema = BaseEntrySchema.extend({
 });
 
 export const AchievementEntrySchema = BaseEntrySchema.extend({
-  title: z.string().min(1, 'Title is required').max(255),
-  issuer: z.string().max(200).optional(),
-  date: z.string().max(50).optional(),
-  description: z.string().max(1500).optional(),
-  url: z.string().max(500).optional(),
+  title: z.string().min(1, 'Title is required').max(500),
+  issuer: z.string().max(300).optional().or(z.literal('')),
+  date: z.string().max(50).optional().or(z.literal('')),
+  description: z.string().max(2000).optional().or(z.literal('')),
+  url: z.string().max(500).optional().or(z.literal('')),
 });
 
 export const CertificationEntrySchema = BaseEntrySchema.extend({
-  name: z.string().min(1, 'Name is required').max(255),
-  issuingOrg: z.string().min(1, 'Issuing Organization is required').max(200),
-  issueDate: z.string().max(50).optional(),
-  expiryDate: z.string().max(50).optional(),
-  credentialId: z.string().max(150).optional(),
-  credentialUrl: z.string().max(500).optional(),
+  name: z.string().min(1, 'Name is required').max(500),
+  issuingOrg: z.string().max(300).optional().or(z.literal('')).default('Certification Authority'),
+  issuer: z.string().max(300).optional().or(z.literal('')),
+  issueDate: z.string().max(50).optional().or(z.literal('')),
+  expiryDate: z.string().max(50).optional().or(z.literal('')),
+  credentialId: z.string().max(150).optional().or(z.literal('')),
+  credentialUrl: z.string().max(500).optional().or(z.literal('')),
 });
 
 export const CustomEntrySchema = BaseEntrySchema.extend({
-  title: z.string().min(1, 'Title is required').max(200),
-  subtitle: z.string().max(200).optional(),
-  date: z.string().max(50).optional(),
-  description: z.string().max(1500).optional(),
+  title: z.string().min(1, 'Title is required').max(300),
+  subtitle: z.string().max(300).optional().or(z.literal('')),
+  date: z.string().max(50).optional().or(z.literal('')),
+  description: z.string().max(2000).optional().or(z.literal('')),
   bullets: z.array(z.string().max(1000)).optional(),
 });
 
 export const HeaderContentSchema = z.object({
-  schema_version: z.literal('1.0.0'),
-  fullName: z.string().min(1).max(150),
-  preferredName: z.string().max(100).optional(),
-  email: z.string().email().max(150),
-  phone: z.string().max(50).optional(),
-  city: z.string().max(100).optional(),
-  country: z.string().max(100).optional(),
-  linkedinUrl: z.string().max(500).optional(),
-  githubUrl: z.string().max(500).optional(),
-  websiteUrl: z.string().max(500).optional(),
+  schema_version: z.literal('1.0.0').optional().default('1.0.0'),
+  fullName: z.string().min(1).max(255).optional(),
+  full_name: z.string().max(255).optional(),
+  preferredName: z.string().max(150).optional().or(z.literal('')),
+  preferred_name: z.string().max(150).optional().or(z.literal('')),
+  email: z.string().email().max(150).optional().or(z.literal('')),
+  phone: z.string().max(100).optional().or(z.literal('')),
+  city: z.string().max(255).optional().or(z.literal('')),
+  country: z.string().max(255).optional().or(z.literal('')),
+  location: z.string().max(255).optional().or(z.literal('')),
+  linkedinUrl: z.string().max(500).optional().or(z.literal('')),
+  githubUrl: z.string().max(500).optional().or(z.literal('')),
+  websiteUrl: z.string().max(500).optional().or(z.literal('')),
   otherLinks: z.array(z.string().max(500)).optional(),
-  headline: z.string().max(300).optional(),
+  links: z.array(z.object({ label: z.string().max(100), url: z.string().max(500) })).optional(),
+  headline: z.string().max(500).optional().or(z.literal('')),
 });
 
 export const SummaryContentSchema = z.object({
