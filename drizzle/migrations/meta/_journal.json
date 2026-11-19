@@ -8,6 +8,13 @@
       "when": 1795003847935,
       "tag": "0000_boring_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795052037318,
+      "tag": "0001_unique_colossus",
+      "breakpoints": true
     }
   ]
 }

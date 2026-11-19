@@ -12,16 +12,18 @@ import {
   certifications,
   customSections,
 } from '@/lib/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 interface SaveProfileRequestBody {
-  profile: {
+  profile?: {
     headline?: string;
     summary?: string;
     contactInfo?: Record<string, unknown>;
     socialLinks?: Record<string, unknown>;
-    updatedAt?: string; // For optimistic concurrency check
+    version?: number;
+    updatedAt?: string;
   };
+  clientVersion?: number;
   clientUpdatedAt?: string;
   educations?: Array<{ id?: string; institution?: string; degree?: string; fieldOfStudy?: string; gradeValue?: string }>;
   experiences?: Array<{ id?: string; type?: string; organization?: string; role?: string; bullets?: string[] }>;
@@ -40,7 +42,6 @@ export async function POST(request: Request) {
 
     const {
       profile,
-      clientUpdatedAt,
       educations = [],
       experiences: exps = [],
       projects: projs = [],
@@ -65,41 +66,50 @@ export async function POST(request: Request) {
     const currentProfile = existing[0];
     const profileId = currentProfile.id;
 
-    // 2. Optimistic Concurrency Check:
-    // If client provides clientUpdatedAt or profile.updatedAt and it does not match currentProfile.updatedAt, reject stale save
-    const incomingTimestamp = clientUpdatedAt || profile.updatedAt;
-    if (incomingTimestamp) {
-      const clientTime = new Date(incomingTimestamp).getTime();
-      const serverTime = new Date(currentProfile.updatedAt).getTime();
-      // Allow 1000ms jitter, but if client is meaningfully older, reject
-      if (serverTime - clientTime > 1000) {
-        return NextResponse.json(
-          {
-            error: 'STALE_SAVE_CONFLICT',
-            message: 'Your profile was modified in another session. Please refresh to load the latest data before saving.',
-            serverUpdatedAt: currentProfile.updatedAt.toISOString(),
-          },
-          { status: 409 }
-        );
-      }
+    // 2. Concurrency Check:
+    // Client sends integer version. If provided and mismatched, return 409 STALE_SAVE_CONFLICT.
+    const incomingVersion = body.clientVersion ?? profile?.version;
+    if (incomingVersion !== undefined && incomingVersion !== currentProfile.version) {
+      return NextResponse.json(
+        {
+          error: 'STALE_SAVE_CONFLICT',
+          message: 'Your profile was modified in another session. Please refresh to load the latest data before saving.',
+          serverVersion: currentProfile.version,
+        },
+        { status: 409 }
+      );
     }
 
     const newUpdatedAt = new Date();
+    let newVersion = currentProfile.version + 1;
 
     // 3. Stable-ID Transactional Sync:
     // Upsert items by ID; delete ONLY rows removed by user. Never wipe-and-reinsert.
+    // Master profile version is incremented in this same transaction even for child-only edits.
     await db.transaction(async (tx) => {
-      // a. Update master profile top-level fields
-      await tx
+      // a. Update master profile top-level fields & increment version atomically
+      const updateResult = await tx
         .update(masterProfiles)
         .set({
-          headline: profile.headline ?? currentProfile.headline,
-          summary: profile.summary ?? currentProfile.summary,
-          contactInfo: profile.contactInfo ?? currentProfile.contactInfo,
-          socialLinks: profile.socialLinks ?? currentProfile.socialLinks,
+          headline: profile?.headline ?? currentProfile.headline,
+          summary: profile?.summary ?? currentProfile.summary,
+          contactInfo: profile?.contactInfo ?? currentProfile.contactInfo,
+          socialLinks: profile?.socialLinks ?? currentProfile.socialLinks,
+          version: sql`${masterProfiles.version} + 1`,
           updatedAt: newUpdatedAt,
         })
-        .where(eq(masterProfiles.id, profileId));
+        .where(
+          and(
+            eq(masterProfiles.id, profileId),
+            eq(masterProfiles.version, currentProfile.version)
+          )
+        )
+        .returning({ updatedVer: masterProfiles.version });
+
+      if (updateResult.length === 0) {
+        throw new Error('STALE_SAVE_CONFLICT');
+      }
+      newVersion = updateResult[0].updatedVer;
 
       // b. Sync Education with Stable IDs
       const validEdu = educations.filter((e) => (e.institution || '').trim() || (e.degree || '').trim());
@@ -374,9 +384,19 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      version: newVersion,
       updatedAt: newUpdatedAt.toISOString(),
     });
   } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'STALE_SAVE_CONFLICT') {
+      return NextResponse.json(
+        {
+          error: 'STALE_SAVE_CONFLICT',
+          message: 'Your profile was modified in another session. Please refresh to load the latest data before saving.',
+        },
+        { status: 409 }
+      );
+    }
     const message = err instanceof Error ? err.message : 'Failed to save profile';
     console.error('Save profile error:', err);
     return NextResponse.json({ error: message }, { status: 500 });

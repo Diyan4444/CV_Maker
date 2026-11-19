@@ -273,6 +273,86 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
 
     expect(summaryErr).toBeDefined();
     expect(['22001', '23514']).toContain(summaryErr?.code);
+
+    // 5. Attack with oversized institution name (> 255 characters on child table)
+    const oversizedInst = 'C'.repeat(256);
+    const { error: eduInstErr } = await (userAClient as any)
+      .from('education')
+      .insert({
+        profile_id: masterProfileA.id,
+        institution: oversizedInst,
+        degree: 'B.Tech',
+      });
+    expect(eduInstErr).toBeDefined();
+    expect(['22001', '23514']).toContain(eduInstErr?.code);
+
+    // 6. Attack with oversized array length (> 50 highlights in education)
+    const oversizedHighlights = Array.from({ length: 51 }, (_, i) => `Highlight ${i + 1}`);
+    const { error: highlightsErr } = await (userAClient as any)
+      .from('education')
+      .insert({
+        profile_id: masterProfileA.id,
+        institution: 'Valid Institute',
+        degree: 'Valid Degree',
+        highlights: oversizedHighlights,
+      });
+    expect(highlightsErr).toBeDefined();
+    expect(highlightsErr?.code).toBe('23514');
+
+    // 7. Attack with oversized document section content (> 65536 bytes payload)
+    const largePayload = { hugeText: 'X'.repeat(70000) };
+    const { error: largeDocErr } = await (userAClient as any)
+      .from('document_sections')
+      .insert({
+        document_id: docA.id,
+        section_type: 'custom',
+        title: 'Huge Payload Section',
+        content: largePayload,
+      });
+    expect(largeDocErr).toBeDefined();
+    expect(largeDocErr?.code).toBe('23514');
+  });
+
+  it('Database Row Caps: Triggers enforce per-user document and child table row limits', async () => {
+    // Clean up any existing custom_sections from earlier tests
+    await (userAClient as any)
+      .from('custom_sections')
+      .delete()
+      .eq('profile_id', masterProfileA.id);
+
+    // Test child table cap on custom_sections (cap is 20 rows per profile)
+    // 1. Insert exactly 20 custom sections
+    const bulkCustoms = Array.from({ length: 20 }, (_, i) => ({
+      profile_id: masterProfileA.id,
+      section_title: `Custom Section ${i + 1}`,
+      entries: [],
+      order_index: i,
+    }));
+
+    const { error: bulkErr } = await (userAClient as any)
+      .from('custom_sections')
+      .insert(bulkCustoms);
+    expect(bulkErr).toBeNull();
+
+    // 2. 21st insert MUST be rejected by tr_check_cap_custom_sections with 23514 check_violation
+    const { error: capExceededErr } = await (userAClient as any)
+      .from('custom_sections')
+      .insert({
+        profile_id: masterProfileA.id,
+        section_title: 'Exceeding Section 21',
+        entries: [],
+        order_index: 21,
+      });
+
+    expect(capExceededErr).toBeDefined();
+    expect(capExceededErr?.code).toBe('23514');
+    expect(capExceededErr?.message).toContain('Row cap exceeded for custom_sections');
+
+    // Clean up inserted test rows
+    await (userAClient as any)
+      .from('custom_sections')
+      .delete()
+      .eq('profile_id', masterProfileA.id);
   });
 
   it('Step 0(d) & Fix 5: Unauthenticated anonymous client CANNOT read any private tables (anon role completely blocked)', async () => {

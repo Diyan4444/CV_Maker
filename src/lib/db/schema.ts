@@ -59,6 +59,7 @@ export const masterProfiles = pgTable('master_profiles', {
   }>().default({}),
   
   schemaVersion: varchar('schema_version', { length: 20 }).default('1.0.0').notNull(),
+  version: integer('version').default(1).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -223,6 +224,7 @@ export const documents = pgTable('documents', {
   targetRole: varchar('target_role', { length: 200 }),
   isArchived: boolean('is_archived').default(false).notNull(),
   schemaVersion: varchar('schema_version', { length: 20 }).default('1.0.0').notNull(),
+  version: integer('version').default(1).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -292,6 +294,7 @@ export const websites = pgTable('websites', {
   customHeadline: varchar('custom_headline', { length: 300 }),
   customBio: text('custom_bio'),
   schemaVersion: varchar('schema_version', { length: 20 }).default('1.0.0').notNull(),
+  version: integer('version').default(1).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

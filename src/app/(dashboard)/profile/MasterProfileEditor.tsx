@@ -79,6 +79,9 @@ export function MasterProfileEditor({
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (data.version) {
+        setProfile((prev: any) => ({ ...prev, version: data.version }));
+      }
       setSaveStatus('All profile facts saved successfully.');
     } catch (err: any) {
       setSaveStatus('Error saving profile: ' + (err.message || 'Check connection'));
@@ -144,7 +147,7 @@ export function MasterProfileEditor({
       )}
 
       {/* TOP BAR ACTION */}
-      <div className="flex items-center justify-between pb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
         <span className="text-xs text-[var(--text-muted)]">
           Manage your normalized facts once; synchronize across outputs anytime.
         </span>
@@ -152,7 +155,7 @@ export function MasterProfileEditor({
           type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[var(--accent)] text-[var(--surface)] text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-md bg-[var(--accent)] text-[var(--surface)] text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50 w-full sm:w-auto"
         >
           <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save All Facts'}
@@ -160,7 +163,7 @@ export function MasterProfileEditor({
       </div>
 
       {/* SECTION 1: Identity, Summary & Social Links */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <h2 className="font-display text-base font-bold text-[var(--text)] border-b border-[var(--border-muted)] pb-2">
           1. Identity, Summary &amp; Contact
         </h2>
@@ -247,7 +250,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* DISCOVERY CHECKLIST FOR FRESHERS */}
-      <section className="bg-[var(--surface-alt)]/40 border border-[var(--border)] rounded-lg p-5 space-y-3">
+      <section className="bg-[var(--surface-alt)]/40 border border-[var(--border)] rounded-lg p-4 sm:p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Compass className="w-4 h-4 text-[var(--accent)]" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text)]">
@@ -277,7 +280,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 2: Education CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-[var(--accent)]" />
@@ -362,7 +365,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 3: Experience CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
           <div className="flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-[var(--accent)]" />
@@ -451,7 +454,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 4: Projects CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
           <div className="flex items-center gap-2">
             <FolderGit2 className="w-4 h-4 text-[var(--accent)]" />
@@ -525,7 +528,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 5: Skills & Competencies CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-[var(--accent)]" />
@@ -601,7 +604,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 6: Publications & Research CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-[var(--accent)]" />
@@ -676,7 +679,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 7: Achievements & Certifications CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-6">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-6">
         {/* Achievements */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-2">
@@ -709,7 +712,7 @@ export function MasterProfileEditor({
           ) : (
             <div className="space-y-3">
               {achievements.map((ach, idx) => (
-                <div key={ach.id || idx} className="p-3 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 flex items-center gap-3">
+                <div key={ach.id || idx} className="p-3 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 flex flex-col sm:flex-row sm:items-center gap-3">
                   <input
                     type="text"
                     placeholder="Title (e.g. 1st Place National Hackathon)"
@@ -719,26 +722,28 @@ export function MasterProfileEditor({
                       updated[idx].title = e.target.value;
                       setAchievements(updated);
                     }}
-                    className="flex-1 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="flex-1 w-full px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
                   />
-                  <input
-                    type="text"
-                    placeholder="Awarding Body / Organization"
-                    value={ach.issuerOrOrg || ''}
-                    onChange={(e) => {
-                      const updated = [...achievements];
-                      updated[idx].issuerOrOrg = e.target.value;
-                      setAchievements(updated);
-                    }}
-                    className="w-1/3 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setAchievements((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs px-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      placeholder="Awarding Body / Organization"
+                      value={ach.issuerOrOrg || ''}
+                      onChange={(e) => {
+                        const updated = [...achievements];
+                        updated[idx].issuerOrOrg = e.target.value;
+                        setAchievements(updated);
+                      }}
+                      className="flex-1 sm:w-48 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAchievements((prev) => prev.filter((_, i) => i !== idx))}
+                      className="text-red-600 hover:text-red-700 text-xs px-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -777,7 +782,7 @@ export function MasterProfileEditor({
           ) : (
             <div className="space-y-3">
               {certifications.map((cert, idx) => (
-                <div key={cert.id || idx} className="p-3 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 flex items-center gap-3">
+                <div key={cert.id || idx} className="p-3 rounded-md border border-[var(--border)] bg-[var(--surface-alt)]/20 flex flex-col sm:flex-row sm:items-center gap-3">
                   <input
                     type="text"
                     placeholder="Certification Name"
@@ -787,26 +792,28 @@ export function MasterProfileEditor({
                       updated[idx].name = e.target.value;
                       setCertifications(updated);
                     }}
-                    className="flex-1 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    className="flex-1 w-full px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
                   />
-                  <input
-                    type="text"
-                    placeholder="Issuing Authority"
-                    value={cert.issuer || ''}
-                    onChange={(e) => {
-                      const updated = [...certifications];
-                      updated[idx].issuer = e.target.value;
-                      setCertifications(updated);
-                    }}
-                    className="w-1/3 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setCertifications((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-red-600 hover:text-red-700 text-xs px-1"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      placeholder="Issuing Authority"
+                      value={cert.issuer || ''}
+                      onChange={(e) => {
+                        const updated = [...certifications];
+                        updated[idx].issuer = e.target.value;
+                        setCertifications(updated);
+                      }}
+                      className="flex-1 sm:w-48 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCertifications((prev) => prev.filter((_, i) => i !== idx))}
+                      className="text-red-600 hover:text-red-700 text-xs px-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -815,7 +822,7 @@ export function MasterProfileEditor({
       </section>
 
       {/* SECTION 8: Custom Sections CRUD */}
-      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-6 space-y-4">
+      <section className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border-muted)] pb-3">
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-[var(--accent)]" />

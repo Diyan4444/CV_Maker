@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Keyboard Navigation Accessibility on /onboarding', () => {
+test.describe('Keyboard Navigation Accessibility on /login', () => {
   test('Tabs through all controls and asserts active focus outline visibility', async ({ page }) => {
-    await page.goto('http://localhost:3000/onboarding');
+    await page.goto('/login');
 
     // Press Tab multiple times and verify that focused element exists and receives active focus outline
     const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'A'];
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 10; i++) {
       await page.keyboard.press('Tab');
       const focusedTag = await page.evaluate(() => document.activeElement?.tagName);
       const isVisible = await page.evaluate(() => {

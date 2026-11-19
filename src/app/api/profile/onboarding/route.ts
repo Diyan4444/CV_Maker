@@ -4,7 +4,11 @@ import { db } from '@/lib/db';
 import {
   masterProfiles,
   education,
+  experiences,
+  projects,
   skills,
+  achievements,
+  certifications,
   documents,
   documentSections,
 } from '@/lib/db/schema';
@@ -97,7 +101,117 @@ export async function POST(request: Request) {
         }
       }
 
-      // 3. Populate Skills table from department questions
+      // 3. Populate Projects table from onboarding questions
+      const projectEntries = [
+        {
+          title: (formValues.final_year_project_title as string)?.trim(),
+          desc: (formValues.final_year_project_description as string)?.trim(),
+        },
+        {
+          title: (formValues.msc_bsc_project_title as string)?.trim(),
+          desc: (formValues.project_description as string)?.trim(),
+        },
+        {
+          title: (formValues.academic_projects as string)?.trim(),
+          desc: '',
+        },
+        {
+          title: (formValues.independent_projects as string)?.trim(),
+          desc: '',
+        },
+        {
+          title: (formValues.key_projects as string)?.trim(),
+          desc: '',
+        },
+      ].filter((p) => Boolean(p.title));
+
+      for (let i = 0; i < projectEntries.length; i++) {
+        const p = projectEntries[i];
+        await tx.insert(projects).values({
+          profileId,
+          title: p.title!,
+          bullets: p.desc ? [p.desc] : [],
+          orderIndex: i,
+        });
+      }
+
+      // 4. Populate Experiences table from onboarding questions
+      const experienceEntries = [
+        {
+          org: (formValues.internships_industrial_training as string)?.trim(),
+          type: 'internship',
+          role: 'Intern / Industrial Trainee',
+        },
+        {
+          org: (formValues.internships_or_articleship as string)?.trim(),
+          type: 'internship',
+          role: 'Articleship / Intern',
+        },
+        {
+          org: (formValues.internships_work_experience as string)?.trim(),
+          type: 'internship',
+          role: 'Intern / Associate',
+        },
+        {
+          org: (formValues.internships_or_trainings as string)?.trim(),
+          type: 'internship',
+          role: 'Research / Laboratory Intern',
+        },
+        {
+          org: (formValues.key_experiences as string)?.trim(),
+          type: 'job',
+          role: 'Professional Experience',
+        },
+      ].filter((e) => Boolean(e.org));
+
+      for (let i = 0; i < experienceEntries.length; i++) {
+        const e = experienceEntries[i];
+        await tx.insert(experiences).values({
+          profileId,
+          organization: e.org!,
+          type: e.type,
+          role: e.role,
+          bullets: [],
+          orderIndex: i,
+        });
+      }
+
+      // 5. Populate Achievements table from onboarding questions
+      const achievementEntries = [
+        { title: (formValues.technical_competitions as string)?.trim(), org: 'Technical Competition' },
+        { title: (formValues.competitions as string)?.trim(), org: 'Competition / Contest' },
+        { title: (formValues.exhibitions_performances as string)?.trim(), org: 'Exhibition / Performance' },
+        { title: (formValues.scientific_publications_presentations as string)?.trim(), org: 'Scientific Presentation / Publication' },
+        { title: (formValues.credentials_awards as string)?.trim(), org: 'Award / Honor' },
+      ].filter((a) => Boolean(a.title));
+
+      for (let i = 0; i < achievementEntries.length; i++) {
+        const a = achievementEntries[i];
+        await tx.insert(achievements).values({
+          profileId,
+          title: a.title!,
+          issuerOrOrg: a.org,
+          orderIndex: i,
+        });
+      }
+
+      // 6. Populate Certifications table from onboarding questions
+      const certificationEntries = [
+        { name: (formValues.certifications_pursued as string)?.trim(), issuer: 'Certification Authority' },
+        { name: (formValues.workshops_trainings as string)?.trim(), issuer: 'Workshop / Training Program' },
+      ].filter((c) => Boolean(c.name));
+
+      for (let i = 0; i < certificationEntries.length; i++) {
+        const c = certificationEntries[i];
+        await tx.insert(certifications).values({
+          profileId,
+          name: c.name!,
+          issuer: c.issuer,
+          orderIndex: i,
+        });
+      }
+
+      // 7. Populate Skills table from department questions
       const tagFields = [
         { key: 'programming_languages', category: 'Programming languages' },
         { key: 'frameworks_and_libraries', category: 'Frameworks and libraries' },

@@ -87,12 +87,12 @@ export default async function ProfilePage() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-[var(--border-muted)] bg-[var(--surface)] sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <a href="/dashboard" className="font-display text-xl font-bold tracking-tight text-[var(--text)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <a href="/dashboard" className="font-display text-lg sm:text-xl font-bold tracking-tight text-[var(--text)]">
               {PRODUCT_NAME}
             </a>
-            <nav className="flex items-center gap-4 text-xs font-medium">
+            <nav className="hidden sm:flex items-center gap-4 text-xs font-medium">
               <a href="/dashboard" className="text-[var(--text-muted)] hover:text-[var(--text)]">
                 Dashboard
               </a>
@@ -108,7 +108,7 @@ export default async function ProfilePage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-8">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-8 pb-6 border-b border-[var(--border-muted)]">
           <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--text)]">
             Master Profile

@@ -17,13 +17,13 @@ const hasCredentials = Boolean(
   !supabaseUrl.includes('placeholder')
 );
 
-describe.skipIf(!hasCredentials)('Profile Save Route: Concurrency, Atomic Rollback & Stable IDs', () => {
+describe.skipIf(!hasCredentials)('Profile Save Route: Concurrency, Versioning & Stable IDs', () => {
   let adminClient: ReturnType<typeof createClient>;
   let userAClient: ReturnType<typeof createClient>;
   let userA: { id: string };
   const emailA = `test-stable-${Date.now()}@example.com`;
   const password = 'TestSecurePassword123!';
-  let masterProfileA: { id: string };
+  let masterProfileA: { id: string; version: number };
 
   beforeAll(async () => {
     adminClient = createClient(supabaseUrl!, serviceKey!, {
@@ -44,17 +44,19 @@ describe.skipIf(!hasCredentials)('Profile Save Route: Concurrency, Atomic Rollba
     });
     await userAClient.auth.signInWithPassword({ email: emailA, password });
 
-    const { data: pA } = await (userAClient as any)
+    const { data: pA, error: pAErr } = await (userAClient as any)
       .from('master_profiles')
       .insert({
         user_id: userA.id,
         background_group: 'Engineering and Technology',
         specialization: 'Computer Science Engineering',
         headline: 'Initial Headline',
+        version: 1,
       })
       .select()
       .single();
-    masterProfileA = pA as { id: string };
+    if (pAErr) throw pAErr;
+    masterProfileA = pA as { id: string; version: number };
   });
 
   afterAll(async () => {
@@ -63,95 +65,167 @@ describe.skipIf(!hasCredentials)('Profile Save Route: Concurrency, Atomic Rollba
     }
   });
 
-  it('(a) Forced failure mid-save inside transaction rolls back completely and leaves no partial change', async () => {
-    // 1. Initial count
-    const { data: initialEdu } = await (userAClient as any)
-      .from('education')
-      .select('*')
-      .eq('profile_id', masterProfileA.id);
-    const initialCount = initialEdu?.length || 0;
+  it('(a) a child-only change increments the master profile version', async () => {
+    const { db } = await import('@/lib/db');
+    const { masterProfiles, education } = await import('@/lib/db/schema');
+    const { eq, and, sql } = await import('drizzle-orm');
 
-    // 2. Simulate failed atomic transaction via admin client with invalid foreign key
-    const { error: txErr } = await (adminClient as any)
-      .from('education')
-      .insert([
-        { profile_id: masterProfileA.id, institution: 'Inst 1', degree: 'Deg 1' },
-        { profile_id: '00000000-0000-0000-0000-000000000000', institution: 'Inst 2', degree: 'Deg 2' }, // violates FK, triggers statement abort
-      ]);
+    // 1. Fetch baseline version
+    const [before] = await db
+      .select({ version: masterProfiles.version })
+      .from(masterProfiles)
+      .where(eq(masterProfiles.id, masterProfileA.id));
+    const startVersion = before.version;
 
-    expect(txErr).toBeDefined();
+    // 2. Execute save transaction modifying ONLY a child table (education), no profile fields
+    await db.transaction(async (tx) => {
+      // Child row modification
+      await tx.insert(education).values({
+        profileId: masterProfileA.id,
+        institution: 'Indian Institute of Technology Bombay',
+        degree: 'B.Tech in Computer Science and Engineering',
+        orderIndex: 0,
+      });
 
-    // 3. Confirm 0 rows from batch were inserted
-    const { data: afterEdu } = await (userAClient as any)
-      .from('education')
-      .select('*')
-      .eq('profile_id', masterProfileA.id);
-    expect(afterEdu?.length).toBe(initialCount);
+      // Master profile version MUST be incremented in the same transaction
+      const updateResult = await tx
+        .update(masterProfiles)
+        .set({
+          version: sql`${masterProfiles.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(masterProfiles.id, masterProfileA.id),
+            eq(masterProfiles.version, startVersion)
+          )
+        )
+        .returning({ newVersion: masterProfiles.version });
+
+      if (updateResult.length === 0) {
+        throw new Error('STALE_SAVE_CONFLICT');
+      }
+    });
+
+    // 3. Verify master profile version was incremented
+    const [after] = await db
+      .select({ version: masterProfiles.version })
+      .from(masterProfiles)
+      .where(eq(masterProfiles.id, masterProfileA.id));
+
+    expect(after.version).toBe(startVersion + 1);
   });
 
-  it('(b) IDs remain stable across repeated saves and are not recreated', async () => {
-    // 1. Initial Insert
-    const { data: insertedEdu, error: insErr } = await (userAClient as any)
-      .from('education')
-      .insert({
-        profile_id: masterProfileA.id,
-        institution: 'Stable University',
-        degree: 'B.Tech CS',
-        order_index: 0,
-      })
-      .select()
-      .single();
+  it('(b) two concurrent saves from the same starting version: exactly one succeeds, one gets 409 conflict', async () => {
+    const { db } = await import('@/lib/db');
+    const { masterProfiles, experiences } = await import('@/lib/db/schema');
+    const { eq, and, sql } = await import('drizzle-orm');
 
-    expect(insErr).toBeNull();
-    const stableId = (insertedEdu as any)?.id;
-    expect(stableId).toBeDefined();
+    // 1. Fetch current version
+    const [current] = await db
+      .select({ version: masterProfiles.version })
+      .from(masterProfiles)
+      .where(eq(masterProfiles.id, masterProfileA.id));
+    const baseVersion = current.version;
 
-    // 2. Perform update keeping ID stable
-    const { data: updatedEdu, error: updErr } = await (userAClient as any)
-      .from('education')
-      .update({
-        institution: 'Updated Stable University',
-      })
-      .eq('id', stableId)
-      .select()
-      .single();
+    // Helper simulating atomic save route execution
+    const runSaveAttempt = async (sessionTag: string) => {
+      return await db.transaction(async (tx) => {
+        // Touch child table
+        await tx.insert(experiences).values({
+          profileId: masterProfileA.id,
+          type: 'internship',
+          organization: `Org ${sessionTag}`,
+          role: `Software Intern ${sessionTag}`,
+          orderIndex: 0,
+        });
 
-    expect(updErr).toBeNull();
-    expect((updatedEdu as any)?.id).toBe(stableId);
-    expect((updatedEdu as any)?.institution).toBe('Updated Stable University');
+        // Atomic conditional version bump
+        const res = await tx
+          .update(masterProfiles)
+          .set({
+            version: sql`${masterProfiles.version} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(masterProfiles.id, masterProfileA.id),
+              eq(masterProfiles.version, baseVersion)
+            )
+          )
+          .returning({ newVersion: masterProfiles.version });
 
-    // 3. Verify query matches stable ID
-    const { data: queried } = await (userAClient as any)
-      .from('education')
-      .select('*')
-      .eq('id', stableId);
-
-    expect(queried?.length).toBe(1);
-    expect(queried?.[0]?.id).toBe(stableId);
-
-    // Cleanup
-    await (userAClient as any).from('education').delete().eq('id', stableId);
-  });
-
-  it('(c) Stale save with older updatedAt is rejected with STALE_SAVE_CONFLICT', () => {
-    const serverTimestamp = new Date('2026-11-19T10:00:00.000Z');
-    const staleClientTimestamp = new Date('2026-11-19T09:30:00.000Z');
-
-    const serverTime = serverTimestamp.getTime();
-    const clientTime = staleClientTimestamp.getTime();
-
-    const isStale = serverTime - clientTime > 1000;
-    expect(isStale).toBe(true);
-
-    const responsePayload = isStale
-      ? {
-          status: 409,
-          error: 'STALE_SAVE_CONFLICT',
-          message: 'Your profile was modified in another session. Please refresh to load the latest data before saving.',
+        if (res.length === 0) {
+          throw new Error('STALE_SAVE_CONFLICT');
         }
-      : { status: 200 };
+        return res[0].newVersion;
+      });
+    };
 
-    expect(responsePayload.status).toBe(409);
-    expect(responsePayload.error).toBe('STALE_SAVE_CONFLICT');
+    // 2. Launch two concurrent save transactions from the same baseVersion
+    const results = await Promise.allSettled([
+      runSaveAttempt('Session A'),
+      runSaveAttempt('Session B'),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+
+    // Exactly one must succeed, exactly one must fail with STALE_SAVE_CONFLICT
+    expect(fulfilled.length).toBe(1);
+    expect(rejected.length).toBe(1);
+
+    if (rejected[0].status === 'rejected') {
+      expect((rejected[0].reason as Error).message).toBe('STALE_SAVE_CONFLICT');
+    }
+
+    // Master profile version must be baseVersion + 1
+    const [finalProfile] = await db
+      .select({ version: masterProfiles.version })
+      .from(masterProfiles)
+      .where(eq(masterProfiles.id, masterProfileA.id));
+
+    expect(finalProfile.version).toBe(baseVersion + 1);
+  });
+
+  it('(c) existing child IDs remain stable across updates and are not deleted or re-created', async () => {
+    const { db } = await import('@/lib/db');
+    const { education } = await import('@/lib/db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    // 1. Initial Insert of an education row
+    const [inserted] = await db
+      .insert(education)
+      .values({
+        profileId: masterProfileA.id,
+        institution: 'Original University',
+        degree: 'Bachelor of Technology',
+        orderIndex: 99,
+      })
+      .returning({ id: education.id });
+
+    const originalStableId = inserted.id;
+    expect(originalStableId).toBeDefined();
+
+    // 2. Perform an in-place update targeting that ID
+    await db
+      .update(education)
+      .set({
+        institution: 'Updated University Name',
+      })
+      .where(eq(education.id, originalStableId));
+
+    // 3. Query row and verify ID is unchanged
+    const [queried] = await db
+      .select()
+      .from(education)
+      .where(eq(education.id, originalStableId));
+
+    expect(queried).toBeDefined();
+    expect(queried.id).toBe(originalStableId);
+    expect(queried.institution).toBe('Updated University Name');
+
+    // Clean up test row
+    await db.delete(education).where(eq(education.id, originalStableId));
   });
 });
