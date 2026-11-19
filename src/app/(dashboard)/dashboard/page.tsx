@@ -6,7 +6,7 @@ import { eq, desc } from 'drizzle-orm';
 import { PRODUCT_NAME } from '@/config/app';
 import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
 
-export const instant = false;
+export const dynamic = 'force-dynamic';
 import {
   FileText,
   GraduationCap,
