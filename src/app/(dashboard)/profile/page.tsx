@@ -15,7 +15,6 @@ import {
 import { eq, desc } from 'drizzle-orm';
 import { MasterProfileEditor } from './MasterProfileEditor';
 import { PRODUCT_NAME } from '@/config/app';
-import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,7 +103,6 @@ export default async function ProfilePage() {
               </a>
             </nav>
           </div>
-          <ThemeSwitcher />
         </div>
       </header>
 

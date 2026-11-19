@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { PRODUCT_NAME } from '@/config/app';
-import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
 import { ArrowRight, Mail } from 'lucide-react';
 
 export default function LoginPage() {
@@ -58,7 +57,6 @@ export default function LoginPage() {
         <Link href="/" className="font-display text-2xl font-bold tracking-tight text-[var(--text)]">
           {PRODUCT_NAME}
         </Link>
-        <ThemeSwitcher />
       </header>
 
       <main className="max-w-md w-full mx-auto my-12 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-8 sm:p-10 shadow-sm">

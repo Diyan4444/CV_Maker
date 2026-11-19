@@ -25,10 +25,9 @@ const viewports = [
   { name: '1440px', width: 1440, height: 900 },
 ];
 
-const themes = ['mist', 'wine', 'ink', 'forest'] as const;
 const pages = ['/', '/login', '/onboarding', '/dashboard', '/profile'] as const;
 
-test.describe.serial('Horizontal Overflow Audit across Viewports & Themes', () => {
+test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
   const testEmail = `overflow-test-${Date.now()}@folioone.local`;
@@ -89,50 +88,43 @@ test.describe.serial('Horizontal Overflow Audit across Viewports & Themes', () =
   });
 
   for (const vp of viewports) {
-    for (const theme of themes) {
-      test(`Viewport ${vp.name} [${vp.width}px] in theme '${theme}' has zero horizontal overflow across all pages`, async ({ browser }) => {
-        const context = await browser.newContext({
-          viewport: { width: vp.width, height: vp.height },
-        });
-
-        // Inject SSR cookies
-        const cookieEntries = Object.entries(capturedCookies).map(([name, value]) => ({
-          name,
-          value,
-          domain: 'localhost',
-          path: '/',
-          httpOnly: false,
-          secure: false,
-          sameSite: 'Lax' as const,
-        }));
-        if (cookieEntries.length > 0) {
-          await context.addCookies(cookieEntries);
-        }
-
-        const page = await context.newPage();
-
-        for (const pagePath of pages) {
-          await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
-
-          // Set palette theme on html element
-          await page.evaluate((t) => {
-            document.documentElement.setAttribute('data-theme', t);
-          }, theme);
-          await page.waitForTimeout(100);
-
-          const { scrollWidth, innerWidth } = await page.evaluate(() => ({
-            scrollWidth: document.documentElement.scrollWidth,
-            innerWidth: window.innerWidth,
-          }));
-
-          expect(
-            scrollWidth,
-            `Overflow detected on ${pagePath} at ${vp.name} (${theme}): scrollWidth (${scrollWidth}px) exceeds innerWidth (${innerWidth}px)`
-          ).toBeLessThanOrEqual(innerWidth);
-        }
-
-        await context.close();
+    test(`Viewport ${vp.name} [${vp.width}px] has zero horizontal overflow across all pages`, async ({ browser }) => {
+      const context = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
       });
-    }
+
+      // Inject SSR cookies
+      const cookieEntries = Object.entries(capturedCookies).map(([name, value]) => ({
+        name,
+        value,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax' as const,
+      }));
+      if (cookieEntries.length > 0) {
+        await context.addCookies(cookieEntries);
+      }
+
+      const page = await context.newPage();
+
+      for (const pagePath of pages) {
+        await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(100);
+
+        const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+
+        expect(
+          scrollWidth,
+          `Overflow detected on ${pagePath} at ${vp.name}: scrollWidth (${scrollWidth}px) exceeds innerWidth (${innerWidth}px)`
+        ).toBeLessThanOrEqual(innerWidth);
+      }
+
+      await context.close();
+    });
   }
 });

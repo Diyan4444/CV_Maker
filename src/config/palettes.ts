@@ -49,7 +49,7 @@ export const PALETTES: Record<Palette['id'], Palette> = {
       surfaceAlt: '#D5E5E5', // c4: Subtle secondary container
       border: '#BDD7D8',     // c5: Crisp card/input borders
       borderMuted: '#DDD3D3',// c2: Divider borders
-      text: '#1A2424',       // Documented neutral text outside palette (Passing AA 14.7:1 on bg)
+      text: '#1A1A1A',       // P2 neutral text (Passing AA > 14:1 on bg)
       textMuted: '#5D6B6B',  // c6: Muted labels/helpers (Passing AA 5.13:1 on bg)
       accent: '#5D6B6B',     // c6: Pure palette color used as accent (Passing AA 5.13:1 on bg)
       accentHover: '#5D6B6B',

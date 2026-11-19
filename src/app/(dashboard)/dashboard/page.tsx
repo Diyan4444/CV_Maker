@@ -4,7 +4,6 @@ import { db } from '@/lib/db';
 import { masterProfiles, documents, websites } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { PRODUCT_NAME } from '@/config/app';
-import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
 
 export const dynamic = 'force-dynamic';
 import {
@@ -88,7 +87,6 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <ThemeSwitcher />
             <form action="/auth/signout" method="post">
               <button
                 type="submit"

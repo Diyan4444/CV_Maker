@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PRODUCT_NAME } from '@/config/app';
-import { ThemeSwitcher } from '@/components/theme/ThemeSwitcher';
 import {
   BACKGROUND_GROUPS,
   CAREER_STAGES,
@@ -105,7 +104,6 @@ export default function OnboardingPage() {
           {PRODUCT_NAME}
         </a>
         <div className="flex items-center gap-4">
-          <ThemeSwitcher />
         </div>
       </header>
 
