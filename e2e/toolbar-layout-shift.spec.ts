@@ -13,7 +13,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 test.describe.serial('Editor Toolbar Layout Shift, Undo/Redo & Autosave Tests', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
-  const testEmail = `toolbar-shift-${Date.now()}@folioone.local`;
+  const testEmail = `toolbar-shift-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
   let createdDocId: string = '';
@@ -619,6 +619,10 @@ test.describe.serial('Editor Toolbar Layout Shift, Undo/Redo & Autosave Tests', 
     // Verify header panel styling: must be 100% solid fully opaque (opacity === 1.0, NO opacity-60)
     const headerPanel = page.locator('[data-section-type="header"]').first();
     await expect(headerPanel).toBeVisible({ timeout: 10000 });
+    // Wait for transition to complete
+    await expect(headerPanel).toHaveCSS('background-color', 'rgb(241, 247, 247)');
+    await expect(headerPanel).toHaveCSS('opacity', '1');
+
     const panelStyle = await headerPanel.evaluate((el) => {
       const cs = window.getComputedStyle(el);
       return {

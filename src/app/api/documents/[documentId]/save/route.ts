@@ -185,7 +185,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
-    console.error('Error saving document:', err);
+    console.error('[DOCUMENT_SAVE_ERROR] Failed to save document');
     const message = err instanceof Error ? err.message : 'Failed to save document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }

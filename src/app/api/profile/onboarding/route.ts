@@ -326,7 +326,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
     const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('Onboarding API error:', error);
+    console.error('[ONBOARDING_ERROR] Failed to process onboarding');
     return NextResponse.json(
       { error: message },
       { status: 500 }

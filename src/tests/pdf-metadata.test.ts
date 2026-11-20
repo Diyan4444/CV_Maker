@@ -4,6 +4,7 @@ import { pdf } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { DocumentPdfRenderer } from '../components/pdf/DocumentPdfRenderer';
 import { ONE_PAGE_RESUME_FIXTURE } from '../lib/fixtures/document-fixtures';
+import { PRODUCT_NAME } from '../config/app';
 
 describe('PDF Metadata Generation and Extraction', () => {
   it('embeds Title, Author, Subject, Creator, Producer and Keywords in generated PDF', async () => {
@@ -25,8 +26,8 @@ describe('PDF Metadata Generation and Extraction', () => {
     expect(info.Title).toBe(ONE_PAGE_RESUME_FIXTURE.meta.title);
     expect(info.Author).toBe('Diyan Shah');
     expect(info.Subject).toBe(ONE_PAGE_RESUME_FIXTURE.meta.target_role);
-    expect(info.Creator).toBe('CV Studio (CV Maker)');
-    expect(info.Producer).toBe('CV Studio (react-pdf)');
+    expect(info.Creator).toBe(PRODUCT_NAME);
+    expect(info.Producer).toBe(`${PRODUCT_NAME} (react-pdf)`);
     expect(info.Keywords).toBe('resume');
   });
 });

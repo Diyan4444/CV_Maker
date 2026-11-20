@@ -5,6 +5,7 @@
  */
 
 import { DocumentSection } from '../documents/types';
+import { wrapLongTokens } from '../pdf/wrap-long-tokens';
 
 // Matches non-Latin Unicode ranges (Devanagari, Arabic, Cyrillic, CJK, Hangul, Thai, Hebrew, etc.)
 // Preserves: ASCII (0000-007F), Latin-1 Supplement (0080-00FF), Latin Extended-A/B (0100-024F), common punctuation
@@ -27,7 +28,8 @@ export function containsNonLatinScript(text: string): boolean {
  */
 export function stripNonLatinScript(text: string): string {
   if (!text) return '';
-  return text.replace(new RegExp(NON_LATIN_PATTERN.source, 'g'), '').replace(/\s{2,}/g, ' ').trim();
+  const cleaned = text.replace(new RegExp(NON_LATIN_PATTERN.source, 'g'), '').replace(/\s{2,}/g, ' ').trim();
+  return wrapLongTokens(cleaned);
 }
 
 /**

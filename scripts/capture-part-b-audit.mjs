@@ -30,7 +30,7 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const testEmail = `part-b-audit-${Date.now()}@folioone.local`;
+  const testEmail = `part-b-audit-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestPassAudit123!';
   let userId = null;
 
@@ -54,7 +54,7 @@ async function main() {
       current_country: 'India',
       linkedin_url: 'https://linkedin.com/in/diyanshah',
       github_url: 'https://github.com/diyanshah',
-      personal_website_url: 'https://folioone.me/diyanshah',
+      personal_website_url: 'https://quillfolio.me/diyanshah',
       other_links: ['https://scholar.google.com/citations?user=demo'],
       background_group: 'engineering_technology',
       specialization: 'Computer Science Engineering',

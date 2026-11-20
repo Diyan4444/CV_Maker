@@ -6,6 +6,15 @@ import path from 'path';
 
 const ARTIFACT_DIR = 'C:/Users/Diyan/.gemini/antigravity/brain/0476a383-8a86-41cb-a552-ce7ab883faf8';
 
+const EXACT_80_CHAR_NAME = 'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain-Fitzgerald-Smithington III';
+const EXACT_300_CHAR_HEADLINE =
+  'SupercalifragilisticexpialidociousUnbreakableContinuousStringForLayoutTestingWithNoSpacesHyphensOrDelimitersToEnsureTextWrapNeverBreaksTokensIncorrect' +
+  ' Distinguished Systems Architecture & Scalable Cloud Research Group Lead At Cambridge Center XXXXXXXXXXXXXXXXXXXXXXXXXXX' +
+  '123456789012345678901234567890';
+const EXACT_100_CHAR_CITY = 'Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch-ExtraLongMetropolitanCityDistrictDivision';
+const EXACT_70_CHAR_EMAIL = 'alexander.montgomery-chamberlain.distinguished.chair@research-inst.ac.';
+const EXACT_25_CHAR_PHONE = '+1 (555) 019-283401928340';
+
 const extremeDoc: any = {
   meta: {
     id: 'test-extreme',
@@ -21,11 +30,11 @@ const extremeDoc: any = {
       isVisible: true,
       content: {
         schema_version: '1.0.0',
-        fullName: 'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain III, FRS FREng',
-        headline: 'Chair of Distributed Systems & Autonomous Infrastructure Architecture, High-Performance Scalable Cloud Research Group',
-        email: 'alexander.montgomery-chamberlain.distinguished.chair@research-institute-center.cambridge.ac.uk',
-        phone: '+44 (0) 20 7946 0912 ext. 48291 / mobile direct: +1 (555) 019-2834 (CET/BST)',
-        location: 'Cambridge, Cambridgeshire, United Kingdom / Frankfurt am Main, Hesse, Germany',
+        fullName: EXACT_80_CHAR_NAME,
+        headline: EXACT_300_CHAR_HEADLINE,
+        email: EXACT_70_CHAR_EMAIL,
+        phone: EXACT_25_CHAR_PHONE,
+        location: EXACT_100_CHAR_CITY,
       },
     },
   ],

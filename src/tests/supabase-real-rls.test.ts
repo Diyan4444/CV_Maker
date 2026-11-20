@@ -186,7 +186,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
           .update({ ...(item.table === 'projects' ? { title: 'B Hack' } : {}) })
           .eq('id', rowId)
           .select();
-        expect(bUpdate, `User B update should affect 0 rows on ${item.table}`).toEqual([]);
+        expect(bUpdate ?? [], `User B update should affect 0 rows on ${item.table}`).toEqual([]);
 
         // 4. User B tries to DELETE User A's row
         const { data: bDelete } = await (userBClient as any)
@@ -194,7 +194,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
           .delete()
           .eq('id', rowId)
           .select();
-        expect(bDelete, `User B delete should affect 0 rows on ${item.table}`).toEqual([]);
+        expect(bDelete ?? [], `User B delete should affect 0 rows on ${item.table}`).toEqual([]);
 
         // 5. User B tries to INSERT with User A's profile_id or document_id (Forging foreign key)
         const { data: bForgeInsert } = await (userBClient as any)
@@ -311,6 +311,51 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
       });
     expect(largeDocErr).toBeDefined();
     expect(largeDocErr?.code).toBe('23514');
+
+    // 8. Attack with oversized contact_info (> 8192 octets) -> triggers 23514 check_violation
+    const oversizedContactInfo = { address: 'Z'.repeat(8500) };
+    const { error: contactInfoErr } = await (userAClient as any)
+      .from('master_profiles')
+      .update({ contact_info: oversizedContactInfo })
+      .eq('id', masterProfileA.id);
+    expect(contactInfoErr).toBeDefined();
+    expect(contactInfoErr?.code).toBe('23514');
+
+    // 9. Attack with oversized social_links (> 8192 octets) -> triggers 23514 check_violation
+    const oversizedSocialLinks = { customLink: 'Y'.repeat(8500) };
+    const { error: socialLinksErr } = await (userAClient as any)
+      .from('master_profiles')
+      .update({ social_links: oversizedSocialLinks })
+      .eq('id', masterProfileA.id);
+    expect(socialLinksErr).toBeDefined();
+    expect(socialLinksErr?.code).toBe('23514');
+
+    // 10. Attack with oversized websites custom_headline (> 300 chars) -> triggers 23514 check_violation
+    const oversizedWebHeadline = 'W'.repeat(301);
+    const { error: webHeadlineErr } = await (userAClient as any)
+      .from('websites')
+      .update({ custom_headline: oversizedWebHeadline })
+      .eq('user_id', userA.id);
+    expect(webHeadlineErr).toBeDefined();
+    expect(['22001', '23514']).toContain(webHeadlineErr?.code);
+
+    // 11. Attack with oversized websites custom_bio (> 4000 chars) -> triggers 23514 check_violation
+    const oversizedWebBio = 'V'.repeat(4001);
+    const { error: webBioErr } = await (userAClient as any)
+      .from('websites')
+      .update({ custom_bio: oversizedWebBio })
+      .eq('user_id', userA.id);
+    expect(webBioErr).toBeDefined();
+    expect(webBioErr?.code).toBe('23514');
+
+    // 12. Attack with oversized websites field_visibility (> 16384 octets) -> triggers 23514 check_violation
+    const oversizedVisibility = { customRules: 'U'.repeat(17000) };
+    const { error: visibilityErr } = await (userAClient as any)
+      .from('websites')
+      .update({ field_visibility: oversizedVisibility })
+      .eq('user_id', userA.id);
+    expect(visibilityErr).toBeDefined();
+    expect(visibilityErr?.code).toBe('23514');
   });
 
   it('Database Row Caps: Triggers enforce per-user document and child table row limits', async () => {

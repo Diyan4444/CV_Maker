@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { notFound } from 'next/navigation';
 import { Document, Page, Text, StyleSheet, pdf } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
@@ -37,6 +38,9 @@ function ResumeDocument({ name, experienceCount }: { name: string; experienceCou
 }
 
 export default function PreviewSpikePage() {
+  if (process.env.NODE_ENV === 'production') {
+    notFound();
+  }
   const [name, setName] = useState('Diyan Shah');
   const [count, setCount] = useState(15);
   const [stats, setStats] = useState({
@@ -127,8 +131,8 @@ export default function PreviewSpikePage() {
             numPages: pdfDoc.numPages,
           }));
         }
-      } catch (err) {
-        console.error('Render error:', err);
+      } catch {
+        console.error('[SPIKE_RENDER_ERROR] Render failed');
       }
     };
 

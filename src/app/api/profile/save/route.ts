@@ -401,7 +401,7 @@ export async function POST(request: Request) {
       );
     }
     const message = err instanceof Error ? err.message : 'Failed to save profile';
-    console.error('Save profile error:', err);
+    console.error('[PROFILE_SAVE_ERROR] Failed to save profile');
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

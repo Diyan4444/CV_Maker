@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { z } from 'zod';
 import { SectionContentSchemaMap } from '../lib/documents/schemas';
 import { createClient } from '@supabase/supabase-js';
@@ -26,6 +26,12 @@ describe('Item 2: Save Error Root Cause & Field Invariant Tests', () => {
         headline: 'Test Profile',
       }).select('id').single();
       testProfileId = newMp?.id || '';
+    }
+  });
+
+  afterAll(async () => {
+    if (testProfileId) {
+      await supabase.from('certifications').delete().eq('profile_id', testProfileId).ilike('name', 'x%');
     }
   });
 

@@ -31,7 +31,7 @@ test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
   let testDocId: string = '';
-  const testEmail = `overflow-test-${Date.now()}@folioone.local`;
+  const testEmail = `overflow-test-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
 

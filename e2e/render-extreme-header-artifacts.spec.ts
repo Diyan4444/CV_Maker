@@ -11,6 +11,15 @@ import { TemplateId } from '../src/lib/documents/types';
 
 const ARTIFACT_DIR = 'C:/Users/Diyan/.gemini/antigravity/brain/0476a383-8a86-41cb-a552-ce7ab883faf8';
 
+const EXACT_80_CHAR_NAME = 'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain-Fitzgerald-Smithington III';
+const EXACT_300_CHAR_HEADLINE =
+  'SupercalifragilisticexpialidociousUnbreakableContinuousStringForLayoutTestingWithNoSpacesHyphensOrDelimitersToEnsureTextWrapNeverBreaksTokensIncorrect' +
+  ' Distinguished Systems Architecture & Scalable Cloud Research Group Lead At Cambridge Center XXXXXXXXXXXXXXXXXXXXXXXXXXX' +
+  '123456789012345678901234567890';
+const EXACT_100_CHAR_CITY = 'Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch-ExtraLongMetropolitanCityDistrictDivision';
+const EXACT_70_CHAR_EMAIL = 'alexander.montgomery-chamberlain.distinguished.chair@research-inst.ac.';
+const EXACT_25_CHAR_PHONE = '+1 (555) 019-283401928340';
+
 const extremeHeaderMeta: any = {
   id: 'doc-extreme-header',
   title: 'Extreme Header Resume',
@@ -27,12 +36,12 @@ const extremeHeaderSections: any[] = [
     isVisible: true,
     content: {
       schema_version: '1.0.0',
-      fullName: 'Maximilianus-Alexander Montgomery-Chamberlain von Hohenzollern-Sigmaringen-Saxe',
-      headline: 'Distinguished Systems Architect & Lead Distributed Infrastructure Engineering Fellow SupercalifragilisticexpialidociousUnbreakableSixtyCharWord Leading Large Scale Computing Systems',
-      email: 'alexander.montgomery.chamberlain.von.hohenzollern.infrastructure@system.org',
-      phone: '+1 (555) 019-2834-ext-9928',
-      city: 'Township of Greater Metropolitan South San Francisco Regional Technology Hub & Computing District',
-      country: 'CA',
+      fullName: EXACT_80_CHAR_NAME,
+      headline: EXACT_300_CHAR_HEADLINE,
+      email: EXACT_70_CHAR_EMAIL,
+      phone: EXACT_25_CHAR_PHONE,
+      city: EXACT_100_CHAR_CITY,
+      country: 'UK',
     },
   },
   {

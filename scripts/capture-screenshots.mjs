@@ -28,7 +28,7 @@ async function capture() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const testEmail = `playwright-${Date.now()}@folioone.local`;
+  const testEmail = `playwright-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestPlaywrightPass123!';
 
   // Create temporary test user with confirmed email

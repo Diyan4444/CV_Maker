@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/rendere
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 import { stripNonLatinScript } from '@/lib/validation/pdf-text';
 import { registerNotoFonts } from '@/lib/pdf/fonts';
+import { PRODUCT_NAME } from '@/config/app';
 
 registerNotoFonts();
 
@@ -147,8 +148,8 @@ export function ModernProfessionalTemplate({ meta, sections }: TemplateProps) {
       author={authorName}
       subject={docSubject}
       keywords={meta.type || 'resume, cv'}
-      creator="CV Studio (CV Maker)"
-      producer="CV Studio (react-pdf)"
+      creator={PRODUCT_NAME}
+      producer={`${PRODUCT_NAME} (react-pdf)`}
       language="en"
     >
       <Page size="A4" style={styles.page}>

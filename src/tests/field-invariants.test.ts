@@ -1,13 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
 import { validateSectionContent } from '../lib/documents/schemas';
 import { FIELD_LIMITS } from '../lib/validation/field-limits';
-import { createClient } from '@supabase/supabase-js';
-import { createServerClient } from '@supabase/ssr';
-import * as dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 interface FieldTestSpec {
   table: string;
@@ -20,7 +13,7 @@ interface FieldTestSpec {
   isInsideEntry?: boolean;
 }
 
-const FIELD_SPECS: FieldTestSpec[] = [
+export const FIELD_SPECS: FieldTestSpec[] = [
   // Header
   { table: 'document_sections (content jsonb)', columnOrProperty: 'fullName', sectionType: 'header', fieldKey: 'fullName', inputMaxLength: FIELD_LIMITS.fullName, zodMax: FIELD_LIMITS.fullName, dbLimit: 'profiles.full_name varchar(255)' },
   { table: 'master_profiles / jsonb', columnOrProperty: 'headline', sectionType: 'header', fieldKey: 'headline', inputMaxLength: FIELD_LIMITS.headline, zodMax: FIELD_LIMITS.headline, dbLimit: 'master_profiles.headline varchar(300) CHECK <= 300' },
@@ -56,7 +49,7 @@ const FIELD_SPECS: FieldTestSpec[] = [
   { table: 'projects', columnOrProperty: 'role', sectionType: 'projects', fieldKey: 'role', inputMaxLength: FIELD_LIMITS.projectRole, zodMax: FIELD_LIMITS.projectRole, dbLimit: 'projects.role varchar(200) CHECK <= 200', isInsideEntry: true },
 ];
 
-function createPayload(spec: FieldTestSpec, charCount: number): any {
+export function createPayload(spec: FieldTestSpec, charCount: number): any {
   const testString = 'A'.repeat(charCount);
   if (spec.fieldKey === 'email') {
     // Generate valid email format up to charCount
@@ -234,152 +227,5 @@ describe('Item 3: Field Invariant Table (Limit vs Limit+1 Validation)', () => {
       console.log(`| ${r.field} | ${r.inputMaxLength} | ${r.zodMax} | ${r.dbLimit} | ${r.limitStatus} | ${r.limitPlus1Status} | ${r.unhandled500s} |`);
     }
   });
-
-  describe('HTTP Route Invariant Verification: sends fields through /api/documents/[documentId]/save', () => {
-    let testDocId: string;
-    let cookieHeader: string;
-    let adminClient: any;
-    let testUserId: string;
-
-    beforeAll(async () => {
-      adminClient = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-
-      const testEmail = `invariants-http-${Date.now()}@example.com`;
-      const testPassword = 'Password123!SafePass';
-      const { data: user } = await adminClient.auth.admin.createUser({
-        email: testEmail,
-        password: testPassword,
-        email_confirm: true,
-      });
-      testUserId = user.user.id;
-
-      const { data: doc } = await adminClient.from('documents').insert({
-        user_id: testUserId,
-        title: 'HTTP Invariants Document',
-        type: 'resume',
-        template_id: 'ats_single_column',
-        accent_color: '#800021',
-        version: 1,
-      }).select().single();
-      testDocId = doc.id;
-
-      // Seed initial section
-      await adminClient.from('document_sections').insert({
-        document_id: testDocId,
-        section_type: 'header',
-        title: 'Header',
-        order_index: 0,
-        is_visible: true,
-        content: {
-          schema_version: '1.0.0',
-          fullName: 'Test User',
-          headline: 'Initial Headline',
-        },
-      });
-
-      // Capture exact SSR cookies
-      const capturedCookies: Record<string, string> = {};
-      const ssrClient = createServerClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-        cookies: {
-          getAll() {
-            return Object.entries(capturedCookies).map(([name, value]) => ({ name, value }));
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value }) => {
-              capturedCookies[name] = value;
-            });
-          },
-        },
-      });
-
-      await ssrClient.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
-      });
-
-      cookieHeader = Object.entries(capturedCookies)
-        .map(([k, v]) => `${k}=${v}`)
-        .join('; ');
-    });
-
-    afterAll(async () => {
-      if (adminClient && testUserId) {
-        await adminClient.from('documents').delete().eq('user_id', testUserId);
-        await adminClient.auth.admin.deleteUser(testUserId);
-      }
-    });
-
-    it(
-      'asserts 200 at limit and 400 at limit+1 through HTTP save route (0 unhandled 500s)',
-      async () => {
-      // Test representative fields via HTTP
-      const testCases = [
-        { section: 'header', field: 'headline', limit: 300 },
-        { section: 'experience', field: 'role', limit: 200 },
-        { section: 'education', field: 'institution', limit: 255 },
-      ];
-
-      let currentVersion = 1;
-
-      for (const tc of testCases) {
-        const spec = FIELD_SPECS.find(s => s.columnOrProperty === tc.field)!;
-        
-        // 1. Limit + 1 => must return 400
-        const overPayload = createPayload(spec, tc.limit + 1);
-        const resOver = await fetch(`http://localhost:3000/api/documents/${testDocId}/save`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Cookie: cookieHeader,
-          },
-          body: JSON.stringify({
-            clientVersion: currentVersion,
-            sections: [
-              {
-                id: '11111111-1111-4111-a111-111111111111',
-                sectionType: spec.sectionType,
-                title: spec.sectionType.toUpperCase(),
-                orderIndex: 0,
-                isVisible: true,
-                content: overPayload,
-              },
-            ],
-          }),
-        });
-
-        const overData = await resOver.json();
-        expect(resOver.status, `Expected 400 for ${tc.field} at limit+1, got ${resOver.status}: ${JSON.stringify(overData)}`).toBe(400);
-        expect(overData.error).toContain('Too big');
-
-        // 2. At Limit => must return 200
-        const atLimitPayload = createPayload(spec, tc.limit);
-        const resLimit = await fetch(`http://localhost:3000/api/documents/${testDocId}/save`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Cookie: cookieHeader,
-          },
-          body: JSON.stringify({
-            clientVersion: currentVersion,
-            sections: [
-              {
-                id: '11111111-1111-4111-a111-111111111111',
-                sectionType: spec.sectionType,
-                title: spec.sectionType.toUpperCase(),
-                orderIndex: 0,
-                isVisible: true,
-                content: atLimitPayload,
-              },
-            ],
-          }),
-        });
-
-        const limitData = await resLimit.json();
-        expect(resLimit.status, `Expected 200 for ${tc.field} at limit, got ${resLimit.status}: ${JSON.stringify(limitData)}`).toBe(200);
-        currentVersion = limitData.newVersion;
-      }
-    }, 30000);
-  });
 });
+

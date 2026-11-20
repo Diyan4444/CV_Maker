@@ -5,13 +5,16 @@ import { DocumentPdfRenderer } from '../components/pdf/DocumentPdfRenderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { TemplateId } from '../lib/documents/types';
 
-// Fixture with extreme header fields:
-// - 80-char name
-// - 300-char headline
-// - 100-char city
-// - 70-char email
-// - 25-char phone
-// - 150-char string without spaces in headline
+const EXACT_80_CHAR_NAME = 'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain-Fitzgerald-Smithington III';
+const EXACT_300_CHAR_HEADLINE =
+  'SupercalifragilisticexpialidociousUnbreakableContinuousStringForLayoutTestingWithNoSpacesHyphensOrDelimitersToEnsureTextWrapNeverBreaksTokensIncorrect' +
+  ' Distinguished Systems Architecture & Scalable Cloud Research Group Lead At Cambridge Center XXXXXXXXXXXXXXXXXXXXXXXXXXX' +
+  '123456789012345678901234567890';
+const EXACT_100_CHAR_CITY = 'Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch-ExtraLongMetropolitanCityDistrictDivision';
+const EXACT_70_CHAR_EMAIL = 'alexander.montgomery-chamberlain.distinguished.chair@research-inst.ac.';
+const EXACT_25_CHAR_PHONE = '+1 (555) 019-283401928340';
+
+// Fixture with exact extreme header fields
 const extremeHeaderSections: any[] = [
   {
     id: 'sec-header',
@@ -21,11 +24,11 @@ const extremeHeaderSections: any[] = [
     isVisible: true,
     content: {
       schema_version: '1.0.0',
-      fullName: 'Maximilianus-Alexander Montgomery-Chamberlain von Hohenzollern-Sigmaringen-Saxe', // 80 chars
-      headline: 'Distinguished Systems Architect & Lead Distributed Infrastructure Engineering Fellow SupercalifragilisticexpialidociousUnbreakableSixtyCharWord Leading Large Scale Computing Systems', // 300+ chars with 60-char token
-      email: 'alexander.montgomery.chamberlain.von.hohenzollern.infrastructure@system.org', // 75 chars
-      phone: '+1 (555) 019-2834-ext-9928', // 26 chars
-      city: 'Township of Greater Metropolitan South San Francisco Regional Technology Hub & Computing District', // 99 chars
+      fullName: EXACT_80_CHAR_NAME, // 80 chars
+      headline: EXACT_300_CHAR_HEADLINE, // 300 chars with 150-char unbroken token
+      email: EXACT_70_CHAR_EMAIL, // 70 chars
+      phone: EXACT_25_CHAR_PHONE, // 25 chars
+      city: EXACT_100_CHAR_CITY, // 100 chars
       country: 'CA',
     },
   },
@@ -129,18 +132,31 @@ describe('Item 1: Header Overlap & Strict Bounding Box Collision Assertion', () 
 
       expect(boxes.length).toBeGreaterThan(5);
 
-      // Check page margins: A4 is 595.28 x 841.89 pt. Margin is ~28-40pt.
-      // Every text item must be within [10, 585] pt horizontally
+      // Check page margins: A4 is 595.28 x 841.89 pt.
+      // ats_single_column & modern_professional: paddingHorizontal 40 -> margin 40pt (printable: 40..555.28)
+      // academic_cv: paddingHorizontal 44 -> margin 44pt (printable: 44..551.28)
+      const leftMarginLimit = templateId === 'academic_cv' ? 44 - 0.5 : 40 - 0.5;
+      const rightMarginLimit = templateId === 'academic_cv' ? 551.28 + 0.5 : 555.28 + 0.5;
+
       for (const box of boxes) {
         expect(
           box.left,
-          `Text "${box.str}" overflowed left margin at ${box.left}`
-        ).toBeGreaterThanOrEqual(15);
+          `Text "${box.str}" overflowed left margin at ${box.left.toFixed(2)}pt (limit: ${leftMarginLimit}pt)`
+        ).toBeGreaterThanOrEqual(leftMarginLimit);
         expect(
           box.right,
-          `Text "${box.str}" overflowed right margin at ${box.right}`
-        ).toBeLessThanOrEqual(585);
+          `Text "${box.str}" overflowed right margin at ${box.right.toFixed(2)}pt (limit: ${rightMarginLimit}pt)`
+        ).toBeLessThanOrEqual(rightMarginLimit);
       }
+
+      // Assert unbroken 150-char token is extracted completely without character loss
+      const target150CharToken =
+        'SupercalifragilisticexpialidociousUnbreakableContinuousStringForLayoutTestingWithNoSpacesHyphensOrDelimitersToEnsureTextWrapNeverBreaksTokensIncorrect';
+      const concatenatedExtracted = boxes.map((b) => b.str).join('');
+      expect(
+        concatenatedExtracted.includes(target150CharToken),
+        `Extracted PDF text must contain full 150-char token without character loss`
+      ).toBe(true);
 
       // Group boxes by lines or check collision between boxes with different Y baseline
       // Two distinct text lines A and B have a vertical collision if:

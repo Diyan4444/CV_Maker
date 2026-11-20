@@ -153,7 +153,7 @@ async function run() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const testEmail = `realpage-test-${Date.now()}@folioone.local`;
+  const testEmail = `realpage-test-${Date.now()}@quillfolio.local`;
   const testPassword = 'RealPagePass123!';
 
   const { data: userRecord, error: userErr } = await adminClient.auth.admin.createUser({

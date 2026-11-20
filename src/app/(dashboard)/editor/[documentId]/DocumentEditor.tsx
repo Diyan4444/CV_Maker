@@ -370,7 +370,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           localStorage.removeItem(`cv_maker_draft_${sentMeta.id}`);
         } catch {}
       } catch (err: unknown) {
-        console.error('Save failed:', err);
+        console.error('[DOCUMENT_SAVE_ERROR] Save request failed');
         const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
         if (isOffline) {
           setSaveStatus('offline');
@@ -680,8 +680,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       try {
         const report = runAtsReadinessChecks(meta, sections, extractedText, pageCount);
         setAtsReport(report);
-      } catch (err) {
-        console.error('ATS check failed:', err);
+      } catch {
+        console.error('[ATS_CHECK_ERROR] ATS readiness evaluation failed');
       } finally {
         setAtsLoading(false);
       }
@@ -753,7 +753,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         URL.revokeObjectURL(url);
       }, 100);
     } catch (err) {
-      console.error('Download PDF error:', err);
+      console.error('[PDF_DOWNLOAD_ERROR] Client-side PDF export failed');
       setDownloadError(
         err instanceof Error ? err.message : 'Failed to prepare PDF for download.'
       );

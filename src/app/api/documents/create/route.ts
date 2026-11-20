@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
-    console.error('Error creating document:', err);
+    console.error('[DOCUMENT_CREATE_ERROR] Failed to create document');
     const message = err instanceof Error ? err.message : 'Failed to create document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }

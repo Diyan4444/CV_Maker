@@ -26,7 +26,7 @@ const mobileViewports = [
 test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
-  const testEmail = `mobilenav-test-${Date.now()}@folioone.local`;
+  const testEmail = `mobilenav-test-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
 

@@ -62,7 +62,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
-    console.error('Error deleting document:', err);
+    console.error('[DOCUMENT_DELETE_ERROR] Failed to delete document');
     const message = err instanceof Error ? err.message : 'Failed to delete document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }

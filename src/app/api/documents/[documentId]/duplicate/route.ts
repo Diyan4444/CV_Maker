@@ -92,7 +92,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
-    console.error('Error duplicating document:', err);
+    console.error('[DOCUMENT_DUPLICATE_ERROR] Failed to duplicate document');
     const message = err instanceof Error ? err.message : 'Failed to duplicate document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
