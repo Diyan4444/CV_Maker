@@ -10,8 +10,8 @@ export const metadata = {
 };
 
 export default function DevBackgroundsPage() {
-  // DEV-ONLY: Must return 404 in production builds
-  if (process.env.NODE_ENV === 'production') {
+  // DEV-ONLY: Must return 404 in production builds unless test-only runner flag is explicitly set
+  if (process.env.NODE_ENV === 'production' && process.env.TEST_ALLOW_DEV_ROUTES !== 'true') {
     notFound();
   }
 

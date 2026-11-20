@@ -28,19 +28,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Noto Serif',
     fontWeight: 'bold',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    lineHeight: 1.25,
+    marginBottom: 6,
   },
   headline: {
     fontSize: 10,
     fontFamily: 'Noto Serif',
     color: '#333333',
+    lineHeight: 1.35,
     marginBottom: 6,
   },
   contactRow: {
     textAlign: 'center',
     fontSize: 8.5,
     color: '#333333',
-    lineHeight: 1.35,
+    lineHeight: 1.45,
+    marginTop: 2,
   },
   section: {
     marginBottom: 14,
@@ -141,8 +144,11 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
   const accent = meta.accentColor || (meta as any).accent_color || '#163832';
 
   const formatDateRange = (start?: string, end?: string, isCurrent?: boolean) => {
-    if (!start && !end) return '';
-    if (isCurrent) return `${start || ''} – Present`.trim();
+    if (!start && !end && !isCurrent) return '';
+    if (isCurrent) {
+      if (start) return `${start} – Present`;
+      return 'Present';
+    }
     if (start && end) return `${start} – ${end}`;
     return start || end || '';
   };
@@ -223,24 +229,29 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
               }
             }
 
+            const hasHeader = cleanName || cleanHeadline || contactItems.length > 0;
+            if (!hasHeader) return null;
+
             return (
               <View key={sec.id} style={styles.headerContainer}>
-                <Text style={[styles.name, { color: accent }]}>{cleanName}</Text>
+                {cleanName ? <Text style={[styles.name, { color: accent }]}>{cleanName}</Text> : null}
                 {cleanHeadline ? <Text style={styles.headline}>{cleanHeadline}</Text> : null}
-                <Text style={styles.contactRow}>
-                  {contactItems.map((item, idx) => (
-                    <React.Fragment key={idx}>
-                      {idx > 0 ? ' • ' : ''}
-                      {item.url ? (
-                        <Link src={item.url} style={{ color: '#0B0B0B', textDecoration: 'none' }}>
-                          {item.text}
-                        </Link>
-                      ) : (
-                        item.text
-                      )}
-                    </React.Fragment>
-                  ))}
-                </Text>
+                {contactItems.length > 0 ? (
+                  <Text style={styles.contactRow}>
+                    {contactItems.map((item, idx) => (
+                      <React.Fragment key={idx}>
+                        {idx > 0 ? ' • ' : ''}
+                        {item.url ? (
+                          <Link src={item.url} style={{ color: '#0B0B0B', textDecoration: 'none' }}>
+                            {item.text}
+                          </Link>
+                        ) : (
+                          item.text
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </Text>
+                ) : null}
               </View>
             );
           }
@@ -268,23 +279,32 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
                 {entries.map((edu: any) => {
-                  const inst = edu.institution || edu.subtitle || '';
-                  const deg = edu.degree || edu.title || '';
+                  const inst = stripNonLatinScript(edu.institution || edu.subtitle || '').trim();
+                  const deg = stripNonLatinScript(edu.degree || edu.title || '').trim();
+                  const dateStr = formatDateRange(edu.startDate, edu.endDate, edu.isCurrent);
+                  const study = stripNonLatinScript(edu.fieldOfStudy || '').trim();
+                  const hasFirstRow = deg || dateStr;
+                  const hasSecondRow = inst || study;
+                  const hasBullets = edu.bullets && edu.bullets.length > 0;
+                  if (!hasFirstRow && !hasSecondRow && !hasBullets) return null;
+
                   return (
                     <View key={edu.id} style={styles.entryContainer}>
-                      <View style={styles.entryRow}>
-                        <Text style={styles.entryTitle}>{stripNonLatinScript(deg)}</Text>
-                        <Text style={styles.dateLocation}>
-                          {formatDateRange(edu.startDate, edu.endDate, edu.isCurrent)}
-                        </Text>
-                      </View>
-                      <View style={styles.entryRow}>
-                        <Text style={styles.entrySubtitle}>{stripNonLatinScript(inst)}</Text>
-                        {edu.fieldOfStudy ? (
-                          <Text style={styles.dateLocation}>{stripNonLatinScript(edu.fieldOfStudy)}</Text>
-                        ) : null}
-                      </View>
-                      {edu.bullets && edu.bullets.length > 0 && (
+                      {hasFirstRow ? (
+                        <View style={styles.entryRow}>
+                          {deg ? <Text style={styles.entryTitle}>{deg}</Text> : <View />}
+                          {dateStr ? <Text style={styles.dateLocation}>{dateStr}</Text> : null}
+                        </View>
+                      ) : null}
+                      {hasSecondRow ? (
+                        <View style={styles.entryRow}>
+                          {inst ? <Text style={styles.entrySubtitle}>{inst}</Text> : <View />}
+                          {study ? (
+                            <Text style={styles.dateLocation}>{study}</Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {hasBullets && (
                         <View style={styles.bulletList}>
                           {edu.bullets.map((b: string, bIdx: number) => (
                             <Text key={bIdx} style={styles.bulletItem}>
@@ -309,23 +329,32 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
                 {entries.map((exp: any) => {
-                  const org = exp.organization || exp.subtitle || exp.company || '';
-                  const role = exp.role || exp.title || '';
+                  const org = stripNonLatinScript(exp.organization || exp.subtitle || exp.company || '').trim();
+                  const role = stripNonLatinScript(exp.role || exp.title || '').trim();
+                  const dateStr = formatDateRange(exp.startDate, exp.endDate, exp.isCurrent);
+                  const loc = stripNonLatinScript(exp.location || '').trim();
+                  const hasFirstRow = role || dateStr;
+                  const hasSecondRow = org || loc;
+                  const hasBullets = exp.bullets && exp.bullets.length > 0;
+                  if (!hasFirstRow && !hasSecondRow && !hasBullets) return null;
+
                   return (
                     <View key={exp.id} style={styles.entryContainer}>
-                      <View style={styles.entryRow}>
-                        <Text style={styles.entryTitle}>{stripNonLatinScript(role)}</Text>
-                        <Text style={styles.dateLocation}>
-                          {formatDateRange(exp.startDate, exp.endDate, exp.isCurrent)}
-                        </Text>
-                      </View>
-                      <View style={styles.entryRow}>
-                        <Text style={styles.entrySubtitle}>{stripNonLatinScript(org)}</Text>
-                        {exp.location ? (
-                          <Text style={styles.dateLocation}>{stripNonLatinScript(exp.location)}</Text>
-                        ) : null}
-                      </View>
-                      {exp.bullets && exp.bullets.length > 0 && (
+                      {hasFirstRow ? (
+                        <View style={styles.entryRow}>
+                          {role ? <Text style={styles.entryTitle}>{role}</Text> : <View />}
+                          {dateStr ? <Text style={styles.dateLocation}>{dateStr}</Text> : null}
+                        </View>
+                      ) : null}
+                      {hasSecondRow ? (
+                        <View style={styles.entryRow}>
+                          {org ? <Text style={styles.entrySubtitle}>{org}</Text> : <View />}
+                          {loc ? (
+                            <Text style={styles.dateLocation}>{loc}</Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {hasBullets && (
                         <View style={styles.bulletList}>
                           {exp.bullets.map((b: string, bIdx: number) => (
                             <Text key={bIdx} style={styles.bulletItem}>
@@ -450,20 +479,31 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             return (
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
-                {entries.map((ach: any) => (
-                  <View key={ach.id} style={styles.entryContainer}>
-                    <View style={styles.entryRow}>
-                      <Text style={styles.entryTitle}>{stripNonLatinScript(ach.title)}</Text>
-                      {ach.date ? <Text style={styles.dateLocation}>{ach.date}</Text> : null}
+                {entries.map((ach: any) => {
+                  const achTitle = stripNonLatinScript(ach.title || ach.name || '').trim();
+                  const achDate = (ach.date || '').trim();
+                  const achIssuer = stripNonLatinScript(ach.issuer || ach.organization || ach.issuerOrOrg || '').trim();
+                  const desc = stripNonLatinScript(ach.description || '').trim();
+                  const hasFirstRow = achTitle || achDate;
+                  if (!hasFirstRow && !achIssuer && !desc) return null;
+
+                  return (
+                    <View key={ach.id} style={styles.entryContainer}>
+                      {hasFirstRow ? (
+                        <View style={styles.entryRow}>
+                          {achTitle ? <Text style={styles.entryTitle}>{achTitle}</Text> : <View />}
+                          {achDate ? <Text style={styles.dateLocation}>{achDate}</Text> : null}
+                        </View>
+                      ) : null}
+                      {achIssuer ? (
+                        <Text style={styles.entrySubtitle}>{achIssuer}</Text>
+                      ) : null}
+                      {desc ? (
+                        <Text style={styles.paragraph}>{desc}</Text>
+                      ) : null}
                     </View>
-                    {ach.issuer ? (
-                      <Text style={styles.entrySubtitle}>{stripNonLatinScript(ach.issuer)}</Text>
-                    ) : null}
-                    {ach.description ? (
-                      <Text style={styles.paragraph}>{stripNonLatinScript(ach.description)}</Text>
-                    ) : null}
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             );
           }
@@ -476,19 +516,27 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             return (
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
-                {entries.map((cert: any) => (
-                  <View key={cert.id} style={styles.entryContainer}>
-                    <View style={styles.entryRow}>
-                      <Text style={styles.entryTitle}>{stripNonLatinScript(cert.name || cert.title)}</Text>
-                      {cert.date ? <Text style={styles.dateLocation}>{cert.date}</Text> : null}
+                {entries.map((cert: any) => {
+                  const certName = stripNonLatinScript(cert.name || cert.title || '').trim();
+                  const certDate = (cert.date || cert.issueDate || cert.startDate || '').trim();
+                  const certOrg = stripNonLatinScript(cert.issuingOrg || cert.subtitle || '').trim();
+                  const hasFirstRow = certName || certDate;
+                  if (!hasFirstRow && !certOrg) return null;
+
+                  return (
+                    <View key={cert.id} style={styles.entryContainer}>
+                      {hasFirstRow ? (
+                        <View style={styles.entryRow}>
+                          {certName ? <Text style={styles.entryTitle}>{certName}</Text> : <View />}
+                          {certDate ? <Text style={styles.dateLocation}>{certDate}</Text> : null}
+                        </View>
+                      ) : null}
+                      {certOrg ? (
+                        <Text style={styles.entrySubtitle}>{certOrg}</Text>
+                      ) : null}
                     </View>
-                    {cert.issuingOrg || cert.subtitle ? (
-                      <Text style={styles.entrySubtitle}>
-                        {stripNonLatinScript(cert.issuingOrg || cert.subtitle)}
-                      </Text>
-                    ) : null}
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             );
           }
@@ -501,33 +549,45 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             return (
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
-                {entries.map((c: any) => (
-                  <View key={c.id} style={styles.entryContainer}>
-                    <View style={styles.entryRow}>
-                      <Text style={styles.entryTitle}>{stripNonLatinScript(c.title)}</Text>
-                      {c.date || c.startDate ? (
-                        <Text style={styles.dateLocation}>
-                          {formatDateRange(c.startDate, c.endDate) || c.date}
-                        </Text>
+                {entries.map((c: any) => {
+                  const itemTitle = stripNonLatinScript(c.title || c.name || '').trim();
+                  const itemDate = (c.date || c.startDate || '').trim();
+                  const itemSub = stripNonLatinScript(c.subtitle || '').trim();
+                  const desc = stripNonLatinScript(c.description || '').trim();
+                  const hasFirstRow = itemTitle || itemDate;
+                  const hasBullets = c.bullets && c.bullets.length > 0;
+                  if (!hasFirstRow && !itemSub && !desc && !hasBullets) return null;
+
+                  return (
+                    <View key={c.id} style={styles.entryContainer}>
+                      {hasFirstRow ? (
+                        <View style={styles.entryRow}>
+                          {itemTitle ? <Text style={styles.entryTitle}>{itemTitle}</Text> : <View />}
+                          {itemDate ? (
+                            <Text style={styles.dateLocation}>
+                              {formatDateRange(c.startDate, c.endDate) || itemDate}
+                            </Text>
+                          ) : null}
+                        </View>
                       ) : null}
+                      {itemSub ? (
+                        <Text style={styles.entrySubtitle}>{itemSub}</Text>
+                      ) : null}
+                      {desc ? (
+                        <Text style={styles.paragraph}>{desc}</Text>
+                      ) : null}
+                      {hasBullets && (
+                        <View style={styles.bulletList}>
+                          {c.bullets.map((b: string, bIdx: number) => (
+                            <Text key={bIdx} style={styles.bulletItem}>
+                              • {stripNonLatinScript(b)}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
                     </View>
-                    {c.subtitle ? (
-                      <Text style={styles.entrySubtitle}>{stripNonLatinScript(c.subtitle)}</Text>
-                    ) : null}
-                    {c.description ? (
-                      <Text style={styles.paragraph}>{stripNonLatinScript(c.description)}</Text>
-                    ) : null}
-                    {c.bullets && c.bullets.length > 0 && (
-                      <View style={styles.bulletList}>
-                        {c.bullets.map((b: string, bIdx: number) => (
-                          <Text key={bIdx} style={styles.bulletItem}>
-                            • {stripNonLatinScript(b)}
-                          </Text>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             );
           }

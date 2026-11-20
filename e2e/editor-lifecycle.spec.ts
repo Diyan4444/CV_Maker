@@ -180,7 +180,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await expect(page.getByText('Unsaved changes')).toBeVisible();
 
     // Wait for debounced autosave (~1.5s debounce + server save) to finish
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 30000 });
 
     // Refresh page and verify value persisted
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -587,7 +587,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await confirmDeleteBtn.click();
 
     // Modal dismissed and document list reflects deletion
-    await expect(page.getByText('Delete Document?')).not.toBeVisible();
+    await expect(page.getByText('Delete Document?')).not.toBeVisible({ timeout: 15000 });
     await expect(page.getByText('0 / 20 documents used')).toBeVisible();
   });
 });

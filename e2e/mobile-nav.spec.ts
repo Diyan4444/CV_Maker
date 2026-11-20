@@ -101,7 +101,7 @@ test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () =>
         }
 
         const page = await context.newPage();
-        await page.goto(pagePath, { waitUntil: 'networkidle' });
+        await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(500);
 
         // Check toggle button

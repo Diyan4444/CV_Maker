@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
       achievements: achievementRows,
       certifications: certificationRows.map((c) => ({
         id: c.id,
-        name: c.name || 'Certification Name',
-        issuingOrg: c.issuer || 'Certification Authority',
+        name: c.name || '',
+        issuingOrg: c.issuer || '',
         issueDate: c.issueDate,
         credentialUrl: c.url,
       })),

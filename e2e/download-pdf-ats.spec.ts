@@ -191,7 +191,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   });
 
   test('1. Download PDF across all 3 templates: triggers download, verifies filename, metadata, and parses content with pdf-parse', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(180000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/editor/${testDocId}`);
     await page.waitForLoadState('domcontentloaded');

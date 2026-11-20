@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 
-export const MAX_SECTION_PAYLOAD_BYTES = 64 * 1024; // 64KB DB limit
+export const MAX_SECTION_PAYLOAD_BYTES = FIELD_LIMITS.sectionContentBytes; // 64KB DB limit
 
 export const BaseEntrySchema = z.object({
   id: z.string().uuid(),
@@ -9,11 +10,12 @@ export const BaseEntrySchema = z.object({
 });
 
 export const EducationEntrySchema = BaseEntrySchema.extend({
-  institution: z.string().min(1, 'Institution is required').max(255),
-  degree: z.string().min(1, 'Degree is required').max(200),
-  fieldOfStudy: z.string().max(200).optional(),
-  startDate: z.string().max(50).optional(),
-  endDate: z.string().max(50).optional(),
+  institution: z.string().min(1, 'Institution is required').max(FIELD_LIMITS.institution),
+  degree: z.string().min(1, 'Degree is required').max(FIELD_LIMITS.degree),
+  fieldOfStudy: z.string().max(FIELD_LIMITS.fieldOfStudy).optional(),
+  location: z.string().max(FIELD_LIMITS.location).optional(),
+  startDate: z.string().max(FIELD_LIMITS.startDate).optional(),
+  endDate: z.string().max(FIELD_LIMITS.endDate).optional(),
   isCurrent: z.boolean().optional(),
   grade: z.string().max(50).optional(),
   bullets: z.array(z.string().max(1000)).optional(),
@@ -21,23 +23,23 @@ export const EducationEntrySchema = BaseEntrySchema.extend({
 
 export const ExperienceEntrySchema = BaseEntrySchema.extend({
   type: z.string().max(50),
-  organization: z.string().min(1, 'Organization is required').max(255),
-  role: z.string().min(1, 'Role is required').max(200),
-  location: z.string().max(150).optional(),
-  startDate: z.string().max(50).optional(),
-  endDate: z.string().max(50).optional(),
+  organization: z.string().min(1, 'Organization is required').max(FIELD_LIMITS.organization),
+  role: z.string().min(1, 'Role is required').max(FIELD_LIMITS.role),
+  location: z.string().max(FIELD_LIMITS.location).optional(),
+  startDate: z.string().max(FIELD_LIMITS.startDate).optional(),
+  endDate: z.string().max(FIELD_LIMITS.endDate).optional(),
   isCurrent: z.boolean().optional(),
   bullets: z.array(z.string().max(1000)).optional(),
   technologies: z.array(z.string().max(100)).optional(),
 });
 
 export const ProjectEntrySchema = BaseEntrySchema.extend({
-  title: z.string().min(1, 'Title is required').max(255),
-  role: z.string().max(200).optional(),
-  startDate: z.string().max(50).optional(),
-  endDate: z.string().max(50).optional(),
-  url: z.string().max(500).optional(),
-  repoUrl: z.string().max(500).optional(),
+  title: z.string().min(1, 'Title is required').max(FIELD_LIMITS.projectTitle),
+  role: z.string().max(FIELD_LIMITS.projectRole).optional(),
+  startDate: z.string().max(FIELD_LIMITS.startDate).optional(),
+  endDate: z.string().max(FIELD_LIMITS.endDate).optional(),
+  url: z.string().max(FIELD_LIMITS.url).optional(),
+  repoUrl: z.string().max(FIELD_LIMITS.url).optional(),
   bullets: z.array(z.string().max(1000)).optional(),
   toolsUsed: z.array(z.string().max(100)).optional(),
 });
@@ -58,92 +60,95 @@ export const PublicationEntrySchema = BaseEntrySchema.extend({
   venue: z.string().max(255).optional(),
   publicationDate: z.string().max(50).optional(),
   doiOrUrl: z.string().max(500).optional(),
-  summary: z.string().max(2000).optional(),
+  summary: z.string().max(FIELD_LIMITS.summary).optional(),
 });
 
 export const AchievementEntrySchema = BaseEntrySchema.extend({
-  title: z.string().min(1, 'Title is required').max(500),
-  issuer: z.string().max(300).optional().or(z.literal('')),
+  title: z.string().min(1, 'Title is required').max(FIELD_LIMITS.achievementTitle),
+  issuer: z.string().max(FIELD_LIMITS.achievementIssuer).optional().or(z.literal('')).default(''),
   date: z.string().max(50).optional().or(z.literal('')),
-  description: z.string().max(2000).optional().or(z.literal('')),
-  url: z.string().max(500).optional().or(z.literal('')),
+  description: z.string().max(FIELD_LIMITS.achievementDescription).optional().or(z.literal('')),
+  url: z.string().max(FIELD_LIMITS.url).optional().or(z.literal('')),
 });
 
 export const CertificationEntrySchema = BaseEntrySchema.extend({
-  name: z.string().min(1, 'Name is required').max(500),
-  issuingOrg: z.string().max(300).optional().or(z.literal('')).default('Certification Authority'),
-  issuer: z.string().max(300).optional().or(z.literal('')),
-  issueDate: z.string().max(50).optional().or(z.literal('')),
+  name: z.string().min(1, 'Name is required').max(FIELD_LIMITS.certificationName),
+  issuingOrg: z.string().max(FIELD_LIMITS.certificationIssuer).optional().or(z.literal('')).default(''),
+  issuer: z.string().max(FIELD_LIMITS.certificationIssuer).optional().or(z.literal('')).default(''),
+  issueDate: z.string().max(FIELD_LIMITS.issueDate).optional().or(z.literal('')),
   expiryDate: z.string().max(50).optional().or(z.literal('')),
-  credentialId: z.string().max(150).optional().or(z.literal('')),
-  credentialUrl: z.string().max(500).optional().or(z.literal('')),
+  credentialId: z.string().max(FIELD_LIMITS.credentialId).optional().or(z.literal('')),
+  credentialUrl: z.string().max(FIELD_LIMITS.url).optional().or(z.literal('')),
 });
 
 export const CustomEntrySchema = BaseEntrySchema.extend({
-  title: z.string().min(1, 'Title is required').max(300),
-  subtitle: z.string().max(300).optional().or(z.literal('')),
+  title: z.string().min(1, 'Title is required').max(200),
+  subtitle: z.string().max(200).optional().or(z.literal('')).default(''),
   date: z.string().max(50).optional().or(z.literal('')),
-  description: z.string().max(2000).optional().or(z.literal('')),
+  description: z.string().max(FIELD_LIMITS.summary).optional().or(z.literal('')),
   bullets: z.array(z.string().max(1000)).optional(),
 });
 
 export const HeaderContentSchema = z.object({
   schema_version: z.literal('1.0.0').optional().default('1.0.0'),
-  fullName: z.string().min(1).max(255).optional(),
-  full_name: z.string().max(255).optional(),
+  fullName: z.string().min(1).max(FIELD_LIMITS.fullName).optional(),
+  full_name: z.string().max(FIELD_LIMITS.fullName).optional(),
   preferredName: z.string().max(150).optional().or(z.literal('')),
   preferred_name: z.string().max(150).optional().or(z.literal('')),
-  email: z.string().email().max(150).optional().or(z.literal('')),
-  phone: z.string().max(100).optional().or(z.literal('')),
-  city: z.string().max(255).optional().or(z.literal('')),
-  country: z.string().max(255).optional().or(z.literal('')),
-  location: z.string().max(255).optional().or(z.literal('')),
+  email: z.string().email().max(FIELD_LIMITS.email).optional().or(z.literal('')),
+  phone: z.string().max(FIELD_LIMITS.phone).optional().or(z.literal('')),
+  city: z.string().max(FIELD_LIMITS.city).optional().or(z.literal('')),
+  country: z.string().max(FIELD_LIMITS.country).optional().or(z.literal('')),
+  location: z.string().max(FIELD_LIMITS.location).optional().or(z.literal('')),
   linkedinUrl: z.string().max(500).optional().or(z.literal('')),
   githubUrl: z.string().max(500).optional().or(z.literal('')),
   websiteUrl: z.string().max(500).optional().or(z.literal('')),
   otherLinks: z.array(z.string().max(500)).optional(),
   links: z.array(z.object({ label: z.string().max(100), url: z.string().max(500) })).optional(),
-  headline: z.string().max(500).optional().or(z.literal('')),
+  headline: z.string().max(FIELD_LIMITS.headline).optional().or(z.literal('')),
 });
 
 export const SummaryContentSchema = z.object({
   schema_version: z.literal('1.0.0'),
-  text: z.string().max(5000),
+  text: z.string().max(FIELD_LIMITS.summary),
 });
 
 export const SectionContentSchemaMap = {
   header: HeaderContentSchema,
-  summary: SummaryContentSchema,
+  summary: z.object({
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
+    text: z.string().max(FIELD_LIMITS.summary),
+  }),
   education: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(EducationEntrySchema),
   }),
   experience: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(ExperienceEntrySchema),
   }),
   projects: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(ProjectEntrySchema),
   }),
   skills: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(SkillEntrySchema),
   }),
   publications: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(PublicationEntrySchema),
   }),
   achievements: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(AchievementEntrySchema),
   }),
   certifications: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(CertificationEntrySchema),
   }),
   custom: z.object({
-    schema_version: z.literal('1.0.0'),
+    schema_version: z.literal('1.0.0').optional().default('1.0.0'),
     entries: z.array(CustomEntrySchema),
   }),
 };

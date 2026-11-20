@@ -197,8 +197,8 @@ export async function POST(request: Request) {
 
       // 6. Populate Certifications table from onboarding questions
       const certificationEntries = [
-        { name: (formValues.certifications_pursued as string)?.trim(), issuer: 'Certification Authority' },
-        { name: (formValues.workshops_trainings as string)?.trim(), issuer: 'Workshop / Training Program' },
+        { name: (formValues.certifications_pursued as string)?.trim(), issuer: '' },
+        { name: (formValues.workshops_trainings as string)?.trim(), issuer: '' },
       ].filter((c) => Boolean(c.name));
 
       for (let i = 0; i < certificationEntries.length; i++) {
