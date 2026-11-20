@@ -9,6 +9,9 @@ export function registerNotoFonts() {
   const isBrowser = typeof window !== 'undefined';
   const fontBase = isBrowser ? '/fonts' : path.resolve(process.cwd(), 'public/fonts');
 
+  // Disable automatic hyphenation across all templates and preview (registered once)
+  Font.registerHyphenationCallback((word) => [word]);
+
   Font.register({
     family: 'Noto Sans',
     fonts: [

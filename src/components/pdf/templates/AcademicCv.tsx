@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer';
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 import { stripNonLatinScript } from '@/lib/validation/pdf-text';
 import { registerNotoFonts } from '@/lib/pdf/fonts';
@@ -37,12 +37,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   contactRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
+    textAlign: 'center',
     fontSize: 8.5,
     color: '#333333',
+    lineHeight: 1.35,
   },
   section: {
     marginBottom: 14,
@@ -124,6 +122,14 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
     color: '#1A1A1A',
   },
+  skillsCategory: {
+    marginBottom: 3.5,
+    fontSize: 9,
+  },
+  boldLabel: {
+    fontWeight: 'bold',
+    fontFamily: 'Noto Serif',
+  },
 });
 
 interface TemplateProps {
@@ -149,8 +155,20 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
       return orderA - orderB;
     });
 
+  const headerSec = sections.find((s) => (s.sectionType || (s as any).section_type) === 'header');
+  const authorName = headerSec ? stripNonLatinScript((headerSec.content as any)?.fullName || (headerSec.content as any)?.full_name || '') : '';
+  const docSubject = (meta as any).target_role || (meta as any).targetRole || (meta.type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume');
+
   return (
-    <Document title={stripNonLatinScript(meta.title)}>
+    <Document
+      title={stripNonLatinScript(meta.title) || 'Resume'}
+      author={authorName}
+      subject={docSubject}
+      keywords={meta.type || 'resume, cv'}
+      creator="CV Studio (CV Maker)"
+      producer="CV Studio (react-pdf)"
+      language="en"
+    >
       <Page size="A4" style={styles.page}>
         {visibleSections.map((sec) => {
           const type = sec.sectionType || (sec as any).section_type;
@@ -161,35 +179,68 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             const h = sec.content as any;
             const cleanName = stripNonLatinScript(h.fullName || h.full_name || '');
             const cleanHeadline = stripNonLatinScript(h.headline || '');
-            const contactParts: string[] = [];
-            if (h.email) contactParts.push(h.email);
-            if (h.phone) contactParts.push(h.phone);
+
+            const formatDisplayUrl = (rawUrl: string, fallback?: string): string => {
+              if (!rawUrl) return fallback || '';
+              return rawUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+            };
+
+            const contactItems: Array<{ text: string; url?: string }> = [];
+            if (h.email) contactItems.push({ text: h.email, url: `mailto:${h.email}` });
+            if (h.phone) contactItems.push({ text: h.phone, url: `tel:${h.phone}` });
             if (h.location) {
-              contactParts.push(h.location);
+              contactItems.push({ text: h.location });
             } else if (h.city || h.country) {
-              contactParts.push([h.city, h.country].filter(Boolean).join(', '));
+              contactItems.push({ text: [h.city, h.country].filter(Boolean).join(', ') });
             }
+
             if (h.links && Array.isArray(h.links)) {
               h.links.forEach((l: any) => {
-                if (l?.label) contactParts.push(l.label);
+                const url = l?.url || '';
+                const display = formatDisplayUrl(url, l?.label);
+                if (display) {
+                  contactItems.push({ text: display, url: url || undefined });
+                }
               });
             } else {
-              if (h.linkedinUrl) contactParts.push('LinkedIn');
-              if (h.githubUrl) contactParts.push('GitHub');
-              if (h.websiteUrl) contactParts.push('Curriculum Vitae');
+              if (h.linkedinUrl) {
+                contactItems.push({
+                  text: formatDisplayUrl(h.linkedinUrl, 'LinkedIn'),
+                  url: h.linkedinUrl,
+                });
+              }
+              if (h.githubUrl) {
+                contactItems.push({
+                  text: formatDisplayUrl(h.githubUrl, 'GitHub'),
+                  url: h.githubUrl,
+                });
+              }
+              if (h.websiteUrl) {
+                contactItems.push({
+                  text: formatDisplayUrl(h.websiteUrl, 'Curriculum Vitae'),
+                  url: h.websiteUrl,
+                });
+              }
             }
 
             return (
               <View key={sec.id} style={styles.headerContainer}>
                 <Text style={[styles.name, { color: accent }]}>{cleanName}</Text>
                 {cleanHeadline ? <Text style={styles.headline}>{cleanHeadline}</Text> : null}
-                <View style={styles.contactRow}>
-                  {contactParts.map((part, idx) => (
-                    <Text key={idx}>
-                      {part} {idx < contactParts.length - 1 ? '•' : ''}
-                    </Text>
+                <Text style={styles.contactRow}>
+                  {contactItems.map((item, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 ? ' • ' : ''}
+                      {item.url ? (
+                        <Link src={item.url} style={{ color: '#0B0B0B', textDecoration: 'none' }}>
+                          {item.text}
+                        </Link>
+                      ) : (
+                        item.text
+                      )}
+                    </React.Fragment>
                   ))}
-                </View>
+                </Text>
               </View>
             );
           }
@@ -367,7 +418,82 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             );
           }
 
-          // 7. Custom Sections (e.g. Grants, Fellowships)
+          // 7. Skills Section
+          if (type === 'skills') {
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
+            if (entries.length === 0) return null;
+
+            return (
+              <View key={sec.id} style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
+                {entries.map((cat: any) => {
+                  const catTitle = cat.category || cat.title || '';
+                  const skillText = Array.isArray(cat.items)
+                    ? cat.items.map((it: any) => stripNonLatinScript(it.name || it)).join(', ')
+                    : stripNonLatinScript(cat.subtitle || '');
+                  return (
+                    <Text key={cat.id} style={styles.skillsCategory}>
+                      <Text style={styles.boldLabel}>{stripNonLatinScript(catTitle)}: </Text>
+                      {skillText}
+                    </Text>
+                  );
+                })}
+              </View>
+            );
+          }
+
+          // 8. Achievements / Awards Section
+          if (type === 'achievements' || type === 'awards') {
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
+            if (entries.length === 0) return null;
+
+            return (
+              <View key={sec.id} style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
+                {entries.map((ach: any) => (
+                  <View key={ach.id} style={styles.entryContainer}>
+                    <View style={styles.entryRow}>
+                      <Text style={styles.entryTitle}>{stripNonLatinScript(ach.title)}</Text>
+                      {ach.date ? <Text style={styles.dateLocation}>{ach.date}</Text> : null}
+                    </View>
+                    {ach.issuer ? (
+                      <Text style={styles.entrySubtitle}>{stripNonLatinScript(ach.issuer)}</Text>
+                    ) : null}
+                    {ach.description ? (
+                      <Text style={styles.paragraph}>{stripNonLatinScript(ach.description)}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            );
+          }
+
+          // 9. Certifications Section
+          if (type === 'certifications') {
+            const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
+            if (entries.length === 0) return null;
+
+            return (
+              <View key={sec.id} style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
+                {entries.map((cert: any) => (
+                  <View key={cert.id} style={styles.entryContainer}>
+                    <View style={styles.entryRow}>
+                      <Text style={styles.entryTitle}>{stripNonLatinScript(cert.name || cert.title)}</Text>
+                      {cert.date ? <Text style={styles.dateLocation}>{cert.date}</Text> : null}
+                    </View>
+                    {cert.issuingOrg || cert.subtitle ? (
+                      <Text style={styles.entrySubtitle}>
+                        {stripNonLatinScript(cert.issuingOrg || cert.subtitle)}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            );
+          }
+
+          // 10. Custom Sections (e.g. Grants, Fellowships)
           if (type === 'custom') {
             const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;

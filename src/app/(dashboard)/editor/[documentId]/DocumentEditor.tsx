@@ -15,6 +15,12 @@ import {
 } from '@/lib/documents/types';
 import { LivePdfPreview } from '@/components/editor/LivePdfPreview';
 import { scanDocumentForNonLatin } from '@/lib/validation/pdf-text';
+import { pdf } from '@react-pdf/renderer';
+import { DocumentPdfRenderer } from '@/components/pdf/DocumentPdfRenderer';
+import { sanitizePdfFilename } from '@/lib/pdf/filename';
+import { runAtsReadinessChecks } from '@/lib/ats/checker';
+import { AtsReadinessPanel } from '@/components/editor/AtsReadinessPanel';
+import { AtsReadinessReport } from '@/lib/ats/types';
 import {
   ArrowLeft,
   Save,
@@ -30,6 +36,10 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
+  Download,
+  Loader2,
+  FileCheck,
+  WifiOff,
 } from 'lucide-react';
 
 interface DocumentEditorProps {
@@ -49,12 +59,52 @@ const ALLOWED_ACCENTS = [
   { hex: '#5D6B6B', label: 'Slate Mist' },
 ];
 
+function isDocumentContentEqual(
+  aMeta: DocumentMeta,
+  aSections: DocumentSection[],
+  bMeta: DocumentMeta,
+  bSections: DocumentSection[]
+): boolean {
+  if (aMeta.title !== bMeta.title) return false;
+  if (aMeta.templateId !== bMeta.templateId) return false;
+  if ((aMeta.accentColor || '#0B0B0B').toUpperCase() !== (bMeta.accentColor || '#0B0B0B').toUpperCase()) return false;
+  if ((aMeta.targetRole ?? '') !== (bMeta.targetRole ?? '')) return false;
+  if ((aMeta.targetCompany ?? '') !== (bMeta.targetCompany ?? '')) return false;
+
+  if (aSections.length !== bSections.length) return false;
+
+  for (let i = 0; i < aSections.length; i++) {
+    const a = aSections[i];
+    const b = bSections[i];
+    if (a.id !== b.id) return false;
+    if (a.sectionType !== b.sectionType) return false;
+    if (a.title !== b.title) return false;
+    if (a.orderIndex !== b.orderIndex) return false;
+    if (Boolean(a.isVisible) !== Boolean(b.isVisible)) return false;
+    if (JSON.stringify(a.content) !== JSON.stringify(b.content)) return false;
+  }
+
+  return true;
+}
+
 export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   const router = useRouter();
 
   // Document state
   const [meta, setMeta] = useState<DocumentMeta>(initialDocument.meta);
   const [sections, setSections] = useState<DocumentSection[]>(initialDocument.sections);
+
+  // Exact snapshot of last successfully saved document content
+  const lastSavedSnapshotRef = useRef<{
+    meta: DocumentMeta;
+    sections: DocumentSection[];
+  }>({
+    meta: initialDocument.meta,
+    sections: initialDocument.sections,
+  });
+
+  // Debounced autosave coalescing timer
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Undo / Redo history stack (up to 50 snapshots)
   const historyRef = useRef<Array<{ meta: DocumentMeta; sections: DocumentSection[] }>>([
@@ -66,7 +116,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   // Save & concurrency state
   const [saveStatus, setSaveStatus] = useState<
-    'saved' | 'saving' | 'unsaved' | 'conflict' | 'error'
+    'saved' | 'saving' | 'unsaved' | 'conflict' | 'error' | 'offline'
   >('saved');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflictData, setConflictData] = useState<{
@@ -74,13 +124,173 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     serverDoc: { meta: DocumentMeta; sections: DocumentSection[] };
   } | null>(null);
 
-  // Mobile active tab (<768px): 'edit' | 'preview'
-  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
+  // Download PDF state
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // ATS readiness report state
+  const [atsReport, setAtsReport] = useState<AtsReadinessReport | null>(null);
+  const [atsLoading, setAtsLoading] = useState(false);
+
+  // Desktop right pane tab: 'preview' | 'ats'
+  const [activeRightTab, setActiveRightTab] = useState<'preview' | 'ats'>('preview');
+
+  // Mobile active tab (<768px): 'edit' | 'preview' | 'ats'
+  const [mobileTab, setMobileTab] = useState<'edit' | 'preview' | 'ats'>('edit');
 
   // Draft recovery modal
   const [draftPrompt, setDraftPrompt] = useState<{
     draft: { meta: DocumentMeta; sections: DocumentSection[] };
   } | null>(null);
+
+  // Expose status setter for automated E2E layout tests in browser
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__setTestSaveStatus = (status: any) => setSaveStatus(status);
+    }
+  }, []);
+
+  // Online / Offline listener
+  useEffect(() => {
+    const handleOnline = () => {
+      const isSaved = isDocumentContentEqual(
+        meta,
+        sections,
+        lastSavedSnapshotRef.current.meta,
+        lastSavedSnapshotRef.current.sections
+      );
+      setSaveStatus(isSaved ? 'saved' : 'unsaved');
+    };
+    const handleOffline = () => {
+      setSaveStatus('offline');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [meta, sections]);
+
+  // Save document to server
+  const handleSave = useCallback(
+    async (overrideMeta?: DocumentMeta, overrideSections?: DocumentSection[]) => {
+      const currentMeta = overrideMeta || meta;
+      const currentSections = overrideSections || sections;
+
+      if (saveStatus === 'saving') return;
+
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      setSaveStatus('saving');
+      setSaveError(null);
+
+      try {
+        const res = await fetch(`/api/documents/${currentMeta.id}/save`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientVersion: currentMeta.version,
+            meta: {
+              title: currentMeta.title,
+              templateId: currentMeta.templateId,
+              accentColor: currentMeta.accentColor,
+              targetRole: currentMeta.targetRole,
+            },
+            sections: currentSections.map((s, idx) => {
+              let contentPayload: SectionContent = s.content;
+              if (s.sectionType === 'certifications' && contentPayload && typeof contentPayload === 'object') {
+                const c = contentPayload as unknown as Record<string, unknown>;
+                if (Array.isArray(c.entries)) {
+                  contentPayload = {
+                    ...c,
+                    entries: c.entries.map((entry: Record<string, unknown>) => ({
+                      ...entry,
+                      id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cert-${Date.now()}`),
+                      name: (entry.name || entry.title || 'Certification Name')?.toString().trim().slice(0, 500),
+                      issuingOrg: (entry.issuingOrg || entry.issuer || 'Certification Authority')?.toString().trim().slice(0, 300),
+                    })),
+                  } as unknown as SectionContent;
+                }
+              } else if (s.sectionType === 'achievements' && contentPayload && typeof contentPayload === 'object') {
+                const c = contentPayload as unknown as Record<string, unknown>;
+                if (Array.isArray(c.entries)) {
+                  contentPayload = {
+                    ...c,
+                    entries: c.entries.map((entry: Record<string, unknown>) => ({
+                      ...entry,
+                      id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ach-${Date.now()}`),
+                      title: (entry.title || entry.name || 'Achievement Title')?.toString().trim().slice(0, 500),
+                      issuer: entry.issuer ? entry.issuer.toString().trim().slice(0, 300) : undefined,
+                    })),
+                  } as unknown as SectionContent;
+                }
+              } else if (s.sectionType === 'header' && contentPayload && typeof contentPayload === 'object') {
+                const h = contentPayload as HeaderContent;
+                contentPayload = {
+                  ...h,
+                  phone: h.phone ? String(h.phone).trim().slice(0, 100) : undefined,
+                  city: h.city ? String(h.city).trim().slice(0, 255) : undefined,
+                  country: h.country ? String(h.country).trim().slice(0, 255) : undefined,
+                  location: h.location ? String(h.location).trim().slice(0, 255) : undefined,
+                } as HeaderContent;
+              }
+              return {
+                id: s.id,
+                sectionType: s.sectionType,
+                title: s.title,
+                orderIndex: idx,
+                isVisible: s.isVisible,
+                content: contentPayload,
+              };
+            }),
+          }),
+        });
+
+        const resData = await res.json();
+
+        if (res.status === 409) {
+          setSaveStatus('conflict');
+          setConflictData({
+            serverVersion: resData.serverVersion,
+            serverDoc: resData.serverDoc,
+          });
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error(resData.error || 'Failed to save document.');
+        }
+
+        // Update version & update lastSavedSnapshotRef
+        const updatedMeta = {
+          ...currentMeta,
+          version: resData.newVersion,
+          updatedAt: resData.updatedAt,
+        };
+        setMeta(updatedMeta);
+        lastSavedSnapshotRef.current = {
+          meta: updatedMeta,
+          sections: JSON.parse(JSON.stringify(currentSections)),
+        };
+        setSaveStatus('saved');
+
+        // Clear local draft once saved
+        try {
+          localStorage.removeItem(`cv_maker_draft_${currentMeta.id}`);
+        } catch {}
+      } catch (err: unknown) {
+        console.error('Save failed:', err);
+        setSaveStatus('error');
+        setSaveError(err instanceof Error ? err.message : 'Save failed.');
+      }
+    },
+    [saveStatus, meta, sections]
+  );
 
   // Push snapshot to undo stack
   const pushHistory = useCallback(
@@ -94,19 +304,42 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       historyIndexRef.current = nextHistory.length - 1;
       setCanUndo(historyIndexRef.current > 0);
       setCanRedo(false);
-      setSaveStatus('unsaved');
 
-      // Sync to local draft
-      try {
-        localStorage.setItem(
-          `cv_maker_draft_${newMeta.id}`,
-          JSON.stringify({ meta: newMeta, sections: newSections, timestamp: Date.now() })
-        );
-      } catch {
-        // LocalStorage may fail in private mode; silently continue
+      // Cancel any running debounced autosave
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      // Check whether new state equals last saved state
+      const isSaved = isDocumentContentEqual(
+        newMeta,
+        newSections,
+        lastSavedSnapshotRef.current.meta,
+        lastSavedSnapshotRef.current.sections
+      );
+
+      if (isSaved) {
+        setSaveStatus('saved');
+        try {
+          localStorage.removeItem(`cv_maker_draft_${newMeta.id}`);
+        } catch {}
+      } else {
+        setSaveStatus('unsaved');
+        saveTimerRef.current = setTimeout(() => {
+          handleSave(newMeta, newSections);
+        }, 1500);
+
+        // Sync to local draft
+        try {
+          localStorage.setItem(
+            `cv_maker_draft_${newMeta.id}`,
+            JSON.stringify({ meta: newMeta, sections: newSections, timestamp: Date.now() })
+          );
+        } catch {}
       }
     },
-    []
+    [handleSave]
   );
 
   // Check for local draft on initial load
@@ -157,9 +390,41 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       setSections(snap.sections);
       setCanUndo(historyIndexRef.current > 0);
       setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
-      setSaveStatus('unsaved');
+
+      // Cancel any running debounced autosave
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      // Check whether restored snapshot equals last saved content
+      const isSaved = isDocumentContentEqual(
+        snap.meta,
+        snap.sections,
+        lastSavedSnapshotRef.current.meta,
+        lastSavedSnapshotRef.current.sections
+      );
+
+      if (isSaved) {
+        setSaveStatus('saved');
+        try {
+          localStorage.removeItem(`cv_maker_draft_${snap.meta.id}`);
+        } catch {}
+      } else {
+        setSaveStatus('unsaved');
+        saveTimerRef.current = setTimeout(() => {
+          handleSave(snap.meta, snap.sections);
+        }, 1500);
+
+        try {
+          localStorage.setItem(
+            `cv_maker_draft_${snap.meta.id}`,
+            JSON.stringify({ meta: snap.meta, sections: snap.sections, timestamp: Date.now() })
+          );
+        } catch {}
+      }
     }
-  }, []);
+  }, [handleSave]);
 
   // Redo action
   const handleRedo = useCallback(() => {
@@ -170,134 +435,50 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       setSections(snap.sections);
       setCanUndo(true);
       setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
-      setSaveStatus('unsaved');
+
+      // Cancel any running debounced autosave
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      // Check whether restored snapshot equals last saved content
+      const isSaved = isDocumentContentEqual(
+        snap.meta,
+        snap.sections,
+        lastSavedSnapshotRef.current.meta,
+        lastSavedSnapshotRef.current.sections
+      );
+
+      if (isSaved) {
+        setSaveStatus('saved');
+        try {
+          localStorage.removeItem(`cv_maker_draft_${snap.meta.id}`);
+        } catch {}
+      } else {
+        setSaveStatus('unsaved');
+        saveTimerRef.current = setTimeout(() => {
+          handleSave(snap.meta, snap.sections);
+        }, 1500);
+
+        try {
+          localStorage.setItem(
+            `cv_maker_draft_${snap.meta.id}`,
+            JSON.stringify({ meta: snap.meta, sections: snap.sections, timestamp: Date.now() })
+          );
+        } catch {}
+      }
     }
+  }, [handleSave]);
+
+  // Autosave timer cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
   }, []);
-
-  // Save document to server
-  const handleSave = useCallback(async () => {
-    if (saveStatus === 'saving') return;
-    setSaveStatus('saving');
-    setSaveError(null);
-
-    try {
-      const res = await fetch(`/api/documents/${meta.id}/save`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientVersion: meta.version,
-          meta: {
-            title: meta.title,
-            templateId: meta.templateId,
-            accentColor: meta.accentColor,
-            targetRole: meta.targetRole,
-          },
-          sections: sections.map((s, idx) => {
-            let contentPayload: SectionContent = s.content;
-            if (s.sectionType === 'certifications' && contentPayload && typeof contentPayload === 'object') {
-              const c = contentPayload as unknown as Record<string, unknown>;
-              if (Array.isArray(c.entries)) {
-                contentPayload = {
-                  ...c,
-                  entries: c.entries.map((entry: Record<string, unknown>) => ({
-                    ...entry,
-                    id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cert-${Date.now()}`),
-                    name: (entry.name || entry.title || 'Certification Name')?.toString().trim().slice(0, 500),
-                    issuingOrg: (entry.issuingOrg || entry.issuer || 'Certification Authority')?.toString().trim().slice(0, 300),
-                  })),
-                } as unknown as SectionContent;
-              }
-            } else if (s.sectionType === 'achievements' && contentPayload && typeof contentPayload === 'object') {
-              const c = contentPayload as unknown as Record<string, unknown>;
-              if (Array.isArray(c.entries)) {
-                contentPayload = {
-                  ...c,
-                  entries: c.entries.map((entry: Record<string, unknown>) => ({
-                    ...entry,
-                    id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ach-${Date.now()}`),
-                    title: (entry.title || entry.name || 'Achievement Title')?.toString().trim().slice(0, 500),
-                    issuer: entry.issuer ? entry.issuer.toString().trim().slice(0, 300) : undefined,
-                  })),
-                } as unknown as SectionContent;
-              }
-            } else if (s.sectionType === 'header' && contentPayload && typeof contentPayload === 'object') {
-              const h = contentPayload as HeaderContent;
-              contentPayload = {
-                ...h,
-                phone: h.phone ? String(h.phone).trim().slice(0, 100) : undefined,
-                city: h.city ? String(h.city).trim().slice(0, 255) : undefined,
-                country: h.country ? String(h.country).trim().slice(0, 255) : undefined,
-                location: h.location ? String(h.location).trim().slice(0, 255) : undefined,
-              } as HeaderContent;
-            }
-            return {
-              id: s.id,
-              sectionType: s.sectionType,
-              title: s.title,
-              orderIndex: idx,
-              isVisible: s.isVisible,
-              content: contentPayload,
-            };
-          }),
-        }),
-      });
-
-      const resData = await res.json();
-
-      if (res.status === 409) {
-        setSaveStatus('conflict');
-        setConflictData({
-          serverVersion: resData.serverVersion,
-          serverDoc: resData.serverDoc,
-        });
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error(resData.error || 'Failed to save document.');
-      }
-
-      // Update version
-      const updatedMeta = {
-        ...meta,
-        version: resData.newVersion,
-        updatedAt: resData.updatedAt,
-      };
-      setMeta(updatedMeta);
-      setSaveStatus('saved');
-
-      // Clear local draft once saved
-      try {
-        localStorage.removeItem(`cv_maker_draft_${meta.id}`);
-      } catch {}
-    } catch (err: unknown) {
-      console.error('Save failed:', err);
-      setSaveStatus('error');
-      setSaveError(err instanceof Error ? err.message : 'Save failed.');
-    }
-  }, [saveStatus, meta, sections]);
-
-  // Keep refs for keyboard shortcuts to avoid stale closures
-  const handleSaveRef = useRef(handleSave);
-  const handleUndoRef = useRef(handleUndo);
-  const handleRedoRef = useRef(handleRedo);
-
-  useEffect(() => {
-    handleSaveRef.current = handleSave;
-    handleUndoRef.current = handleUndo;
-    handleRedoRef.current = handleRedo;
-  });
-
-  // Autosave debounced (~1.5s)
-  useEffect(() => {
-    if (saveStatus !== 'unsaved') return;
-
-    const timer = setTimeout(() => {
-      handleSave();
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [handleSave, saveStatus]);
 
   // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
   useEffect(() => {
@@ -307,23 +488,23 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
       if (isCmdOrCtrl && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        handleSaveRef.current();
+        handleSave();
       } else if (isCmdOrCtrl && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
-          handleRedoRef.current();
+          handleRedo();
         } else {
-          handleUndoRef.current();
+          handleUndo();
         }
       } else if (isCmdOrCtrl && e.key.toLowerCase() === 'y') {
         e.preventDefault();
-        handleRedoRef.current();
+        handleRedo();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleSave, handleUndo, handleRedo]);
 
   // Section manipulation functions
   const updateSection = (sectionId: string, updater: (sec: DocumentSection) => DocumentSection) => {
@@ -384,6 +565,95 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     const next = sections.filter((s) => s.id !== sectionId);
     setSections(next);
     pushHistory(meta, next);
+  };
+
+  // Handle text extracted from settled preview
+  const handlePreviewTextExtracted = useCallback(
+    (extractedText: string, pageCount: number) => {
+      setAtsLoading(true);
+      try {
+        const report = runAtsReadinessChecks(meta, sections, extractedText, pageCount);
+        setAtsReport(report);
+      } catch (err) {
+        console.error('ATS check failed:', err);
+      } finally {
+        setAtsLoading(false);
+      }
+    },
+    [meta, sections]
+  );
+
+  // Jump to section handler from ATS readiness check
+  const handleJumpToSection = useCallback(
+    (sectionId?: string, fieldId?: string) => {
+      if (mobileTab !== 'edit') {
+        setMobileTab('edit');
+      }
+      setTimeout(() => {
+        if (sectionId) {
+          const el = document.getElementById(sectionId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (fieldId) {
+              const input = el.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+                `[name="${fieldId}"], #${fieldId}`
+              );
+              input?.focus();
+            }
+          }
+        }
+      }, 50);
+    },
+    [mobileTab]
+  );
+
+  // Download PDF handler
+  const handleDownloadPdf = async () => {
+    setIsDownloading(true);
+    setDownloadError(null);
+
+    // If there are unsaved changes, trigger background save to keep database in sync
+    if (saveStatus === 'unsaved') {
+      handleSave();
+    }
+
+    try {
+      // Generate PDF client-side from the exact same renderer
+      const docElement = <DocumentPdfRenderer meta={meta} sections={sections} />;
+      const blob = await pdf(docElement).toBlob();
+
+      // Extract applicant name from header for clean cross-platform filename
+      const headerSec = sections.find(
+        (s) => (s.sectionType || (s as any).section_type) === 'header'
+      );
+      const applicantName =
+        (headerSec?.content as any)?.fullName ||
+        (headerSec?.content as any)?.full_name ||
+        '';
+
+      const filename = sanitizePdfFilename(applicantName, meta.title, meta.type);
+
+      // Download via blob URL
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Revoke object URL
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (err) {
+      console.error('Download PDF error:', err);
+      setDownloadError(
+        err instanceof Error ? err.message : 'Failed to prepare PDF for download.'
+      );
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Scan document for non-Latin script
@@ -462,7 +732,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             {/* Accent Color Picker */}
             <div className="flex items-center gap-1.5 text-xs font-semibold">
               <span className="text-[#333333] hidden sm:inline">Accent:</span>
-              <div className="flex items-center gap-1">
+              <div id="accent-color-picker" className="flex items-center gap-1">
                 {ALLOWED_ACCENTS.map((acc) => (
                   <button
                     key={acc.hex}
@@ -485,13 +755,14 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </div>
 
             {/* Undo / Redo */}
-            <div className="flex items-center border border-[#6B6B6B] rounded-md overflow-hidden bg-[#FFFFFF]">
+            <div className="flex items-center border border-[#6B6B6B] rounded-md overflow-hidden bg-[#FFFFFF] flex-shrink-0">
               <button
                 type="button"
+                id="toolbar-btn-undo"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 aria-label="Undo"
-                className="p-1.5 hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
+                className="p-1.5 w-7 h-7 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
                 title="Undo (Ctrl+Z)"
               >
                 <Undo2 className="w-3.5 h-3.5" />
@@ -499,57 +770,117 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               <div className="w-[1px] h-4 bg-[#6B6B6B]" />
               <button
                 type="button"
+                id="toolbar-btn-redo"
                 onClick={handleRedo}
                 disabled={!canRedo}
                 aria-label="Redo"
-                className="p-1.5 hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
+                className="p-1.5 w-7 h-7 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
                 title="Redo (Ctrl+Y)"
               >
                 <Redo2 className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Save Status & Action */}
-            <div className="flex items-center gap-2">
-              <div className="text-xs font-semibold flex items-center gap-1.5">
-                {saveStatus === 'saved' && (
-                  <span className="text-emerald-700 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Saved
-                  </span>
-                )}
-                {saveStatus === 'saving' && (
-                  <span className="text-[#800021] flex items-center gap-1 animate-pulse">
-                    <Clock className="w-3.5 h-3.5 animate-spin" /> Saving...
-                  </span>
-                )}
-                {saveStatus === 'unsaved' && (
-                  <span className="text-[#333333] flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" /> Unsaved changes
-                  </span>
-                )}
-                {saveStatus === 'conflict' && (
-                  <span className="text-[#800021] flex items-center gap-1 font-bold">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Conflict
-                  </span>
-                )}
-                {saveStatus === 'error' && (
-                  <span className="text-red-700 flex items-center gap-1 font-bold" title={saveError || 'Save failed'}>
-                    <AlertTriangle className="w-3.5 h-3.5" /> Error
-                  </span>
-                )}
-              </div>
+            {/* Save Status Slot (Fixed-width slot: 140px, flex-shrink-0, h-8, no layout shift) */}
+            <div
+              id="save-status-slot"
+              aria-live="polite"
+              className="w-[140px] flex-shrink-0 h-8 inline-flex items-center gap-1.5 px-2 rounded-md bg-[#FFFFFF] border border-transparent text-xs font-semibold overflow-hidden whitespace-nowrap"
+            >
+              {saveStatus === 'saved' && (
+                <span className="text-emerald-700 flex items-center gap-1.5 truncate">
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">Saved</span>
+                </span>
+              )}
+              {saveStatus === 'saving' && (
+                <span className="text-[#800021] flex items-center gap-1.5 truncate animate-pulse">
+                  <Clock className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                  <span className="truncate">Saving...</span>
+                </span>
+              )}
+              {saveStatus === 'unsaved' && (
+                <span className="text-[#333333] flex items-center gap-1.5 truncate">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                  <span className="truncate">Unsaved changes</span>
+                </span>
+              )}
+              {saveStatus === 'conflict' && (
+                <span className="text-[#800021] flex items-center gap-1.5 truncate font-bold">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">Conflict</span>
+                </span>
+              )}
+              {saveStatus === 'error' && (
+                <span
+                  className="text-red-700 flex items-center gap-1.5 truncate font-bold"
+                  title={saveError || 'Save failed'}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">Error</span>
+                </span>
+              )}
+              {saveStatus === 'offline' && (
+                <span className="text-[#333333] flex items-center gap-1.5 truncate">
+                  <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">Offline</span>
+                </span>
+              )}
+            </div>
 
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
-                onClick={handleSave}
+                id="toolbar-btn-save"
+                onClick={() => handleSave()}
                 disabled={saveStatus === 'saving'}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 h-8 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021]"
               >
-                <Save className="w-3.5 h-3.5" /> Save
+                <Save className="w-3.5 h-3.5 flex-shrink-0" /> <span>Save</span>
+              </button>
+
+              {/* Download PDF Button */}
+              <button
+                type="button"
+                id="download-pdf-button"
+                onClick={handleDownloadPdf}
+                disabled={isDownloading}
+                aria-label="Download PDF"
+                aria-busy={isDownloading}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#800021] flex-shrink-0" />
+                    <span>Preparing PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 text-[#800021] flex-shrink-0" />
+                    <span>Download PDF</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Non-Latin notice in download area */}
+        {nonLatinScan.hasNonLatin && (
+          <div className="max-w-7xl mx-auto px-4 pt-1.5 pb-0 text-[11px] text-[#800021] font-medium flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Notice: Non-Latin characters were omitted from the PDF export.</span>
+          </div>
+        )}
+
+        {/* Download error alert */}
+        {downloadError && (
+          <div role="alert" className="max-w-7xl mx-auto px-4 pt-1.5 text-xs text-red-700 font-semibold flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{downloadError}</span>
+          </div>
+        )}
 
         {/* Mobile View Tab Switcher (<768px) */}
         <div className="md:hidden flex border-t border-[#6B6B6B] mt-2.5 pt-2">
@@ -574,6 +905,18 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             }`}
           >
             Live A4 Preview
+          </button>
+          <button
+            type="button"
+            id="mobile-ats-tab-btn"
+            onClick={() => setMobileTab('ats')}
+            className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+              mobileTab === 'ats'
+                ? 'border-[#800021] text-[#800021]'
+                : 'border-transparent text-[#333333]'
+            }`}
+          >
+            ATS Readiness
           </button>
         </div>
       </header>
@@ -627,12 +970,18 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           {sections.map((sec, idx) => (
             <div
               key={sec.id}
-              className={`bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl overflow-hidden shadow-xs transition-opacity ${
-                sec.isVisible ? 'opacity-100' : 'opacity-60 bg-[#F1F7F7]'
+              id={sec.id}
+              data-section-type={sec.sectionType}
+              className={`border border-[#6B6B6B] rounded-xl overflow-hidden shadow-xs transition-colors ${
+                sec.isVisible ? 'bg-[#FFFFFF]' : 'bg-[#F1F7F7]'
               }`}
             >
               {/* Section Header Controls */}
-              <div className="p-3.5 sm:px-5 border-b border-[#6B6B6B] flex items-center justify-between gap-3 bg-[#FFFFFF]">
+              <div
+                className={`p-3.5 sm:px-5 border-b border-[#6B6B6B] flex items-center justify-between gap-3 ${
+                  sec.isVisible ? 'bg-[#FFFFFF]' : 'bg-[#F1F7F7]'
+                }`}
+              >
                 <div className="flex items-center gap-2 flex-1">
                   <span className="text-xs font-mono font-bold text-[#333333] w-5">
                     {idx + 1}.
@@ -648,6 +997,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                   <span className="text-[10px] uppercase font-semibold text-[#5D6B6B] px-1.5 py-0.5 rounded border border-[#6B6B6B]">
                     {sec.sectionType}
                   </span>
+                  {!sec.isVisible && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#800021] bg-[#FFE4D8] border border-[#800021]/30 px-2 py-0.5 rounded-md">
+                      <EyeOff className="w-3 h-3" /> Hidden from PDF
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -714,13 +1068,16 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </label>
                       <input
                         type="text"
-                        value={(sec.content as HeaderContent).fullName || ''}
+                        name="fullName"
+                        id="fullName"
+                        value={(sec.content as HeaderContent).fullName || (sec.content as any).full_name || ''}
                         onChange={(e) =>
                           updateSection(sec.id, (s) => ({
                             ...s,
                             content: {
                               ...(s.content as HeaderContent),
                               fullName: e.target.value,
+                              full_name: e.target.value,
                             },
                           }))
                         }
@@ -733,6 +1090,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </label>
                       <input
                         type="email"
+                        name="email"
+                        id="email"
                         value={(sec.content as HeaderContent).email || ''}
                         onChange={(e) =>
                           updateSection(sec.id, (s) => ({
@@ -1252,13 +1611,83 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           ))}
         </div>
 
-        {/* Right Column: Live A4 Preview (5 cols on desktop) */}
+        {/* Right Column: Live A4 Preview & ATS Readiness (5 cols on desktop) */}
         <div
-          className={`h-[calc(100vh-100px)] sticky top-20 md:col-span-5 ${
-            mobileTab === 'edit' ? 'hidden md:block' : 'block'
+          className={`h-[calc(100vh-100px)] sticky top-20 md:col-span-5 flex flex-col ${
+            mobileTab === 'edit' ? 'hidden md:flex' : 'flex'
           }`}
         >
-          <LivePdfPreview meta={meta} sections={sections} />
+          {/* Desktop Right Column Tab Switcher */}
+          <div className="flex items-center gap-1 bg-[#FFFFFF] border border-[#6B6B6B] p-1 rounded-xl mb-3 shadow-xs">
+            <button
+              type="button"
+              id="right-tab-preview"
+              onClick={() => {
+                setActiveRightTab('preview');
+                if (mobileTab === 'ats') setMobileTab('preview');
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors ${
+                (mobileTab === 'ats' ? false : activeRightTab === 'preview')
+                  ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
+                  : 'text-[#333333] hover:bg-[#F1F7F7] hover:text-[#0B0B0B]'
+              }`}
+            >
+              Live A4 Preview
+            </button>
+            <button
+              type="button"
+              id="right-tab-ats"
+              onClick={() => {
+                setActiveRightTab('ats');
+                if (mobileTab === 'preview') setMobileTab('ats');
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors inline-flex items-center justify-center gap-1.5 ${
+                (mobileTab === 'ats' || activeRightTab === 'ats')
+                  ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
+                  : 'text-[#333333] hover:bg-[#F1F7F7] hover:text-[#0B0B0B]'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              <span>ATS Readiness</span>
+              {atsReport && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    (mobileTab === 'ats' || activeRightTab === 'ats')
+                      ? 'bg-[#FFFFFF] text-[#800021]'
+                      : 'bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B]'
+                  }`}
+                >
+                  {atsReport.summary.passCount}/10
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Live Preview Container (kept mounted so preview compiles & extracts text) */}
+          <div
+            className={`flex-1 min-h-0 ${
+              (mobileTab === 'ats' || activeRightTab === 'ats') ? 'hidden' : 'block'
+            }`}
+          >
+            <LivePdfPreview
+              meta={meta}
+              sections={sections}
+              onTextExtracted={handlePreviewTextExtracted}
+            />
+          </div>
+
+          {/* ATS Readiness Panel Container */}
+          <div
+            className={`flex-1 min-h-0 overflow-y-auto ${
+              (mobileTab === 'ats' || activeRightTab === 'ats') ? 'block' : 'hidden'
+            }`}
+          >
+            <AtsReadinessPanel
+              report={atsReport}
+              isLoading={atsLoading}
+              onJumpToSection={handleJumpToSection}
+            />
+          </div>
         </div>
       </main>
 

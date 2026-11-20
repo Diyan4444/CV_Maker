@@ -1,15 +1,5 @@
 import { chromium } from 'playwright';
 
-interface MetricResult {
-  fixture: string;
-  samples: number[];
-  p50: number;
-  p95: number;
-  min: number;
-  max: number;
-  mean: number;
-}
-
 function quantile(arr: number[], q: number): number {
   const sorted = [...arr].sort((a, b) => a - b);
   const pos = (sorted.length - 1) * q;
@@ -30,7 +20,7 @@ async function runPreviewBenchmark() {
 
   const browser = await chromium.launch({
     headless: true,
-    args: ['--enable-precise-memory-info', '--no-sandbox'],
+    args: ['--enable-precise-memory-info', '--no-sandbox', '--js-flags=--expose-gc'],
   });
 
   const context = await browser.newContext({
@@ -38,32 +28,29 @@ async function runPreviewBenchmark() {
   });
 
   const page = await context.newPage();
+  const cdp = await context.newCDPSession(page);
 
   // Navigate to dev template gallery
   await page.goto('http://localhost:3000/dev/templates', { waitUntil: 'networkidle' });
   await page.waitForSelector('#benchmark-live-edit-input');
   await page.waitForSelector('#pdf-preview-canvas-container canvas', { timeout: 15000 });
 
-  const fixtures = [
-    { id: '1page', name: '1-Page Industry Resume' },
-    { id: '2page', name: '2-Page Senior Engineer Resume' },
-    { id: 'extreme', name: 'Extreme Edge Case' },
-  ];
+  // --------------------------------------------------------------------------
+  // PART 4(c): 1-Page Fixture Repeated 3 Times to Investigate Outliers
+  // --------------------------------------------------------------------------
+  console.log('\n' + '='.repeat(70));
+  console.log('PART 4(c): 1-PAGE FIXTURE 3 REPEATED RUNS (20 EDITS EACH)');
+  console.log('='.repeat(70));
 
-  const results: MetricResult[] = [];
+  await page.locator('button:has-text("1-Page Industry Resume")').first().click();
+  await page.waitForTimeout(1000);
 
-  for (const fix of fixtures) {
-    console.log(`\n--- Benchmarking Fixture: ${fix.name} (${fix.id}) ---`);
+  const input = page.locator('#benchmark-live-edit-input');
 
-    // Switch to fixture
-    const fixtureBtn = page.locator(`button:has-text("${fix.name}")`).first();
-    await fixtureBtn.click();
-    await page.waitForTimeout(1000); // Wait for initial render to settle
-
-    // Reset input
-    const input = page.locator('#benchmark-live-edit-input');
+  for (let runIdx = 1; runIdx <= 3; runIdx++) {
+    console.log(`\n>>> 1-Page Fixture Run ${runIdx}/3 (20 Edits) <<<`);
     await input.fill('');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(600);
 
     const samples: number[] = [];
     const NUM_EDITS = 20;
@@ -75,11 +62,8 @@ async function runPreviewBenchmark() {
       });
 
       const t0 = performance.now();
+      await input.pressSequentially('X', { delay: 0 });
 
-      // Type single character
-      await input.pressSequentially(`X`, { delay: 0 });
-
-      // Wait until canvas has re-rendered to a newer version and compiling finished
       await page.waitForFunction(
         (prevVer) => {
           const c = document.getElementById('pdf-preview-canvas-container');
@@ -94,10 +78,9 @@ async function runPreviewBenchmark() {
       const t1 = performance.now();
       const duration = Math.round(t1 - t0);
       samples.push(duration);
-      process.stdout.write(`Edit ${i}/${NUM_EDITS}: ${duration}ms | `);
+      process.stdout.write(`Edit ${i}: ${duration}ms | `);
       if (i % 5 === 0) console.log();
 
-      // Small pause between edits
       await page.waitForTimeout(60);
     }
 
@@ -107,29 +90,18 @@ async function runPreviewBenchmark() {
     const max = Math.max(...samples);
     const mean = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
 
-    results.push({
-      fixture: fix.name,
-      samples,
-      p50,
-      p95,
-      min,
-      max,
-      mean,
-    });
-
-    console.log(`\nSummary for ${fix.name}:`);
-    console.log(`  Min: ${min}ms | Mean: ${mean}ms | Max: ${max}ms`);
-    console.log(`  p50: ${p50}ms | p95: ${p95}ms`);
+    console.log(`Run ${runIdx} Summary: Min: ${min}ms | Mean: ${mean}ms | Max: ${max}ms | p50: ${p50}ms | p95: ${p95}ms`);
   }
 
-  // --- Long tasks benchmark during 20 seconds of continuous typing ---
+  // --------------------------------------------------------------------------
+  // PART 4(a): Long Tasks (>50ms) During Burst Typing with Pauses
+  // --------------------------------------------------------------------------
   console.log('\n' + '='.repeat(70));
-  console.log('LONG TASKS BENCHMARK (>50ms via PerformanceObserver during 20s typing)');
+  console.log('PART 4(a): LONG TASKS (>50ms) DURING BURST TYPING WITH PAUSES');
   console.log('='.repeat(70));
 
-  // Switch to 1-page fixture for continuous typing test
-  await page.locator('button:has-text("1-Page Industry Resume")').first().click();
-  await page.waitForTimeout(800);
+  await input.fill('');
+  await page.waitForTimeout(600);
 
   // Setup PerformanceObserver for longtask
   await page.evaluate(() => {
@@ -148,75 +120,96 @@ async function runPreviewBenchmark() {
     observer.observe({ entryTypes: ['longtask'] });
   });
 
-  const input = page.locator('#benchmark-live-edit-input');
-  await input.fill('');
-
-  const startTime = Date.now();
-  const DURATION_MS = 20000;
-  let keystrokesCount = 0;
-
-  console.log(`Typing continuously for 20 seconds (~1 key every 180ms)...`);
-  while (Date.now() - startTime < DURATION_MS) {
-    await input.pressSequentially('a', { delay: 0 });
-    keystrokesCount++;
-    await page.waitForTimeout(180);
+  console.log('Simulating 15 typing bursts (3 keys each) followed by 500ms pauses to trigger generation...');
+  for (let burst = 1; burst <= 15; burst++) {
+    await input.pressSequentially('abc', { delay: 30 });
+    // Pause 500ms to allow 250ms debounce to fire and PDF compilation to run
+    await page.waitForTimeout(500);
   }
 
-  // Wait 1s for any final rendering task to complete
+  // Wait 1s for settle
   await page.waitForTimeout(1000);
 
   const longTasks = await page.evaluate(() => {
     return (window as any).__longTasks || [];
   });
 
-  console.log(`Total keystrokes in 20s: ${keystrokesCount}`);
+  console.log(`Total typing bursts: 15 (45 keystrokes total, generation fired 15 times)`);
   console.log(`Long tasks (>50ms) detected: ${longTasks.length}`);
   if (longTasks.length > 0) {
     const totalDuration = longTasks.reduce((acc: number, t: any) => acc + t.duration, 0);
     const maxDuration = Math.max(...longTasks.map((t: any) => t.duration));
     console.log(`Long tasks breakdown:`);
-    console.log(`  Total long task time: ${totalDuration}ms`);
+    console.log(`  Total long task duration: ${totalDuration}ms`);
     console.log(`  Max long task duration: ${maxDuration}ms`);
     console.log(`  Individual task durations: ${longTasks.map((t: any) => t.duration + 'ms').join(', ')}`);
   } else {
-    console.log(`  Zero tasks exceeded 50ms threshold during 20s typing.`);
+    console.log(`  Zero tasks exceeded 50ms threshold during burst typing.`);
   }
 
-  // --- Memory Heap Benchmark before and after 50 edits ---
+  // --------------------------------------------------------------------------
+  // PART 4(b): Heap Memory over 200 Edits with Forced CDP Garbage Collection
+  // --------------------------------------------------------------------------
   console.log('\n' + '='.repeat(70));
-  console.log('HEAP MEMORY BENCHMARK (before & after 50 sequential edits)');
+  console.log('PART 4(b): HEAP TREND OVER 200 EDITS (FORCED CDP GC PER 50 EDITS)');
   console.log('='.repeat(70));
 
-  const initialHeapBytes = await page.evaluate(() => {
-    const mem = (performance as any).memory;
-    return mem ? mem.usedJSHeapSize : null;
-  });
+  await input.fill('');
+  await page.waitForTimeout(600);
 
-  console.log(`Executing 50 sequential edits...`);
-  for (let j = 1; j <= 50; j++) {
-    await input.pressSequentially('z', { delay: 0 });
-    if (j % 10 === 0) {
-      await page.waitForTimeout(300); // Let debounce cycle execute
+  // Baseline GC
+  await cdp.send('HeapProfiler.collectGarbage');
+  await page.waitForTimeout(200);
+
+  const getHeapMB = async () => {
+    await cdp.send('HeapProfiler.collectGarbage');
+    await page.waitForTimeout(200);
+    const bytes = await page.evaluate(() => {
+      const mem = (performance as any).memory;
+      return mem ? mem.usedJSHeapSize : null;
+    });
+    return bytes ? Number((bytes / (1024 * 1024)).toFixed(2)) : null;
+  };
+
+  const heapBaseline = await getHeapMB();
+  console.log(`Heap at 0 edits (Baseline after GC): ${heapBaseline} MB`);
+
+  const checkpoints = [50, 100, 150, 200];
+  let totalEditsDone = 0;
+
+  for (const cp of checkpoints) {
+    const editsToRun = cp - totalEditsDone;
+    process.stdout.write(`Running edits ${totalEditsDone + 1} to ${cp}... `);
+
+    for (let e = 1; e <= editsToRun; e++) {
+      const initialVer = await page.evaluate(() => {
+        const c = document.getElementById('pdf-preview-canvas-container');
+        return parseInt(c?.getAttribute('data-rendered-version') || '0', 10);
+      });
+
+      await input.pressSequentially('z', { delay: 0 });
+
+      // Settle every 5 edits so preview compiles
+      if (e % 5 === 0) {
+        await page.waitForFunction(
+          (prevVer) => {
+            const c = document.getElementById('pdf-preview-canvas-container');
+            const currentVer = parseInt(c?.getAttribute('data-rendered-version') || '0', 10);
+            const isCompiling = c?.getAttribute('data-compiling') === 'true';
+            return currentVer > prevVer && !isCompiling;
+          },
+          initialVer,
+          { timeout: 15000 }
+        );
+      }
     }
-  }
 
-  // Wait for settle
-  await page.waitForTimeout(1000);
+    totalEditsDone = cp;
+    await page.waitForTimeout(500);
 
-  const finalHeapBytes = await page.evaluate(() => {
-    const mem = (performance as any).memory;
-    return mem ? mem.usedJSHeapSize : null;
-  });
-
-  if (initialHeapBytes && finalHeapBytes) {
-    const initialMB = (initialHeapBytes / (1024 * 1024)).toFixed(2);
-    const finalMB = (finalHeapBytes / (1024 * 1024)).toFixed(2);
-    const deltaMB = ((finalHeapBytes - initialHeapBytes) / (1024 * 1024)).toFixed(2);
-    console.log(`Heap before 50 edits: ${initialMB} MB (${initialHeapBytes} bytes)`);
-    console.log(`Heap after 50 edits:  ${finalMB} MB (${finalHeapBytes} bytes)`);
-    console.log(`Heap delta:          ${deltaMB} MB`);
-  } else {
-    console.log(`performance.memory API unavailable in this browser context.`);
+    const heapAtCheckpoint = await getHeapMB();
+    const deltaFromBaseline = heapBaseline && heapAtCheckpoint ? (heapAtCheckpoint - heapBaseline).toFixed(2) : 'N/A';
+    console.log(`\n  -> Heap at ${cp} edits (after GC): ${heapAtCheckpoint} MB (Delta from baseline: ${deltaFromBaseline} MB)`);
   }
 
   console.log('\n' + '='.repeat(70));

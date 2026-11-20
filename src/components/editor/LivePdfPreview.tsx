@@ -10,9 +10,15 @@ interface LivePdfPreviewProps {
   meta: DocumentMeta;
   sections: DocumentSection[];
   onPageCountChange?: (count: number) => void;
+  onTextExtracted?: (text: string, pageCount: number) => void;
 }
 
-export function LivePdfPreview({ meta, sections, onPageCountChange }: LivePdfPreviewProps) {
+export function LivePdfPreview({
+  meta,
+  sections,
+  onPageCountChange,
+  onTextExtracted,
+}: LivePdfPreviewProps) {
   const [numPages, setNumPages] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
@@ -21,10 +27,13 @@ export function LivePdfPreview({ meta, sections, onPageCountChange }: LivePdfPre
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const renderVersionRef = useRef<number>(0);
+  const prevPdfDocRef = useRef<any>(null);
   const onPageCountChangeRef = useRef(onPageCountChange);
+  const onTextExtractedRef = useRef(onTextExtracted);
 
   useEffect(() => {
     onPageCountChangeRef.current = onPageCountChange;
+    onTextExtractedRef.current = onTextExtracted;
   });
 
   // Debounced compilation and render
@@ -60,13 +69,38 @@ export function LivePdfPreview({ meta, sections, onPageCountChange }: LivePdfPre
         setNumPages(pdfDoc.numPages);
         onPageCountChangeRef.current?.(pdfDoc.numPages);
 
+        // Extract full text for ATS readiness checks
+        let extractedFullText = '';
+        for (let pIdx = 1; pIdx <= pdfDoc.numPages; pIdx++) {
+          const pageObj = await pdfDoc.getPage(pIdx);
+          const textContent = await pageObj.getTextContent();
+          const pageStrings = textContent.items
+            .filter((item: any) => 'str' in item)
+            .map((item: any) => item.str);
+          extractedFullText += pageStrings.join(' ') + '\n';
+        }
+        onTextExtractedRef.current?.(extractedFullText.trim(), pdfDoc.numPages);
+
         const container = canvasContainerRef.current;
         if (!container) return;
+
+        // Destroy previous PDF.js document to release worker memory and font caches
+        if (prevPdfDocRef.current) {
+          try {
+            prevPdfDocRef.current.destroy();
+          } catch {}
+        }
+        prevPdfDocRef.current = pdfDoc;
 
         // Save current scroll position before drawing
         const currentScrollTop = scrollContainerRef.current?.scrollTop || 0;
 
-        // Clear and draw pages
+        // Clear previous canvases and release canvas backing stores
+        const oldCanvases = container.querySelectorAll('canvas');
+        oldCanvases.forEach((c) => {
+          c.width = 0;
+          c.height = 0;
+        });
         container.innerHTML = '';
         for (let i = 1; i <= pdfDoc.numPages; i++) {
           const page = await pdfDoc.getPage(i);
@@ -122,6 +156,11 @@ export function LivePdfPreview({ meta, sections, onPageCountChange }: LivePdfPre
     return () => {
       isCancelled = true;
       clearTimeout(timer);
+      if (prevPdfDocRef.current) {
+        try {
+          prevPdfDocRef.current.destroy();
+        } catch {}
+      }
     };
   }, [meta, sections, scale]);
 

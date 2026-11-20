@@ -30,6 +30,7 @@ const pages = ['/', '/login', '/onboarding', '/dashboard', '/profile'] as const;
 test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
+  let testDocId: string = '';
   const testEmail = `overflow-test-${Date.now()}@folioone.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
@@ -58,6 +59,25 @@ test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
       specialization: 'Computer Science Engineering',
       headline: 'Software Engineering Graduate',
       summary: 'Comprehensive profile summary to populate page UI for overflow auditing.',
+    });
+
+    // Seed test document for /editor/[documentId] audit
+    const { data: docRecord } = await (adminClient as any).from('documents').insert({
+      user_id: testUserId,
+      title: 'Overflow Audit Document',
+      type: 'resume',
+      template_id: 'ats_single_column',
+      accent_color: '#0B0B0B',
+      version: 1,
+    }).select('id').single();
+    testDocId = docRecord.id;
+
+    await (adminClient as any).from('document_sections').insert({
+      document_id: testDocId,
+      section_type: 'header',
+      title: 'Header',
+      order_index: 0,
+      content: { fullName: 'Overflow User', email: 'test@example.com' },
     });
 
     // Generate SSR authentication cookies
@@ -109,7 +129,8 @@ test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
 
       const page = await context.newPage();
 
-      for (const pagePath of pages) {
+      const allPages = [...pages, `/editor/${testDocId}`];
+      for (const pagePath of allPages) {
         await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(100);
 
@@ -122,6 +143,23 @@ test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
           scrollWidth,
           `Overflow detected on ${pagePath} at ${vp.name}: scrollWidth (${scrollWidth}px) exceeds innerWidth (${innerWidth}px)`
         ).toBeLessThanOrEqual(innerWidth);
+
+        // Also test ATS Readiness Panel view for horizontal overflow
+        if (pagePath.startsWith('/editor/')) {
+          const atsBtn = page.locator('#right-tab-ats, #mobile-ats-tab-btn').filter({ hasText: /ATS/i }).first();
+          if (await atsBtn.isVisible()) {
+            await atsBtn.click();
+            await page.waitForTimeout(100);
+            const atsOverflow = await page.evaluate(() => ({
+              scrollWidth: document.documentElement.scrollWidth,
+              innerWidth: window.innerWidth,
+            }));
+            expect(
+              atsOverflow.scrollWidth,
+              `Overflow detected on ATS Panel at ${vp.name}: scrollWidth (${atsOverflow.scrollWidth}px) exceeds innerWidth (${atsOverflow.innerWidth}px)`
+            ).toBeLessThanOrEqual(atsOverflow.innerWidth);
+          }
+        }
       }
 
       await context.close();

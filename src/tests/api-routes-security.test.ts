@@ -226,4 +226,11 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     const data = await oversizedSaveRes.json();
     expect(data.error).toContain('exceeds the 64KB database limit');
   });
+
+  afterAll(async () => {
+    if (adminClient) {
+      if (userAId) await adminClient.auth.admin.deleteUser(userAId);
+      if (userBId) await adminClient.auth.admin.deleteUser(userBId);
+    }
+  });
 });

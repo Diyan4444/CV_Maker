@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer';
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 import { stripNonLatinScript } from '@/lib/validation/pdf-text';
 import { registerNotoFonts } from '@/lib/pdf/fonts';
@@ -35,11 +35,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   contactRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
     fontSize: 8.5,
     color: '#333333',
+    lineHeight: 1.35,
   },
   section: {
     marginBottom: 12,
@@ -133,8 +131,20 @@ export function ModernProfessionalTemplate({ meta, sections }: TemplateProps) {
       return orderA - orderB;
     });
 
+  const headerSec = sections.find((s) => (s.sectionType || (s as any).section_type) === 'header');
+  const authorName = headerSec ? stripNonLatinScript((headerSec.content as any)?.fullName || (headerSec.content as any)?.full_name || '') : '';
+  const docSubject = (meta as any).target_role || (meta as any).targetRole || (meta.type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume');
+
   return (
-    <Document title={stripNonLatinScript(meta.title)}>
+    <Document
+      title={stripNonLatinScript(meta.title) || 'Resume'}
+      author={authorName}
+      subject={docSubject}
+      keywords={meta.type || 'resume, cv'}
+      creator="CV Studio (CV Maker)"
+      producer="CV Studio (react-pdf)"
+      language="en"
+    >
       <Page size="A4" style={styles.page}>
         {visibleSections.map((sec) => {
           const type = sec.sectionType || (sec as any).section_type;
@@ -144,35 +154,68 @@ export function ModernProfessionalTemplate({ meta, sections }: TemplateProps) {
             const h = sec.content as any;
             const cleanName = stripNonLatinScript(h.fullName || h.full_name || '');
             const cleanHeadline = stripNonLatinScript(h.headline || '');
-            const contactParts: string[] = [];
-            if (h.email) contactParts.push(h.email);
-            if (h.phone) contactParts.push(h.phone);
+
+            const formatDisplayUrl = (rawUrl: string, fallback?: string): string => {
+              if (!rawUrl) return fallback || '';
+              return rawUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+            };
+
+            const contactItems: Array<{ text: string; url?: string }> = [];
+            if (h.email) contactItems.push({ text: h.email, url: `mailto:${h.email}` });
+            if (h.phone) contactItems.push({ text: h.phone, url: `tel:${h.phone}` });
             if (h.location) {
-              contactParts.push(h.location);
+              contactItems.push({ text: h.location });
             } else if (h.city || h.country) {
-              contactParts.push([h.city, h.country].filter(Boolean).join(', '));
+              contactItems.push({ text: [h.city, h.country].filter(Boolean).join(', ') });
             }
+
             if (h.links && Array.isArray(h.links)) {
               h.links.forEach((l: any) => {
-                if (l?.label) contactParts.push(l.label);
+                const url = l?.url || '';
+                const display = formatDisplayUrl(url, l?.label);
+                if (display) {
+                  contactItems.push({ text: display, url: url || undefined });
+                }
               });
             } else {
-              if (h.linkedinUrl) contactParts.push('LinkedIn');
-              if (h.githubUrl) contactParts.push('GitHub');
-              if (h.websiteUrl) contactParts.push('Portfolio');
+              if (h.linkedinUrl) {
+                contactItems.push({
+                  text: formatDisplayUrl(h.linkedinUrl, 'LinkedIn'),
+                  url: h.linkedinUrl,
+                });
+              }
+              if (h.githubUrl) {
+                contactItems.push({
+                  text: formatDisplayUrl(h.githubUrl, 'GitHub'),
+                  url: h.githubUrl,
+                });
+              }
+              if (h.websiteUrl) {
+                contactItems.push({
+                  text: formatDisplayUrl(h.websiteUrl, 'Portfolio'),
+                  url: h.websiteUrl,
+                });
+              }
             }
 
             return (
               <View key={sec.id} style={[styles.headerContainer, { borderBottomColor: accent }]}>
                 <Text style={[styles.name, { color: accent }]}>{cleanName}</Text>
                 {cleanHeadline ? <Text style={styles.headline}>{cleanHeadline}</Text> : null}
-                <View style={styles.contactRow}>
-                  {contactParts.map((part, idx) => (
-                    <Text key={idx}>
-                      {part} {idx < contactParts.length - 1 ? '|' : ''}
-                    </Text>
+                <Text style={styles.contactRow}>
+                  {contactItems.map((item, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 ? ' | ' : ''}
+                      {item.url ? (
+                        <Link src={item.url} style={{ color: '#0B0B0B', textDecoration: 'none' }}>
+                          {item.text}
+                        </Link>
+                      ) : (
+                        item.text
+                      )}
+                    </React.Fragment>
                   ))}
-                </View>
+                </Text>
               </View>
             );
           }
@@ -380,8 +423,8 @@ export function ModernProfessionalTemplate({ meta, sections }: TemplateProps) {
             );
           }
 
-          // 8. Achievements Section
-          if (type === 'achievements') {
+          // 8. Achievements / Awards Section
+          if (type === 'achievements' || type === 'awards') {
             const entries = ((sec.content as any).entries || []).filter((e: any) => e.isVisible !== false);
             if (entries.length === 0) return null;
 

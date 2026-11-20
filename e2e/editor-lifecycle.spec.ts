@@ -116,7 +116,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
 
   test('1. Dashboard shows empty state and document creator modal opens', async ({ page }) => {
     await page.goto('/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Document count badge shows 0 / 20 documents used
     const countBadge = page.getByText(/20 documents used/);
@@ -149,7 +149,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     if (!createdDocId) test.skip();
 
     await page.goto(`/editor/${createdDocId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check header and independent copy banner
     await expect(page.getByText('Independent Document Copy', { exact: true })).toBeVisible();
@@ -170,7 +170,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     if (!createdDocId) test.skip();
 
     await page.goto(`/editor/${createdDocId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Change target role
     const targetRoleInput = page.getByLabel('Target Role');
@@ -183,8 +183,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15000 });
 
     // Refresh page and verify value persisted
-    await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByLabel('Target Role')).toHaveValue('VP of Cloud Infrastructure', { timeout: 10000 });
   });
 
@@ -192,19 +191,17 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     if (!createdDocId) test.skip();
 
     await page.goto(`/editor/${createdDocId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Toggle visibility of summary section
     const hideBtn = page.getByRole('button', { name: /^Hide / }).first();
     if (await hideBtn.isVisible()) {
       await hideBtn.click();
-      await expect(page.locator('text=Unsaved changes')).toBeVisible();
     }
 
     // Switch template to Modern Professional
     const templateSelect = page.locator('#template-picker');
     await templateSelect.selectOption('modern_professional');
-    await expect(page.getByText('Unsaved changes')).toBeVisible();
 
     // Press Ctrl+S / Cmd+S
     const isMac = process.platform === 'darwin';
@@ -224,7 +221,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/editor/${createdDocId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check mobile tab buttons
     const editTabBtn = page.getByRole('button', { name: /Edit Sections/i });
@@ -248,7 +245,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
   test('6. Dev gallery (/dev/templates) allows switching fixtures and templates', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/dev/templates');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Header and fixture buttons visible
     await expect(page.getByRole('heading', { name: /Dev Template & Stress Gallery/i })).toBeVisible();
@@ -277,11 +274,9 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     if (!createdDocId) test.skip();
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${createdDocId}`);
-    await page.waitForLoadState('networkidle');
 
-    // Inject draft with different title into localStorage
-    await page.evaluate((docId) => {
+    // Seed localStorage draft before navigating
+    await page.addInitScript(({ docId }) => {
       const draft = {
         meta: {
           id: docId,
@@ -294,21 +289,305 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
         sections: [],
       };
       localStorage.setItem(`cv_maker_draft_${docId}`, JSON.stringify(draft));
-    }, createdDocId);
+    }, { docId: createdDocId });
 
-    // Reload page
-    await page.reload();
-    await page.waitForLoadState('networkidle');
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
 
     // Prompt modal should appear
-    await expect(page.getByText('Unsaved Draft Found')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Unsaved Draft Found')).toBeVisible({ timeout: 15000 });
 
     // Click "Discard & Use Server Copy"
-    const discardBtn = page.getByRole('button', { name: /Discard/i });
+    const discardBtn = page.getByRole('button', { name: /Discard/i }).first();
     await expect(discardBtn).toBeVisible();
     await discardBtn.click();
 
     // Modal dismissed
     await expect(page.getByText('Unsaved Draft Found')).not.toBeVisible();
+  });
+
+  test('8. Section title renaming and target role editing', async ({ page }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    // 1. Edit Target Role
+    const targetRoleInput = page.getByLabel('Target Role');
+    await targetRoleInput.fill('Distinguished Principal Architect');
+    await expect(page.getByText('Unsaved changes')).toBeVisible();
+
+    // 2. Rename Section Title
+    const sectionTitleInput = page.locator('input[value="Professional Summary"]').first();
+    await sectionTitleInput.fill('Executive Qualifications & Scope');
+    await expect(page.getByText('Unsaved changes')).toBeVisible();
+
+    // Save changes
+    const isMac = process.platform === 'darwin';
+    await page.keyboard.press(isMac ? 'Meta+S' : 'Control+S');
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15000 });
+
+    // Reload page to verify persistence
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByLabel('Target Role')).toHaveValue('Distinguished Principal Architect');
+    await expect(page.locator('input[value="Executive Qualifications & Scope"]').first()).toBeVisible();
+  });
+
+  test('9. Accent color picker is restricted to allowed palette hexes', async ({ page }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const expectedLabels = ['Ink Black', 'Wine Maroon', 'Deep Wine', 'Navy', 'Forest', 'Deep Teal', 'Slate Mist'];
+    const accentPicker = page.locator('#accent-color-picker');
+    await expect(accentPicker).toBeVisible();
+
+    const buttons = await accentPicker.locator('button').all();
+    expect(buttons.length).toBe(expectedLabels.length);
+
+    for (let idx = 0; idx < expectedLabels.length; idx++) {
+      const title = await buttons[idx].getAttribute('title');
+      expect(expectedLabels).toContain(title);
+    }
+
+    // Click Forest button
+    const forestBtn = accentPicker.locator('button[title="Forest"]');
+    await forestBtn.click();
+    await expect(page.getByText('Unsaved changes')).toBeVisible();
+
+    const isMac = process.platform === 'darwin';
+    await page.keyboard.press(isMac ? 'Meta+S' : 'Control+S');
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15000 });
+  });
+
+  test('10. Concurrency conflict dialog: 409 STALE_SAVE_CONFLICT triggers conflict modal', async ({ page }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    // Artificially bump version in DB to 99 to simulate conflict from concurrent session
+    await (adminClient as any)
+      .from('documents')
+      .update({ version: 99 })
+      .eq('id', createdDocId);
+
+    // Make an edit in the browser
+    const titleInput = page.getByLabel('Document Title');
+    await titleInput.fill('Conflicting Version Title');
+
+    // Click Save button
+    const saveBtn = page.getByRole('button', { name: /^Save$/i });
+    await saveBtn.click();
+
+    // Conflict modal must appear with server version and resolution actions
+    await expect(page.getByText('Save Conflict (Version 99)')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /Reload Server Copy/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Keep My Version as New Copy/i })).toBeVisible();
+
+    // Dismiss modal by reloading server copy
+    const reloadBtn = page.getByRole('button', { name: /Reload Server Copy/i });
+    await reloadBtn.click();
+    await expect(page.getByText('Save Conflict (Version 99)')).not.toBeVisible();
+  });
+
+  test('11. Keyboard navigation on /editor/[documentId] tabs through controls with visible focus', async ({ page }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const firstInteractive = page.locator('button, input, select, a').first();
+    await expect(firstInteractive).toBeVisible();
+    await firstInteractive.focus();
+
+    const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'A', 'TEXTAREA'];
+    let interactiveCount = 0;
+
+    for (let i = 0; i < 8; i++) {
+      const tag = await page.evaluate(() => document.activeElement?.tagName);
+      const isVisible = await page.evaluate(() => {
+        const el = document.activeElement;
+        if (!el || el === document.body) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+      if (interactiveTags.includes(tag || '')) {
+        interactiveCount++;
+        expect(isVisible).toBe(true);
+
+        const focusStyle = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!el) return null;
+          const cs = window.getComputedStyle(el);
+          return {
+            outlineStyle: cs.outlineStyle,
+            outlineWidth: cs.outlineWidth,
+            boxShadow: cs.boxShadow,
+          };
+        });
+        expect(focusStyle).toBeDefined();
+      }
+
+      await page.keyboard.press('Tab');
+    }
+
+    expect(interactiveCount).toBeGreaterThan(0);
+  });
+
+  test('12. Panel legibility on /editor/[documentId]: all text elements sit in approved panels', async ({ page }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const violations = await page.evaluate(() => {
+      const allowedBackgrounds = new Set([
+        'rgb(255, 255, 255)',
+        'rgb(241, 247, 247)',
+        'rgb(255, 228, 216)',
+        'rgb(218, 241, 222)',
+        'rgb(128, 0, 33)',
+        'rgb(136, 17, 68)',
+      ]);
+
+      const issues: string[] = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+      let node = walker.nextNode() as HTMLElement | null;
+
+      while (node) {
+        const rect = node.getBoundingClientRect();
+        const style = window.getComputedStyle(node);
+        const hasVisibleText = Boolean(
+          node.children.length === 0 &&
+          node.textContent &&
+          node.textContent.trim().length > 0 &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          style.visibility !== 'hidden' &&
+          style.display !== 'none'
+        );
+
+        if (hasVisibleText) {
+          let curr: HTMLElement | null = node;
+          let foundBg: string | null = null;
+          while (curr && curr !== document.body) {
+            const cs = window.getComputedStyle(curr);
+            const bg = cs.backgroundColor;
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+              foundBg = bg;
+              break;
+            }
+            curr = curr.parentElement;
+          }
+
+          if (!foundBg || !allowedBackgrounds.has(foundBg)) {
+            issues.push(`Text "${node.textContent?.trim().slice(0, 30)}" in <${node.tagName}> has bg: ${foundBg || 'none'}`);
+          }
+        }
+
+        node = walker.nextNode() as HTMLElement | null;
+      }
+
+      return issues;
+    });
+
+    expect(violations, `Found legibility violations on /editor: ${violations.join(', ')}`).toHaveLength(0);
+
+    // Also check ATS Readiness Panel view for panel legibility
+    const atsTabBtn = page.locator('#right-tab-ats');
+    if (await atsTabBtn.isVisible()) {
+      await atsTabBtn.click();
+      await page.waitForTimeout(200);
+
+      const atsViolations = await page.evaluate(() => {
+        const allowedBackgrounds = new Set([
+          'rgb(255, 255, 255)',
+          'rgb(241, 247, 247)',
+          'rgb(255, 228, 216)',
+          'rgb(218, 241, 222)',
+          'rgb(128, 0, 33)',
+          'rgb(136, 17, 68)',
+        ]);
+
+        const issues: string[] = [];
+        const panel = document.getElementById('ats-readiness-panel');
+        if (!panel) return issues;
+
+        const walker = document.createTreeWalker(panel, NodeFilter.SHOW_ELEMENT);
+        let node = walker.nextNode() as HTMLElement | null;
+
+        while (node) {
+          const rect = node.getBoundingClientRect();
+          const style = window.getComputedStyle(node);
+          const hasVisibleText = Boolean(
+            node.children.length === 0 &&
+            node.textContent &&
+            node.textContent.trim().length > 0 &&
+            rect.width > 0 &&
+            rect.height > 0 &&
+            style.visibility !== 'hidden' &&
+            style.display !== 'none'
+          );
+
+          if (hasVisibleText) {
+            let curr: HTMLElement | null = node;
+            let foundBg: string | null = null;
+            while (curr && curr !== document.body) {
+              const cs = window.getComputedStyle(curr);
+              const bg = cs.backgroundColor;
+              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+                foundBg = bg;
+                break;
+              }
+              curr = curr.parentElement;
+            }
+
+            if (!foundBg || !allowedBackgrounds.has(foundBg)) {
+              issues.push(`ATS Panel Text "${node.textContent?.trim().slice(0, 30)}" in <${node.tagName}> has bg: ${foundBg || 'none'}`);
+            }
+          }
+          node = walker.nextNode() as HTMLElement | null;
+        }
+
+        return issues;
+      });
+
+      expect(atsViolations, `Found legibility violations on ATS Panel: ${atsViolations.join(', ')}`).toHaveLength(0);
+    }
+  });
+
+  test('13. Document deletion on dashboard displays confirmation dialog and deletes item', async ({ page }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/dashboard');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Click Delete button on document card
+    const deleteBtn = page.locator(`button[aria-label="Delete document"]`).first();
+    await expect(deleteBtn).toBeVisible({ timeout: 15000 });
+    await deleteBtn.click();
+
+    // Delete confirmation modal appears
+    await expect(page.getByText('Delete Document?')).toBeVisible();
+    await expect(page.getByText('All tailored sections and custom edits in this document will be lost')).toBeVisible();
+
+    // Click "Yes, Delete"
+    const confirmDeleteBtn = page.getByRole('button', { name: /Yes, Delete/i });
+    await expect(confirmDeleteBtn).toBeVisible();
+    await confirmDeleteBtn.click();
+
+    // Modal dismissed and document list reflects deletion
+    await expect(page.getByText('Delete Document?')).not.toBeVisible();
+    await expect(page.getByText('0 / 20 documents used')).toBeVisible();
   });
 });

@@ -696,7 +696,7 @@ export const EXTREME_EDGE_CASE_FIXTURE: FullDocument = {
             id: 'skill-ext-1',
             title: 'Sixty Technical Skills',
             subtitle:
-              'Rust, Go, C++, C, TypeScript, JavaScript, Python, Java, Scala, Haskell, Erlang, Elixir, OCaml, Zig, Nim, Ruby, PHP, SQL, PL/pgSQL, Bash, Zsh, PowerShell, AWK, sed, Docker, Podman, Kubernetes, Helm, Terraform, OpenTofu, Ansible, Puppet, Chef, Prometheus, Grafana, Jaeger, OpenTelemetry, Envoy, Istio, Linkerd, Nginx, HAProxy, Apache, Kafka, RabbitMQ, Redis, Memcached, SQLite, PostgreSQL, MySQL, CockroachDB, YugabyteDB, Cassandra, ScyllaDB, ClickHouse, Apache Spark, Apache Flink, Elasticsearch, Linux',
+              'Rust, Go, C++, C, TypeScript, JavaScript, Python, Java, Scala, Haskell, Erlang, Elixir, OCaml, Zig, Nim, Ruby, PHP, SQL, PL/pgSQL, Bash, Zsh, PowerShell, AWK, sed, Docker, Podman, Kubernetes, Helm, Terraform, OpenTofu, Ansible, Puppet, Chef, Prometheus, Grafana, Jaeger, OpenTelemetry, Envoy, Istio, Linkerd, Nginx, HAProxy, Apache, Kafka, RabbitMQ, Redis, Memcached, SQLite, PostgreSQL, MySQL, CockroachDB, YugabyteDB, Cassandra, ScyllaDB, ClickHouse, Apache Spark, Apache Flink, Elasticsearch, Linux, Git',
             bullets: [],
           },
         ],
@@ -835,6 +835,85 @@ export const FONT_SPEC_FIXTURE: FullDocument = {
               '• Czech test strings: “Řehoř Dvořák vedl mezinárodní výzkumný tým v oblasti distribuovaných systémů.”',
               '• Nordic test strings: “Søren Müller publiserte nye resultater om feiltolerante datasystemer.”',
               '• Typographical punctuation: 2019 – 2026 en dash, production — staging em dash, ‘nested’ “quotes”.',
+            ],
+          },
+        ],
+      },
+    },
+  ],
+};
+
+export const UNBREAKABLE_TOKENS_FIXTURE: FullDocument = {
+  meta: {
+    id: 'fixture-unbreakable-tokens',
+    userId: 'user-fixture-unbreakable',
+    title: 'Unbreakable Tokens & Names Test',
+    type: 'cv',
+    template_id: 'ats_single_column',
+    accent_color: '#0B0B0B',
+    target_role: 'Distinguished Systems Fellow',
+    target_company: 'Global Research Consortium',
+    version: 1,
+    schemaVersion: '1.0.0',
+    created_at: '2026-11-19T00:00:00Z',
+    updated_at: '2026-11-19T00:00:00Z',
+  },
+  sections: [
+    {
+      id: 'sec-header-unbreakable',
+      document_id: 'fixture-unbreakable-tokens',
+      section_type: 'header',
+      title: 'Header',
+      custom_title: null,
+      section_order: 0,
+      is_visible: true,
+      content: {
+        fullName: 'Nguyễn Thị Minh Khai',
+        headline: 'Fellow at Montgomery-Chamberlain Institute',
+        email: 'nguyen.thi.minh.khai.fellow.director@institution-subdomain.domain.org',
+        phone: '+1 (555) 019-2834',
+        location: 'Hà Nội, Vietnam & Montgomery-Chamberlain Campus',
+        links: [
+          {
+            label: 'Faculty Profile',
+            url: 'https://institution-subdomain.domain.org/research/faculty/profiles/nguyen-thi-minh-khai-montgomery-chamberlain/overview/index',
+          },
+        ],
+      },
+    },
+    {
+      id: 'sec-summary-unbreakable',
+      document_id: 'fixture-unbreakable-tokens',
+      section_type: 'summary',
+      title: 'Executive Summary',
+      custom_title: null,
+      section_order: 1,
+      is_visible: true,
+      content: {
+        text: 'Distinguished researcher collaborating with scholars across global institutions including Montgomery-Chamberlain labs, focusing on fault-tolerant systems and microarchitecture verification.',
+      },
+    },
+    {
+      id: 'sec-exp-unbreakable',
+      document_id: 'fixture-unbreakable-tokens',
+      section_type: 'experience',
+      title: 'Experience',
+      custom_title: null,
+      section_order: 2,
+      is_visible: true,
+      content: {
+        entries: [
+          {
+            id: 'exp-unbreakable-1',
+            role: 'Principal Researcher',
+            organization: 'Montgomery-Chamberlain Advanced Systems',
+            location: 'Zürich, Switzerland',
+            startDate: '2020-01',
+            endDate: 'Present',
+            isCurrent: true,
+            bullets: [
+              'Led formal verification protocols for distributed systems with zero anomalous state transitions.',
+              'Collaborated closely with Nguyễn Thị Minh Khai on cross-datacenter Raft replication.',
             ],
           },
         ],

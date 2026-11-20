@@ -271,6 +271,7 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
                     onClick={() => handleDuplicate(doc.id)}
                     className="p-1.5 rounded-md border border-[#6B6B6B] text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
                     title="Duplicate into independent copy"
+                    aria-label="Duplicate document"
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </button>
@@ -279,6 +280,7 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
                     onClick={() => setDocToDelete(doc)}
                     className="p-1.5 rounded-md border border-[#6B6B6B] text-[#800021] hover:bg-[#FFE4D8] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
                     title="Delete document"
+                    aria-label="Delete document"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
