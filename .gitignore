@@ -26,6 +26,8 @@
 # misc
 .DS_Store
 *.pem
+*.log
+extreme_extracted_text.txt
 
 # debug
 npm-debug.log*

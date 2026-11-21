@@ -158,7 +158,46 @@ describe('Item 3: Long URLs and Emails Wrapping & Margin Safety', () => {
         }
       }
 
-      // 2. Extracted text verification: all characters present in order
+      // 2. Extracted text verification: exact character-level audit
+      // Verify zero hidden or non-printable Unicode characters across ALL extracted items
+      for (const item of textContent.items as any[]) {
+        if (!item.str) continue;
+        for (let c = 0; c < item.str.length; c++) {
+          const code = item.str.charCodeAt(c);
+          if (
+            code === 0x200B || // Zero-width space
+            code === 0x00AD || // Soft hyphen
+            code === 0xFEFF || // Zero-width no-break space / BOM
+            code === 0x200C || // Zero-width non-joiner
+            code === 0x200D    // Zero-width joiner
+          ) {
+            throw new Error(`Hidden character detected in extracted item: U+${code.toString(16).toUpperCase()}`);
+          }
+        }
+      }
+
+      // Reconstruct extracted text
+      const rawExtractedNoSpaces = fullExtractedText.replace(/\s+/g, '');
+
+      // Locate exact 120-char URL slice in extracted stream
+      const urlStart = rawExtractedNoSpaces.indexOf(EXACT_120_CHAR_URL.slice(0, 20));
+      expect(urlStart, 'URL start not found in extracted text').toBeGreaterThanOrEqual(0);
+      const extractedUrlSegment = rawExtractedNoSpaces.slice(urlStart, urlStart + EXACT_120_CHAR_URL.length);
+
+      // Locate exact 90-char email slice in extracted stream
+      const emailStart = rawExtractedNoSpaces.indexOf(EXACT_90_CHAR_EMAIL.slice(0, 20));
+      expect(emailStart, 'Email start not found in extracted text').toBeGreaterThanOrEqual(0);
+      const extractedEmailSegment = rawExtractedNoSpaces.slice(emailStart, emailStart + EXACT_90_CHAR_EMAIL.length);
+
+      console.log(`[${id}] Extracted URL Escaped:  `, JSON.stringify(extractedUrlSegment));
+      console.log(`[${id}] Original URL Escaped:   `, JSON.stringify(EXACT_120_CHAR_URL));
+      console.log(`[${id}] Extracted Email Escaped:`, JSON.stringify(extractedEmailSegment));
+      console.log(`[${id}] Original Email Escaped: `, JSON.stringify(EXACT_90_CHAR_EMAIL));
+
+      // Assert exact strict character equality with original
+      expect(extractedUrlSegment).toBe(EXACT_120_CHAR_URL);
+      expect(extractedEmailSegment).toBe(EXACT_90_CHAR_EMAIL);
+
       const cleanExtracted = fullExtractedText.replace(/\s+/g, '');
       const cleanUrl = EXACT_120_CHAR_URL.replace(/\s+/g, '');
       expect(cleanExtracted).toContain(cleanUrl);
