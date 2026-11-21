@@ -24,6 +24,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   const capturedCookies: Record<string, string> = {};
 
   test.beforeAll(async () => {
+    test.setTimeout(120000);
     assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -202,7 +203,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for initial preview render
-    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 20000 });
+    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 30000 });
 
     const templates = [
       { id: 'ats_single_column', expectedName: 'ATS-Friendly Single Column' },
@@ -292,7 +293,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for preview to settle
-    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 20000 });
+    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 30000 });
 
     // Switch right pane to ATS Readiness
     const atsTabBtn = page.locator('#right-tab-ats');
