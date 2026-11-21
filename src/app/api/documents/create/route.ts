@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
       achievements: achievementRows,
       certifications: certificationRows.map((c) => ({
         id: c.id,
-        name: c.name || 'Certification Name',
-        issuingOrg: c.issuer || 'Certification Authority',
+        name: c.name || '',
+        issuingOrg: c.issuer || '',
         issueDate: c.issueDate,
         credentialUrl: c.url,
       })),
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
-    console.error('Error creating document:', err);
+    console.error('[DOCUMENT_CREATE_ERROR] Failed to create document');
     const message = err instanceof Error ? err.message : 'Failed to create document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }

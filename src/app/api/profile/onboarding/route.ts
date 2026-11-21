@@ -197,8 +197,8 @@ export async function POST(request: Request) {
 
       // 6. Populate Certifications table from onboarding questions
       const certificationEntries = [
-        { name: (formValues.certifications_pursued as string)?.trim(), issuer: 'Certification Authority' },
-        { name: (formValues.workshops_trainings as string)?.trim(), issuer: 'Workshop / Training Program' },
+        { name: (formValues.certifications_pursued as string)?.trim(), issuer: '' },
+        { name: (formValues.workshops_trainings as string)?.trim(), issuer: '' },
       ].filter((c) => Boolean(c.name));
 
       for (let i = 0; i < certificationEntries.length; i++) {
@@ -326,7 +326,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
     const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('Onboarding API error:', error);
+    console.error('[ONBOARDING_ERROR] Failed to process onboarding');
     return NextResponse.json(
       { error: message },
       { status: 500 }

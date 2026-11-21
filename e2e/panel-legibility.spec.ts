@@ -16,7 +16,7 @@ const pagesToTest = ['/', '/login', '/onboarding', '/dashboard', '/profile'] as 
 test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
-  const testEmail = `legibility-audit-${Date.now()}@folioone.local`;
+  const testEmail = `legibility-audit-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
 

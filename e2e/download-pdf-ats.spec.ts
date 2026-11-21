@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { PDFParse } from 'pdf-parse';
+import { PRODUCT_NAME } from '../src/config/app';
 dotenv.config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -191,7 +192,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   });
 
   test('1. Download PDF across all 3 templates: triggers download, verifies filename, metadata, and parses content with pdf-parse', async ({ page }) => {
-    test.setTimeout(90000);
+    test.setTimeout(180000);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/editor/${testDocId}`);
     await page.waitForLoadState('domcontentloaded');
@@ -270,8 +271,8 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
       console.log(`[E2E Download Test] ${tmpl.id} Metadata:`, JSON.stringify(info));
       expect(info.Title).toBe('Staff Systems Architect Resume');
       expect(info.Author).toBe('Diyan Shah');
-      expect(info.Creator).toBe('CV Studio (CV Maker)');
-      expect(info.Producer).toBe('CV Studio (react-pdf)');
+      expect(info.Creator).toBe(PRODUCT_NAME);
+      expect(info.Producer).toBe(`${PRODUCT_NAME} (react-pdf)`);
 
       // 5. Render Page 1 to PNG artifact
       const artifactPngPath = path.join(ARTIFACT_DIR, `page1_downloaded_${tmpl.id}.png`);

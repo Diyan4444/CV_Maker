@@ -26,7 +26,7 @@ const mobileViewports = [
 test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
-  const testEmail = `mobilenav-test-${Date.now()}@folioone.local`;
+  const testEmail = `mobilenav-test-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
 
@@ -101,7 +101,7 @@ test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () =>
         }
 
         const page = await context.newPage();
-        await page.goto(pagePath, { waitUntil: 'networkidle' });
+        await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(500);
 
         // Check toggle button

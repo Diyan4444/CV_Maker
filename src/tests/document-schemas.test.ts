@@ -103,13 +103,13 @@ describe('Document Schemas and Limits', () => {
   });
 
   it('validates robust field limits for certifications, achievements, and header', () => {
-    // 1. Certifications: supports empty or default issuingOrg and long name up to 500 chars
+    // 1. Certifications: supports empty or default issuingOrg and long name up to 255 chars (DB limit)
     const certSection = {
       schema_version: '1.0.0',
       entries: [
         {
           id: '11111111-1111-4111-8111-111111111111',
-          name: 'AWS Certified Solutions Architect – Professional (SAP-C02) Specialization with Cloud Security Architecture & Governance In High Availability Environments '.repeat(2).slice(0, 450),
+          name: 'AWS Certified Solutions Architect – Professional (SAP-C02) Specialization with Cloud Security Architecture & Governance In High Availability Environments '.repeat(2).slice(0, 255),
           issuingOrg: '',
         },
       ],
@@ -117,13 +117,13 @@ describe('Document Schemas and Limits', () => {
     const certVal = validateSectionContent('certifications', certSection);
     expect(certVal.valid).toBe(true);
 
-    // 2. Achievements: supports titles up to 500 characters
+    // 2. Achievements: supports titles up to 255 characters (DB limit)
     const achSection = {
       schema_version: '1.0.0',
       entries: [
         {
           id: '22222222-2222-4222-8222-222222222222',
-          title: "Dean's Distinguished Award for Highest Academic Excellence and Exemplary Research Contributions Across Interdisciplinary Science, Mathematics, and Computer Systems Engineering ".repeat(2).slice(0, 400),
+          title: "Dean's Distinguished Award for Highest Academic Excellence and Exemplary Research Contributions Across Interdisciplinary Science, Mathematics, and Computer Systems Engineering ".repeat(2).slice(0, 255),
           issuer: 'University Faculty Senate',
           description: 'Awarded annually to top 0.1% students with peer-reviewed publications.',
         },

@@ -21,6 +21,8 @@ import { sanitizePdfFilename } from '@/lib/pdf/filename';
 import { runAtsReadinessChecks } from '@/lib/ats/checker';
 import { AtsReadinessPanel } from '@/components/editor/AtsReadinessPanel';
 import { AtsReadinessReport } from '@/lib/ats/types';
+import { isDocumentContentEqual } from '@/lib/utils/deep-equal';
+import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 import {
   ArrowLeft,
   Save,
@@ -34,7 +36,6 @@ import {
   Trash2,
   AlertTriangle,
   CheckCircle2,
-  Clock,
   Sparkles,
   Download,
   Loader2,
@@ -59,33 +60,7 @@ const ALLOWED_ACCENTS = [
   { hex: '#5D6B6B', label: 'Slate Mist' },
 ];
 
-function isDocumentContentEqual(
-  aMeta: DocumentMeta,
-  aSections: DocumentSection[],
-  bMeta: DocumentMeta,
-  bSections: DocumentSection[]
-): boolean {
-  if (aMeta.title !== bMeta.title) return false;
-  if (aMeta.templateId !== bMeta.templateId) return false;
-  if ((aMeta.accentColor || '#0B0B0B').toUpperCase() !== (bMeta.accentColor || '#0B0B0B').toUpperCase()) return false;
-  if ((aMeta.targetRole ?? '') !== (bMeta.targetRole ?? '')) return false;
-  if ((aMeta.targetCompany ?? '') !== (bMeta.targetCompany ?? '')) return false;
 
-  if (aSections.length !== bSections.length) return false;
-
-  for (let i = 0; i < aSections.length; i++) {
-    const a = aSections[i];
-    const b = bSections[i];
-    if (a.id !== b.id) return false;
-    if (a.sectionType !== b.sectionType) return false;
-    if (a.title !== b.title) return false;
-    if (a.orderIndex !== b.orderIndex) return false;
-    if (Boolean(a.isVisible) !== Boolean(b.isVisible)) return false;
-    if (JSON.stringify(a.content) !== JSON.stringify(b.content)) return false;
-  }
-
-  return true;
-}
 
 export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   const router = useRouter();
@@ -93,6 +68,17 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   // Document state
   const [meta, setMeta] = useState<DocumentMeta>(initialDocument.meta);
   const [sections, setSections] = useState<DocumentSection[]>(initialDocument.sections);
+
+  // Mutable refs to track latest editor state across async network boundaries
+  const metaRef = useRef<DocumentMeta>(initialDocument.meta);
+  const sectionsRef = useRef<DocumentSection[]>(initialDocument.sections);
+  const isSavingRef = useRef<boolean>(false);
+  const handleSaveRef = useRef<((overrideMeta?: DocumentMeta, overrideSections?: DocumentSection[]) => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    metaRef.current = meta;
+    sectionsRef.current = sections;
+  }, [meta, sections]);
 
   // Exact snapshot of last successfully saved document content
   const lastSavedSnapshotRef = useRef<{
@@ -143,6 +129,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     draft: { meta: DocumentMeta; sections: DocumentSection[] };
   } | null>(null);
 
+  // Field validation errors & session expiration state
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [sessionExpired, setSessionExpired] = useState(false);
+
   // Expose status setter for automated E2E layout tests in browser
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -176,32 +166,33 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   // Save document to server
   const handleSave = useCallback(
     async (overrideMeta?: DocumentMeta, overrideSections?: DocumentSection[]) => {
-      const currentMeta = overrideMeta || meta;
-      const currentSections = overrideSections || sections;
+      if (isSavingRef.current) return;
 
-      if (saveStatus === 'saving') return;
+      const sentMeta = overrideMeta || metaRef.current;
+      const sentSections = overrideSections || sectionsRef.current;
 
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
 
+      isSavingRef.current = true;
       setSaveStatus('saving');
       setSaveError(null);
 
       try {
-        const res = await fetch(`/api/documents/${currentMeta.id}/save`, {
+        const res = await fetch(`/api/documents/${sentMeta.id}/save`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            clientVersion: currentMeta.version,
+            clientVersion: sentMeta.version,
             meta: {
-              title: currentMeta.title,
-              templateId: currentMeta.templateId,
-              accentColor: currentMeta.accentColor,
-              targetRole: currentMeta.targetRole,
+              title: sentMeta.title,
+              templateId: sentMeta.templateId,
+              accentColor: sentMeta.accentColor,
+              targetRole: sentMeta.targetRole,
             },
-            sections: currentSections.map((s, idx) => {
+            sections: sentSections.map((s, idx) => {
               let contentPayload: SectionContent = s.content;
               if (s.sectionType === 'certifications' && contentPayload && typeof contentPayload === 'object') {
                 const c = contentPayload as unknown as Record<string, unknown>;
@@ -211,8 +202,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     entries: c.entries.map((entry: Record<string, unknown>) => ({
                       ...entry,
                       id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cert-${Date.now()}`),
-                      name: (entry.name || entry.title || 'Certification Name')?.toString().trim().slice(0, 500),
-                      issuingOrg: (entry.issuingOrg || entry.issuer || 'Certification Authority')?.toString().trim().slice(0, 300),
+                      name: (entry.name ?? entry.title ?? '')?.toString().trim(),
+                      issuingOrg: (entry.issuingOrg ?? entry.issuer ?? '')?.toString().trim(),
                     })),
                   } as unknown as SectionContent;
                 }
@@ -224,20 +215,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     entries: c.entries.map((entry: Record<string, unknown>) => ({
                       ...entry,
                       id: (entry.id as string) || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ach-${Date.now()}`),
-                      title: (entry.title || entry.name || 'Achievement Title')?.toString().trim().slice(0, 500),
-                      issuer: entry.issuer ? entry.issuer.toString().trim().slice(0, 300) : undefined,
+                      title: (entry.title ?? entry.name ?? '')?.toString().trim(),
+                      issuer: entry.issuer !== undefined && entry.issuer !== null ? entry.issuer.toString().trim() : '',
                     })),
                   } as unknown as SectionContent;
                 }
-              } else if (s.sectionType === 'header' && contentPayload && typeof contentPayload === 'object') {
-                const h = contentPayload as HeaderContent;
-                contentPayload = {
-                  ...h,
-                  phone: h.phone ? String(h.phone).trim().slice(0, 100) : undefined,
-                  city: h.city ? String(h.city).trim().slice(0, 255) : undefined,
-                  country: h.country ? String(h.country).trim().slice(0, 255) : undefined,
-                  location: h.location ? String(h.location).trim().slice(0, 255) : undefined,
-                } as HeaderContent;
               }
               return {
                 id: s.id,
@@ -253,6 +235,19 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
         const resData = await res.json();
 
+        if (res.status === 401) {
+          try {
+            localStorage.setItem(
+              `cv_maker_draft_${sentMeta.id}`,
+              JSON.stringify({ meta: metaRef.current, sections: sectionsRef.current, timestamp: Date.now() })
+            );
+          } catch {}
+          setSessionExpired(true);
+          setSaveStatus('error');
+          setSaveError('Session expired');
+          return;
+        }
+
         if (res.status === 409) {
           setSaveStatus('conflict');
           setConflictData({
@@ -263,38 +258,145 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         }
 
         if (!res.ok) {
-          throw new Error(resData.error || 'Failed to save document.');
+          const rawErr = (resData.error as string) || 'Failed to save document.';
+          let shortReason = 'Validation error';
+
+          // Strip "Validation error in section XYZ: " prefix so regex parses the actual field error
+          const colonIdx = rawErr.indexOf(': ');
+          const errorBody = colonIdx !== -1 && rawErr.toLowerCase().startsWith('validation error')
+            ? rawErr.slice(colonIdx + 2)
+            : rawErr;
+
+          const parsedErrors: Record<string, string> = {};
+          const regex = /(?:entries\.\d+\.)?([a-zA-Z0-9_]+):\s*([^,]+)/g;
+          let m;
+          while ((m = regex.exec(errorBody)) !== null) {
+            if (m[1] && m[2]) parsedErrors[m[1]] = m[2].trim();
+          }
+
+          const errorFields = Object.keys(parsedErrors).filter((k) => k !== 'schema_version' && k !== 'id' && k !== 'sourceId');
+          if (errorFields.length > 0) {
+            const f = errorFields[0];
+            const fieldLabelMap: Record<string, string> = {
+              startDate: 'Start Date',
+              endDate: 'End Date',
+              fullName: 'Full Name',
+              name: 'Name',
+              headline: 'Headline',
+              summary: 'Summary',
+              text: 'Summary',
+              email: 'Email',
+              phone: 'Phone',
+              city: 'City',
+              country: 'Country',
+              location: 'Location',
+              institution: 'Institution',
+              degree: 'Degree',
+              role: 'Role',
+              organization: 'Company',
+              company: 'Company',
+              issuingOrg: 'Issuing Organization',
+              issuer: 'Issuer',
+              title: 'Title',
+              description: 'Description',
+            };
+            const label = fieldLabelMap[f] || f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
+            const errDetail = parsedErrors[f];
+            if (errDetail.includes('Too big')) {
+              const maxMatch = errDetail.match(/<=(\d+)/);
+              shortReason = `${label} too long${maxMatch ? ` (max ${maxMatch[1]})` : ''}`;
+            } else if (errDetail.includes('required')) {
+              shortReason = `${label} is required`;
+            } else {
+              shortReason = `${label} invalid`;
+            }
+          } else if (rawErr.includes('exceeds the 64KB')) {
+            shortReason = 'Section exceeds 64KB';
+          }
+
+          setFieldErrors(parsedErrors);
+          setSaveError(shortReason);
+          setSaveStatus('error');
+          return;
         }
 
-        // Update version & update lastSavedSnapshotRef
-        const updatedMeta = {
-          ...currentMeta,
-          version: resData.newVersion,
-          updatedAt: resData.updatedAt,
-        };
-        setMeta(updatedMeta);
+        // Save succeeded -> clear field errors
+        setFieldErrors({});
+        setSaveError(null);
+
+        const newVersion = resData.newVersion;
+        const updatedAt = resData.updatedAt;
+
+        // CRITICAL FOR AUTOSAVE RACE:
+        // Update lastSavedSnapshot to EXACTLY the content that was sent in this request
         lastSavedSnapshotRef.current = {
-          meta: updatedMeta,
-          sections: JSON.parse(JSON.stringify(currentSections)),
+          meta: { ...sentMeta, version: newVersion, updatedAt },
+          sections: JSON.parse(JSON.stringify(sentSections)),
         };
-        setSaveStatus('saved');
+
+        // Advance document version without stomping user edits made in-flight
+        setMeta((prev) => ({
+          ...prev,
+          version: newVersion,
+          updatedAt,
+        }));
+        metaRef.current = {
+          ...metaRef.current,
+          version: newVersion,
+          updatedAt,
+        };
+
+        // Check whether current editor content equals the saved snapshot
+        const isCurrentEqual = isDocumentContentEqual(
+          metaRef.current,
+          sectionsRef.current,
+          lastSavedSnapshotRef.current.meta,
+          lastSavedSnapshotRef.current.sections
+        );
+
+        if (isCurrentEqual) {
+          setSaveStatus('saved');
+        } else {
+          // Additional edits were made while the save request was in flight!
+          setSaveStatus('unsaved');
+          if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = setTimeout(() => {
+            handleSaveRef.current?.();
+          }, 1500);
+        }
 
         // Clear local draft once saved
         try {
-          localStorage.removeItem(`cv_maker_draft_${currentMeta.id}`);
+          localStorage.removeItem(`cv_maker_draft_${sentMeta.id}`);
         } catch {}
       } catch (err: unknown) {
-        console.error('Save failed:', err);
-        setSaveStatus('error');
-        setSaveError(err instanceof Error ? err.message : 'Save failed.');
+        console.error('[DOCUMENT_SAVE_ERROR] Save request failed');
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        if (isOffline) {
+          setSaveStatus('offline');
+          setSaveError('Offline');
+        } else {
+          setSaveStatus('error');
+          setSaveError(err instanceof Error ? err.message.slice(0, 30) : 'Save failed');
+        }
+      } finally {
+        isSavingRef.current = false;
       }
     },
-    [saveStatus, meta, sections]
+    []
   );
+
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
 
   // Push snapshot to undo stack
   const pushHistory = useCallback(
     (newMeta: DocumentMeta, newSections: DocumentSection[]) => {
+      // Keep refs immediately up to date with user edits
+      metaRef.current = newMeta;
+      sectionsRef.current = newSections;
+
       const idx = historyIndexRef.current;
       const nextHistory = historyRef.current.slice(0, idx + 1);
       nextHistory.push({ meta: newMeta, sections: newSections });
@@ -325,7 +427,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           localStorage.removeItem(`cv_maker_draft_${newMeta.id}`);
         } catch {}
       } else {
-        setSaveStatus('unsaved');
+        setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
           handleSave(newMeta, newSections);
         }, 1500);
@@ -386,6 +488,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     if (historyIndexRef.current > 0) {
       historyIndexRef.current -= 1;
       const snap = historyRef.current[historyIndexRef.current];
+      metaRef.current = snap.meta;
+      sectionsRef.current = snap.sections;
       setMeta(snap.meta);
       setSections(snap.sections);
       setCanUndo(historyIndexRef.current > 0);
@@ -411,7 +515,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           localStorage.removeItem(`cv_maker_draft_${snap.meta.id}`);
         } catch {}
       } else {
-        setSaveStatus('unsaved');
+        setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
           handleSave(snap.meta, snap.sections);
         }, 1500);
@@ -431,6 +535,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     if (historyIndexRef.current < historyRef.current.length - 1) {
       historyIndexRef.current += 1;
       const snap = historyRef.current[historyIndexRef.current];
+      metaRef.current = snap.meta;
+      sectionsRef.current = snap.sections;
       setMeta(snap.meta);
       setSections(snap.sections);
       setCanUndo(true);
@@ -456,7 +562,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           localStorage.removeItem(`cv_maker_draft_${snap.meta.id}`);
         } catch {}
       } else {
-        setSaveStatus('unsaved');
+        setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
           handleSave(snap.meta, snap.sections);
         }, 1500);
@@ -574,8 +680,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       try {
         const report = runAtsReadinessChecks(meta, sections, extractedText, pageCount);
         setAtsReport(report);
-      } catch (err) {
-        console.error('ATS check failed:', err);
+      } catch {
+        console.error('[ATS_CHECK_ERROR] ATS readiness evaluation failed');
       } finally {
         setAtsLoading(false);
       }
@@ -647,7 +753,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         URL.revokeObjectURL(url);
       }, 100);
     } catch (err) {
-      console.error('Download PDF error:', err);
+      console.error('[PDF_DOWNLOAD_ERROR] Client-side PDF export failed');
       setDownloadError(
         err instanceof Error ? err.message : 'Failed to prepare PDF for download.'
       );
@@ -661,35 +767,56 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-transparent text-[#0B0B0B]">
+      {sessionExpired && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="bg-[#FFE4D8] border-b border-[#800021] px-4 py-2.5 flex items-center justify-between text-xs text-[#800021] font-medium sticky top-0 z-40"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>
+              Your session has expired. Your current draft is preserved locally. Please sign in again to save.
+            </span>
+          </div>
+          <a
+            href={`/login?returnTo=/editor/${meta.id}`}
+            className="px-3 py-1 bg-[#800021] text-white rounded font-semibold hover:bg-[#881144] focus:outline-none focus:ring-2 focus:ring-[#800021]"
+          >
+            Sign in again
+          </a>
+        </div>
+      )}
       {/* Top Application Bar */}
-      <header className="bg-[#FFFFFF] border-b border-[#6B6B6B] px-4 py-3 shadow-xs sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="bg-[#FFFFFF] border-b border-[#6B6B6B] px-3 sm:px-4 py-2.5 shadow-xs sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 flex-nowrap overflow-x-auto">
           {/* Back & Document Title */}
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-2 flex-shrink min-w-0">
             <Link
               href="/dashboard"
-              className="p-1.5 rounded-md border border-[#6B6B6B] hover:bg-[#F1F7F7] text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              className="p-1.5 rounded-md border border-[#6B6B6B] hover:bg-[#F1F7F7] text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
               title="Return to Dashboard"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
 
-            <div className="flex-1 md:flex-initial">
-              <input
-                type="text"
-                aria-label="Document Title"
-                value={meta.title}
-                onChange={(e) => {
-                  const updated = { ...meta, title: e.target.value };
-                  setMeta(updated);
-                  pushHistory(updated, sections);
-                }}
-                className="font-display font-bold text-base sm:text-lg text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-2 py-0.5 w-full md:w-72 transition-colors"
-                placeholder="Document Title"
-              />
-              <div className="text-[11px] text-[#333333] px-2 flex items-center gap-2">
-                <span className="capitalize">{meta.type}</span> &bull;
-                <span>Version {meta.version}</span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  aria-label="Document Title"
+                  value={meta.title}
+                  onChange={(e) => {
+                    const updated = { ...meta, title: e.target.value };
+                    setMeta(updated);
+                    pushHistory(updated, sections);
+                  }}
+                  className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-1.5 py-0.5 w-32 sm:w-44 lg:w-56 truncate transition-colors"
+                  placeholder="Document Title"
+                />
+                <span className="hidden xl:inline text-[11px] text-[#333333] whitespace-nowrap">
+                  v{meta.version}
+                </span>
               </div>
               <input
                 type="text"
@@ -700,19 +827,16 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                   setMeta(updated);
                   pushHistory(updated, sections);
                 }}
-                className="text-xs text-[#333333] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-2 py-0.5 w-full md:w-72 transition-colors mt-0.5"
+                className="hidden xl:block text-xs text-[#333333] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-1.5 py-0.2 w-32 sm:w-44 lg:w-56 truncate transition-colors -mt-0.5"
                 placeholder="Target Role (optional)"
               />
             </div>
           </div>
 
-          {/* Template & Accent Pickers */}
-          <div className="flex items-center gap-3 flex-wrap">
+          {/* Template, Accents, Undo/Redo, Status, Actions (One row, flex-nowrap) */}
+          <div className="flex items-center gap-2 flex-shrink-0 flex-nowrap">
             {/* Template Selector */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold">
-              <label htmlFor="template-picker" className="text-[#333333] hidden sm:inline">
-                Template:
-              </label>
+            <div className="flex items-center gap-1 text-xs font-semibold flex-shrink-0">
               <select
                 id="template-picker"
                 value={meta.templateId}
@@ -721,48 +845,45 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                   setMeta(updated);
                   pushHistory(updated, sections);
                 }}
-                className="px-2.5 py-1.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs focus:border-[#800021] focus:ring-1 focus:ring-[#800021]"
+                className="px-2 py-1 h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs focus:border-[#800021] focus:ring-1 focus:ring-[#800021]"
               >
-                <option value="ats_single_column">ATS-Friendly Single Column</option>
+                <option value="ats_single_column">ATS Single Column</option>
                 <option value="modern_professional">Modern Professional</option>
                 <option value="academic_cv">Academic CV</option>
               </select>
             </div>
 
             {/* Accent Color Picker */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold">
-              <span className="text-[#333333] hidden sm:inline">Accent:</span>
-              <div id="accent-color-picker" className="flex items-center gap-1">
-                {ALLOWED_ACCENTS.map((acc) => (
-                  <button
-                    key={acc.hex}
-                    type="button"
-                    onClick={() => {
-                      const updated = { ...meta, accentColor: acc.hex };
-                      setMeta(updated);
-                      pushHistory(updated, sections);
-                    }}
-                    title={acc.label}
-                    className={`w-5 h-5 rounded-full border transition-transform ${
-                      (meta.accentColor || meta.accent_color || '#0B0B0B').toUpperCase() === acc.hex.toUpperCase()
-                        ? 'ring-2 ring-offset-1 ring-[#0B0B0B] scale-110'
-                        : 'border-[#6B6B6B] hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: acc.hex }}
-                  />
-                ))}
-              </div>
+            <div id="accent-color-picker" className="hidden sm:flex items-center gap-1 flex-shrink-0">
+              {ALLOWED_ACCENTS.map((acc) => (
+                <button
+                  key={acc.hex}
+                  type="button"
+                  onClick={() => {
+                    const updated = { ...meta, accentColor: acc.hex };
+                    setMeta(updated);
+                    pushHistory(updated, sections);
+                  }}
+                  title={acc.label}
+                  className={`w-4 h-4 rounded-full border transition-transform ${
+                    (meta.accentColor || meta.accent_color || '#0B0B0B').toUpperCase() === acc.hex.toUpperCase()
+                      ? 'ring-2 ring-offset-1 ring-[#0B0B0B] scale-110'
+                      : 'border-[#6B6B6B] hover:scale-105'
+                  }`}
+                  style={{ backgroundColor: acc.hex }}
+                />
+              ))}
             </div>
 
             {/* Undo / Redo */}
-            <div className="flex items-center border border-[#6B6B6B] rounded-md overflow-hidden bg-[#FFFFFF] flex-shrink-0">
+            <div className="flex items-center border border-[#6B6B6B] rounded-md overflow-hidden bg-[#FFFFFF] flex-shrink-0 h-8">
               <button
                 type="button"
                 id="toolbar-btn-undo"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 aria-label="Undo"
-                className="p-1.5 w-7 h-7 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
+                className="p-1.5 w-7 h-8 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
                 title="Undo (Ctrl+Z)"
               >
                 <Undo2 className="w-3.5 h-3.5" />
@@ -774,18 +895,18 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 onClick={handleRedo}
                 disabled={!canRedo}
                 aria-label="Redo"
-                className="p-1.5 w-7 h-7 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
+                className="p-1.5 w-7 h-8 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
                 title="Redo (Ctrl+Y)"
               >
                 <Redo2 className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Save Status Slot (Fixed-width slot: 140px, flex-shrink-0, h-8, no layout shift) */}
+            {/* Save Status Slot (Fixed-width slot: 145px, flex-shrink-0, h-8, no layout shift) */}
             <div
               id="save-status-slot"
               aria-live="polite"
-              className="w-[140px] flex-shrink-0 h-8 inline-flex items-center gap-1.5 px-2 rounded-md bg-[#FFFFFF] border border-transparent text-xs font-semibold overflow-hidden whitespace-nowrap"
+              className="w-[145px] flex-shrink-0 h-8 inline-flex items-center gap-1.5 px-2 rounded-md bg-[#FFFFFF] border border-transparent text-xs font-semibold overflow-hidden whitespace-nowrap"
             >
               {saveStatus === 'saved' && (
                 <span className="text-emerald-700 flex items-center gap-1.5 truncate">
@@ -794,8 +915,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 </span>
               )}
               {saveStatus === 'saving' && (
-                <span className="text-[#800021] flex items-center gap-1.5 truncate animate-pulse">
-                  <Clock className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                <span className="text-[#800021] flex items-center gap-1.5 truncate">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
                   <span className="truncate">Saving...</span>
                 </span>
               )}
@@ -812,19 +933,41 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 </span>
               )}
               {saveStatus === 'error' && (
-                <span
-                  className="text-red-700 flex items-center gap-1.5 truncate font-bold"
-                  title={saveError || 'Save failed'}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate">Error</span>
-                </span>
+                <div className="flex items-center justify-between w-full">
+                  <span
+                    className="text-red-700 flex items-center gap-1.5 truncate font-bold"
+                    title={saveError || 'Save failed'}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{saveError || 'Error'}</span>
+                  </span>
+                  <button
+                    type="button"
+                    id="toolbar-btn-retry"
+                    onClick={() => handleSave()}
+                    className="ml-1 px-1.5 py-0.5 text-[10px] font-bold text-[#800021] bg-[#FFE4D8] hover:bg-[#FCD8C8] rounded border border-[#800021] transition-colors focus:outline-none focus:ring-1 focus:ring-[#800021] flex-shrink-0"
+                    title="Retry Save"
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
               {saveStatus === 'offline' && (
-                <span className="text-[#333333] flex items-center gap-1.5 truncate">
-                  <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate">Offline</span>
-                </span>
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-[#333333] flex items-center gap-1.5 truncate">
+                    <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{saveError || 'Offline'}</span>
+                  </span>
+                  <button
+                    type="button"
+                    id="toolbar-btn-retry"
+                    onClick={() => handleSave()}
+                    className="ml-1 px-1.5 py-0.5 text-[10px] font-bold text-[#800021] bg-[#FFE4D8] hover:bg-[#FCD8C8] rounded border border-[#800021] transition-colors focus:outline-none focus:ring-1 focus:ring-[#800021] flex-shrink-0"
+                    title="Retry Save"
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
             </div>
 
@@ -835,7 +978,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 id="toolbar-btn-save"
                 onClick={() => handleSave()}
                 disabled={saveStatus === 'saving'}
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 h-8 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
               >
                 <Save className="w-3.5 h-3.5 flex-shrink-0" /> <span>Save</span>
               </button>
@@ -848,12 +991,12 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 disabled={isDownloading}
                 aria-label="Download PDF"
                 aria-busy={isDownloading}
-                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
               >
                 {isDownloading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-[#800021] flex-shrink-0" />
-                    <span>Preparing PDF...</span>
+                    <span>Preparing...</span>
                   </>
                 ) : (
                   <>
@@ -972,6 +1115,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               key={sec.id}
               id={sec.id}
               data-section-type={sec.sectionType}
+              style={{ backgroundColor: sec.isVisible ? '#FFFFFF' : '#F1F7F7' }}
               className={`border border-[#6B6B6B] rounded-xl overflow-hidden shadow-xs transition-colors ${
                 sec.isVisible ? 'bg-[#FFFFFF]' : 'bg-[#F1F7F7]'
               }`}
@@ -1070,19 +1214,32 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         type="text"
                         name="fullName"
                         id="fullName"
+                        maxLength={255}
+                        aria-invalid={Boolean(fieldErrors['fullName'] || fieldErrors['full_name'])}
+                        aria-describedby={fieldErrors['fullName'] || fieldErrors['full_name'] ? 'error-fullName' : undefined}
                         value={(sec.content as HeaderContent).fullName || (sec.content as any).full_name || ''}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setFieldErrors((prev) => ({ ...prev, fullName: '', full_name: '' }));
                           updateSection(sec.id, (s) => ({
                             ...s,
                             content: {
                               ...(s.content as HeaderContent),
-                              fullName: e.target.value,
-                              full_name: e.target.value,
+                              fullName: e.target.value.slice(0, 255),
+                              full_name: e.target.value.slice(0, 255),
                             },
-                          }))
-                        }
-                        className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                          }));
+                        }}
+                        className={`w-full px-3 py-1.5 rounded border bg-[#FFFFFF] text-[#0B0B0B] ${
+                          fieldErrors['fullName'] || fieldErrors['full_name']
+                            ? 'border-[#800021] ring-1 ring-[#800021]'
+                            : 'border-[#6B6B6B]'
+                        }`}
                       />
+                      {(fieldErrors['fullName'] || fieldErrors['full_name']) && (
+                        <p id="error-fullName" className="text-xs text-[#800021] mt-1 font-semibold">
+                          {fieldErrors['fullName'] || fieldErrors['full_name']}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
@@ -1092,18 +1249,31 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         type="email"
                         name="email"
                         id="email"
+                        maxLength={150}
+                        aria-invalid={Boolean(fieldErrors['email'])}
+                        aria-describedby={fieldErrors['email'] ? 'error-email' : undefined}
                         value={(sec.content as HeaderContent).email || ''}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setFieldErrors((prev) => ({ ...prev, email: '' }));
                           updateSection(sec.id, (s) => ({
                             ...s,
                             content: {
                               ...(s.content as HeaderContent),
-                              email: e.target.value,
+                              email: e.target.value.slice(0, 150),
                             },
-                          }))
-                        }
-                        className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                          }));
+                        }}
+                        className={`w-full px-3 py-1.5 rounded border bg-[#FFFFFF] text-[#0B0B0B] ${
+                          fieldErrors['email']
+                            ? 'border-[#800021] ring-1 ring-[#800021]'
+                            : 'border-[#6B6B6B]'
+                        }`}
                       />
+                      {fieldErrors['email'] && (
+                        <p id="error-email" className="text-xs text-[#800021] mt-1 font-semibold">
+                          {fieldErrors['email']}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
@@ -1112,18 +1282,30 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       <input
                         type="text"
                         maxLength={100}
+                        aria-invalid={Boolean(fieldErrors['phone'])}
+                        aria-describedby={fieldErrors['phone'] ? 'error-phone' : undefined}
                         value={(sec.content as HeaderContent).phone || ''}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setFieldErrors((prev) => ({ ...prev, phone: '' }));
                           updateSection(sec.id, (s) => ({
                             ...s,
                             content: {
                               ...(s.content as HeaderContent),
                               phone: e.target.value.slice(0, 100),
                             },
-                          }))
-                        }
-                        className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                          }));
+                        }}
+                        className={`w-full px-3 py-1.5 rounded border bg-[#FFFFFF] text-[#0B0B0B] ${
+                          fieldErrors['phone']
+                            ? 'border-[#800021] ring-1 ring-[#800021]'
+                            : 'border-[#6B6B6B]'
+                        }`}
                       />
+                      {fieldErrors['phone'] && (
+                        <p id="error-phone" className="text-xs text-[#800021] mt-1 font-semibold">
+                          {fieldErrors['phone']}
+                        </p>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -1132,10 +1314,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         </label>
                         <input
                           type="text"
-                          maxLength={100}
+                          maxLength={150}
+                          aria-invalid={Boolean(fieldErrors['city'])}
+                          aria-describedby={fieldErrors['city'] ? 'error-city' : undefined}
                           value={(sec.content as HeaderContent).city || ''}
                           onChange={(e) => {
-                            const val = e.target.value.slice(0, 100);
+                            setFieldErrors((prev) => ({ ...prev, city: '' }));
+                            const val = e.target.value.slice(0, 150);
                             updateSection(sec.id, (s) => ({
                               ...s,
                               content: {
@@ -1144,8 +1329,17 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               },
                             }));
                           }}
-                          className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                          className={`w-full px-3 py-1.5 rounded border bg-[#FFFFFF] text-[#0B0B0B] ${
+                            fieldErrors['city']
+                              ? 'border-[#800021] ring-1 ring-[#800021]'
+                              : 'border-[#6B6B6B]'
+                          }`}
                         />
+                        {fieldErrors['city'] && (
+                          <p id="error-city" className="text-xs text-[#800021] mt-1 font-semibold">
+                            {fieldErrors['city']}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
@@ -1153,10 +1347,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         </label>
                         <input
                           type="text"
-                          maxLength={100}
+                          maxLength={150}
+                          aria-invalid={Boolean(fieldErrors['country'])}
+                          aria-describedby={fieldErrors['country'] ? 'error-country' : undefined}
                           value={(sec.content as HeaderContent).country || ''}
                           onChange={(e) => {
-                            const val = e.target.value.slice(0, 100);
+                            setFieldErrors((prev) => ({ ...prev, country: '' }));
+                            const val = e.target.value.slice(0, 150);
                             updateSection(sec.id, (s) => ({
                               ...s,
                               content: {
@@ -1165,8 +1362,17 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               },
                             }));
                           }}
-                          className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                          className={`w-full px-3 py-1.5 rounded border bg-[#FFFFFF] text-[#0B0B0B] ${
+                            fieldErrors['country']
+                              ? 'border-[#800021] ring-1 ring-[#800021]'
+                              : 'border-[#6B6B6B]'
+                          }`}
                         />
+                        {fieldErrors['country'] && (
+                          <p id="error-country" className="text-xs text-[#800021] mt-1 font-semibold">
+                            {fieldErrors['country']}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="sm:col-span-2">
@@ -1175,18 +1381,31 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </label>
                       <input
                         type="text"
+                        maxLength={300}
+                        aria-invalid={Boolean(fieldErrors['headline'])}
+                        aria-describedby={fieldErrors['headline'] ? 'error-headline' : undefined}
                         value={(sec.content as HeaderContent).headline || ''}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setFieldErrors((prev) => ({ ...prev, headline: '' }));
                           updateSection(sec.id, (s) => ({
                             ...s,
                             content: {
                               ...(s.content as HeaderContent),
-                              headline: e.target.value,
+                              headline: e.target.value.slice(0, 300),
                             },
-                          }))
-                        }
-                        className="w-full px-3 py-1.5 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B]"
+                          }));
+                        }}
+                        className={`w-full px-3 py-1.5 rounded border bg-[#FFFFFF] text-[#0B0B0B] ${
+                          fieldErrors['headline']
+                            ? 'border-[#800021] ring-1 ring-[#800021]'
+                            : 'border-[#6B6B6B]'
+                        }`}
                       />
+                      {fieldErrors['headline'] && (
+                        <p id="error-headline" className="text-xs text-[#800021] mt-1 font-semibold">
+                          {fieldErrors['headline']}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1199,18 +1418,31 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     </label>
                     <textarea
                       rows={4}
+                      maxLength={FIELD_LIMITS.summary}
+                      aria-invalid={Boolean(fieldErrors['text'] || fieldErrors['summary'])}
+                      aria-describedby={fieldErrors['text'] || fieldErrors['summary'] ? 'error-summary' : undefined}
                       value={(sec.content as SummaryContent).text || ''}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setFieldErrors((prev) => ({ ...prev, text: '', summary: '' }));
                         updateSection(sec.id, (s) => ({
                           ...s,
                           content: {
                             ...(s.content as SummaryContent),
-                            text: e.target.value,
+                            text: e.target.value.slice(0, 5000),
                           },
-                        }))
-                      }
-                      className="w-full px-3 py-2 rounded border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs leading-relaxed"
+                        }));
+                      }}
+                      className={`w-full px-3 py-2 rounded border bg-[#FFFFFF] text-[#0B0B0B] text-xs leading-relaxed ${
+                        fieldErrors['text'] || fieldErrors['summary']
+                          ? 'border-[#800021] ring-1 ring-[#800021]'
+                          : 'border-[#6B6B6B]'
+                      }`}
                     />
+                    {(fieldErrors['text'] || fieldErrors['summary']) && (
+                      <p id="error-summary" className="text-xs text-[#800021] mt-1 font-semibold">
+                        {fieldErrors['text'] || fieldErrors['summary']}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -1339,14 +1571,25 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               </label>
                               <input
                                 type="text"
+                                maxLength={255}
+                                aria-invalid={Boolean(fieldErrors['institution'])}
+                                aria-describedby={fieldErrors['institution'] ? 'error-edu-inst' : undefined}
                                 value={(entry.institution as string) || ''}
                                 onChange={(e) => {
+                                  setFieldErrors((prev) => ({ ...prev, institution: '' }));
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
-                                  entries[eIdx] = { ...entries[eIdx], institution: e.target.value };
+                                  entries[eIdx] = { ...entries[eIdx], institution: e.target.value.slice(0, 255) };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
-                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                className={`w-full px-2.5 py-1 rounded border ${
+                                  fieldErrors['institution'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                }`}
                               />
+                              {fieldErrors['institution'] && (
+                                <p id="error-edu-inst" className="text-xs text-[#800021] mt-1 font-semibold">
+                                  {fieldErrors['institution']}
+                                </p>
+                              )}
                             </div>
                             <div>
                               <label className="block text-[11px] font-semibold text-[#0B0B0B]">
@@ -1354,14 +1597,25 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               </label>
                               <input
                                 type="text"
+                                maxLength={200}
+                                aria-invalid={Boolean(fieldErrors['degree'])}
+                                aria-describedby={fieldErrors['degree'] ? 'error-edu-deg' : undefined}
                                 value={(entry.degree as string) || ''}
                                 onChange={(e) => {
+                                  setFieldErrors((prev) => ({ ...prev, degree: '' }));
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
-                                  entries[eIdx] = { ...entries[eIdx], degree: e.target.value };
+                                  entries[eIdx] = { ...entries[eIdx], degree: e.target.value.slice(0, 200) };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
-                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                className={`w-full px-2.5 py-1 rounded border ${
+                                  fieldErrors['degree'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                }`}
                               />
+                              {fieldErrors['degree'] && (
+                                <p id="error-edu-deg" className="text-xs text-[#800021] mt-1 font-semibold">
+                                  {fieldErrors['degree']}
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1374,15 +1628,26 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                 Role / Title
                               </label>
                               <input
+                                id="input-exp-role"
                                 type="text"
+                                aria-invalid={Boolean(fieldErrors['role'])}
+                                aria-describedby={fieldErrors['role'] ? 'error-exp-role' : undefined}
                                 value={(entry.role as string) || ''}
                                 onChange={(e) => {
+                                  setFieldErrors((prev) => ({ ...prev, role: '' }));
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
                                   entries[eIdx] = { ...entries[eIdx], role: e.target.value };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
-                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                className={`w-full px-2.5 py-1 rounded border ${
+                                  fieldErrors['role'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                }`}
                               />
+                              {fieldErrors['role'] && (
+                                <p id="error-exp-role" className="text-xs text-[#800021] mt-1 font-semibold">
+                                  {fieldErrors['role']}
+                                </p>
+                              )}
                             </div>
                             <div>
                               <label className="block text-[11px] font-semibold text-[#0B0B0B]">
@@ -1390,14 +1655,24 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               </label>
                               <input
                                 type="text"
+                                aria-invalid={Boolean(fieldErrors['organization'])}
+                                aria-describedby={fieldErrors['organization'] ? 'error-exp-org' : undefined}
                                 value={(entry.organization as string) || ''}
                                 onChange={(e) => {
+                                  setFieldErrors((prev) => ({ ...prev, organization: '' }));
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
                                   entries[eIdx] = { ...entries[eIdx], organization: e.target.value };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
-                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                className={`w-full px-2.5 py-1 rounded border ${
+                                  fieldErrors['organization'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                }`}
                               />
+                              {fieldErrors['organization'] && (
+                                <p id="error-exp-org" className="text-xs text-[#800021] mt-1 font-semibold">
+                                  {fieldErrors['organization']}
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1411,19 +1686,29 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               </label>
                               <input
                                 type="text"
-                                maxLength={300}
+                                maxLength={255}
+                                aria-invalid={Boolean(fieldErrors['name'])}
+                                aria-describedby={fieldErrors['name'] ? 'error-cert-name' : undefined}
                                 value={(entry.name as string) || (entry.title as string) || ''}
                                 onChange={(e) => {
+                                  setFieldErrors((prev) => ({ ...prev, name: '' }));
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
                                   entries[eIdx] = {
                                     ...entries[eIdx],
-                                    name: e.target.value.slice(0, 300),
-                                    title: e.target.value.slice(0, 300),
+                                    name: e.target.value.slice(0, 255),
+                                    title: e.target.value.slice(0, 255),
                                   };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
-                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                className={`w-full px-2.5 py-1 rounded border ${
+                                  fieldErrors['name'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                }`}
                               />
+                              {fieldErrors['name'] && (
+                                <p id="error-cert-name" className="text-xs text-[#800021] mt-1 font-semibold">
+                                  {fieldErrors['name']}
+                                </p>
+                              )}
                             </div>
                             <div>
                               <label className="block text-[11px] font-semibold text-[#0B0B0B]">
@@ -1432,8 +1717,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               <input
                                 type="text"
                                 maxLength={200}
+                                aria-invalid={Boolean(fieldErrors['issuingOrg'] || fieldErrors['issuer'])}
+                                aria-describedby={fieldErrors['issuingOrg'] || fieldErrors['issuer'] ? 'error-cert-issuer' : undefined}
                                 value={(entry.issuingOrg as string) || (entry.issuer as string) || ''}
                                 onChange={(e) => {
+                                  setFieldErrors((prev) => ({ ...prev, issuingOrg: '', issuer: '' }));
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
                                   entries[eIdx] = {
                                     ...entries[eIdx],
@@ -1442,8 +1730,15 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                   };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
-                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                className={`w-full px-2.5 py-1 rounded border ${
+                                  fieldErrors['issuingOrg'] || fieldErrors['issuer'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                }`}
                               />
+                              {(fieldErrors['issuingOrg'] || fieldErrors['issuer']) && (
+                                <p id="error-cert-issuer" className="text-xs text-[#800021] mt-1 font-semibold">
+                                  {fieldErrors['issuingOrg'] || fieldErrors['issuer']}
+                                </p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1458,19 +1753,29 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                 </label>
                                 <input
                                   type="text"
-                                  maxLength={300}
+                                  maxLength={255}
+                                  aria-invalid={Boolean(fieldErrors['title'])}
+                                  aria-describedby={fieldErrors['title'] ? 'error-ach-title' : undefined}
                                   value={(entry.title as string) || (entry.name as string) || ''}
                                   onChange={(e) => {
+                                    setFieldErrors((prev) => ({ ...prev, title: '' }));
                                     const entries = [...(((sec.content as any).entries as any[]) || [])];
                                     entries[eIdx] = {
                                       ...entries[eIdx],
-                                      title: e.target.value.slice(0, 300),
-                                      name: e.target.value.slice(0, 300),
+                                      title: e.target.value.slice(0, 255),
+                                      name: e.target.value.slice(0, 255),
                                     };
                                     updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                   }}
-                                  className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                  className={`w-full px-2.5 py-1 rounded border ${
+                                    fieldErrors['title'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                  }`}
                                 />
+                                {fieldErrors['title'] && (
+                                  <p id="error-ach-title" className="text-xs text-[#800021] mt-1 font-semibold">
+                                    {fieldErrors['title']}
+                                  </p>
+                                )}
                               </div>
                               <div>
                                 <label className="block text-[11px] font-semibold text-[#0B0B0B]">
@@ -1479,8 +1784,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                 <input
                                   type="text"
                                   maxLength={200}
+                                  aria-invalid={Boolean(fieldErrors['issuer'])}
+                                  aria-describedby={fieldErrors['issuer'] ? 'error-ach-issuer' : undefined}
                                   value={(entry.issuer as string) || ''}
                                   onChange={(e) => {
+                                    setFieldErrors((prev) => ({ ...prev, issuer: '' }));
                                     const entries = [...(((sec.content as any).entries as any[]) || [])];
                                     entries[eIdx] = {
                                       ...entries[eIdx],
@@ -1488,8 +1796,15 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                     };
                                     updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                   }}
-                                  className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                  className={`w-full px-2.5 py-1 rounded border ${
+                                    fieldErrors['issuer'] ? 'border-[#800021] ring-1 ring-[#800021]' : 'border-[#6B6B6B]'
+                                  }`}
                                 />
+                                {fieldErrors['issuer'] && (
+                                  <p id="error-ach-issuer" className="text-xs text-[#800021] mt-1 font-semibold">
+                                    {fieldErrors['issuer']}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div>
@@ -1498,13 +1813,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               </label>
                               <textarea
                                 rows={2}
-                                maxLength={1500}
+                                maxLength={FIELD_LIMITS.achievementDescription}
                                 value={(entry.description as string) || ''}
                                 onChange={(e) => {
                                   const entries = [...(((sec.content as any).entries as any[]) || [])];
                                   entries[eIdx] = {
                                     ...entries[eIdx],
-                                    description: e.target.value.slice(0, 1500),
+                                    description: e.target.value.slice(0, FIELD_LIMITS.achievementDescription),
                                   };
                                   updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
                                 }}
@@ -1578,17 +1893,17 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         ];
                         currentEntries.push({
                           id: newEntryId,
-                          institution: sec.sectionType === 'education' ? 'Institution Name' : '',
-                          degree: sec.sectionType === 'education' ? 'Degree / Program' : '',
-                          role: sec.sectionType === 'experience' ? 'Role / Title' : '',
-                          organization: sec.sectionType === 'experience' ? 'Company Name' : '',
-                          title: sec.sectionType === 'achievements' ? 'Achievement Title' : sec.sectionType === 'projects' || sec.sectionType === 'publications' || sec.sectionType === 'custom' ? 'Title' : '',
-                          category: sec.sectionType === 'skills' ? 'New Category' : '',
+                          institution: '',
+                          degree: '',
+                          role: '',
+                          organization: '',
+                          title: '',
+                          category: '',
                           items: [],
                           authors: [],
-                          name: sec.sectionType === 'certifications' ? 'Certification Name' : '',
-                          issuingOrg: sec.sectionType === 'certifications' ? 'Issuing Organization' : '',
-                          issuer: sec.sectionType === 'achievements' ? 'Organization' : sec.sectionType === 'certifications' ? 'Issuing Organization' : '',
+                          name: '',
+                          issuingOrg: '',
+                          issuer: '',
                           description: '',
                           bullets: [],
                         });
@@ -1649,17 +1964,6 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             >
               <FileCheck className="w-3.5 h-3.5" />
               <span>ATS Readiness</span>
-              {atsReport && (
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    (mobileTab === 'ats' || activeRightTab === 'ats')
-                      ? 'bg-[#FFFFFF] text-[#800021]'
-                      : 'bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B]'
-                  }`}
-                >
-                  {atsReport.summary.passCount}/10
-                </span>
-              )}
             </button>
           </div>
 

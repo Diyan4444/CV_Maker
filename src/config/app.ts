@@ -1,4 +1,4 @@
-export const PRODUCT_NAME = "FolioOne"; // Configurable single constant placeholder
+export const PRODUCT_NAME = "Quillfolio"; // Configurable single constant placeholder
 
 export const RESERVED_USERNAMES = new Set([
   'admin',

@@ -262,7 +262,7 @@ export async function POST(request: Request) {
           await tx
             .update(publications)
             .set({
-              title: pub.title || 'Publication',
+              title: pub.title || '',
               venue: pub.venue || '',
               publicationDate: pub.publicationDate || '',
               doiOrUrl: pub.doiOrUrl || '',
@@ -273,7 +273,7 @@ export async function POST(request: Request) {
         } else {
           await tx.insert(publications).values({
             profileId,
-            title: pub.title || 'Publication',
+            title: pub.title || '',
             venue: pub.venue || '',
             publicationDate: pub.publicationDate || '',
             doiOrUrl: pub.doiOrUrl || '',
@@ -298,7 +298,7 @@ export async function POST(request: Request) {
           await tx
             .update(achievements)
             .set({
-              title: ach.title || 'Achievement',
+              title: ach.title || '',
               issuerOrOrg: ach.issuerOrOrg || '',
               date: ach.date || '',
               description: ach.description || '',
@@ -308,7 +308,7 @@ export async function POST(request: Request) {
         } else {
           await tx.insert(achievements).values({
             profileId,
-            title: ach.title || 'Achievement',
+            title: ach.title || '',
             issuerOrOrg: ach.issuerOrOrg || '',
             date: ach.date || '',
             description: ach.description || '',
@@ -332,8 +332,8 @@ export async function POST(request: Request) {
           await tx
             .update(certifications)
             .set({
-              name: cert.name || 'Certification',
-              issuer: cert.issuer || 'Issuing Organization',
+              name: cert.name || '',
+              issuer: cert.issuer || '',
               issueDate: cert.issueDate || '',
               url: cert.url || '',
               orderIndex: i,
@@ -342,8 +342,8 @@ export async function POST(request: Request) {
         } else {
           await tx.insert(certifications).values({
             profileId,
-            name: cert.name || 'Certification',
-            issuer: cert.issuer || 'Issuing Organization',
+            name: cert.name || '',
+            issuer: cert.issuer || '',
             issueDate: cert.issueDate || '',
             url: cert.url || '',
             orderIndex: i,
@@ -401,7 +401,7 @@ export async function POST(request: Request) {
       );
     }
     const message = err instanceof Error ? err.message : 'Failed to save profile';
-    console.error('Save profile error:', err);
+    console.error('[PROFILE_SAVE_ERROR] Failed to save profile');
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

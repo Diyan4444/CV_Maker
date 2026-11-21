@@ -144,9 +144,9 @@ export function LivePdfPreview({
         }
 
         setIsCompiling(false);
-      } catch (err: unknown) {
+      } catch {
         if (!isCancelled) {
-          console.error('PDF Preview render error:', err);
+          console.error('[PDF_PREVIEW_ERROR] PDF Preview render failed');
           setErrorMsg('Failed to render live preview. Check document content.');
           setIsCompiling(false);
         }

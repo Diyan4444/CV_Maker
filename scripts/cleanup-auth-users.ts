@@ -32,7 +32,7 @@ async function main() {
       u.email?.includes('overflow-test') ||
       u.email?.includes('realpage-test') ||
       u.email?.includes('e2e-') ||
-      u.email?.includes('@folioone.local') ||
+      u.email?.includes('@quillfolio.local') ||
       u.email?.includes('preview-') ||
       u.email?.includes('bench-')
   );

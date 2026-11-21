@@ -31,7 +31,7 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const testEmail = `audit-table-${Date.now()}@folioone.local`;
+  const testEmail = `audit-table-${Date.now()}@quillfolio.local`;
   const testPassword = 'AuditTablePassword123!';
 
   // Create temporary audit user

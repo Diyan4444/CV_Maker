@@ -132,7 +132,7 @@ export function createDocumentSectionsFromProfile(
   // 1. Header / Contact Section
   const headerContent: HeaderContent = {
     schema_version: '1.0.0',
-    fullName: data.userMeta.fullName || data.profile?.preferredName || 'Professional Candidate',
+    fullName: data.userMeta.fullName || data.profile?.preferredName || '',
     preferredName: data.profile?.preferredName || undefined,
     email: data.profile?.professionalEmail || data.userMeta.email,
     phone: data.profile?.phone || undefined,
@@ -356,8 +356,8 @@ export function createDocumentSectionsFromProfile(
   const certificationEntries: CertificationEntry[] = (data.certifications || []).map((c) => ({
     id: randomUUID(),
     sourceId: c.id,
-    name: c.name || 'Certification Name',
-    issuingOrg: c.issuingOrg || 'Certification Authority',
+    name: c.name || '',
+    issuingOrg: c.issuingOrg || '',
     issueDate: c.issueDate || undefined,
     expiryDate: c.expiryDate || undefined,
     credentialId: c.credentialId || undefined,

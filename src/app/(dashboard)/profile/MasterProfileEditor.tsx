@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 import { DISCOVERY_PROMPTS, ExperienceDiscoveryPrompt } from '@/config/experience-prompts';
 import {
   Plus,
@@ -231,9 +232,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Full Name</label>
             <input
               type="text"
+              maxLength={255}
               placeholder="e.g. Alexandra Vance"
               value={contactInfo.fullName || ''}
-              onChange={(e) => handleUpdateContact('fullName', e.target.value)}
+              onChange={(e) => handleUpdateContact('fullName', e.target.value.slice(0, 255))}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -242,9 +244,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Preferred Professional Name</label>
             <input
               type="text"
+              maxLength={150}
               placeholder="e.g. Alex Vance"
               value={contactInfo.preferredName || ''}
-              onChange={(e) => handleUpdateContact('preferredName', e.target.value)}
+              onChange={(e) => handleUpdateContact('preferredName', e.target.value.slice(0, 150))}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -253,9 +256,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Professional Email</label>
             <input
               type="email"
+              maxLength={150}
               placeholder="e.g. alex.vance@university.edu"
               value={contactInfo.email || ''}
-              onChange={(e) => handleUpdateContact('email', e.target.value)}
+              onChange={(e) => handleUpdateContact('email', e.target.value.slice(0, 150))}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -264,9 +268,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Phone Number (Optional)</label>
             <input
               type="tel"
+              maxLength={100}
               placeholder="e.g. +1 (555) 019-2834"
               value={contactInfo.phone || ''}
-              onChange={(e) => handleUpdateContact('phone', e.target.value)}
+              onChange={(e) => handleUpdateContact('phone', e.target.value.slice(0, 100))}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -275,9 +280,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Current City</label>
             <input
               type="text"
+              maxLength={150}
               placeholder="e.g. San Francisco"
               value={contactInfo.city || ''}
-              onChange={(e) => handleUpdateContact('city', e.target.value)}
+              onChange={(e) => handleUpdateContact('city', e.target.value.slice(0, 150))}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -286,9 +292,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Current Country</label>
             <input
               type="text"
+              maxLength={150}
               placeholder="e.g. United States"
               value={contactInfo.country || ''}
-              onChange={(e) => handleUpdateContact('country', e.target.value)}
+              onChange={(e) => handleUpdateContact('country', e.target.value.slice(0, 150))}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -300,9 +307,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Professional Headline</label>
             <input
               type="text"
+              maxLength={300}
               placeholder="e.g. Computer Science Researcher | Distributed Systems Builder"
               value={profile.headline || ''}
-              onChange={(e) => setProfile({ ...profile, headline: e.target.value })}
+              onChange={(e) => setProfile({ ...profile, headline: e.target.value.slice(0, 300) })}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>
@@ -311,9 +319,10 @@ export function MasterProfileEditor({
             <label className="text-xs font-semibold text-[#0B0B0B]">Professional Summary / Bio</label>
             <textarea
               rows={3}
+              maxLength={FIELD_LIMITS.summary}
               placeholder="Concise overview of your career, research interests, or academic focus..."
               value={profile.summary || ''}
-              onChange={(e) => setProfile({ ...profile, summary: e.target.value })}
+              onChange={(e) => setProfile({ ...profile, summary: e.target.value.slice(0, FIELD_LIMITS.summary) })}
               className="w-full px-3.5 py-2 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] placeholder:text-[#6B6B6B] text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
             />
           </div>

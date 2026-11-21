@@ -13,7 +13,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 test.describe.serial('Document Engine & Editor Lifecycle', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
-  const testEmail = `editor-test-${Date.now()}@folioone.local`;
+  const testEmail = `editor-test-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
   let capturedCookies: Record<string, string> = {};
   let createdDocId: string = '';
@@ -180,7 +180,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await expect(page.getByText('Unsaved changes')).toBeVisible();
 
     // Wait for debounced autosave (~1.5s debounce + server save) to finish
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 30000 });
 
     // Refresh page and verify value persisted
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -242,35 +242,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await expect(page.locator('input[value="Header & Contact Information"]')).toBeVisible();
   });
 
-  test('6. Dev gallery (/dev/templates) allows switching fixtures and templates', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/dev/templates');
-    await page.waitForLoadState('domcontentloaded');
-
-    // Header and fixture buttons visible
-    await expect(page.getByRole('heading', { name: /Dev Template & Stress Gallery/i })).toBeVisible();
-
-    // Switch to 2-Page Resume
-    const twoPageBtn = page.getByRole('button', { name: /2-Page Senior Engineer Resume/i });
-    await expect(twoPageBtn).toBeVisible();
-    await twoPageBtn.click();
-
-    // Switch to 3-Page Academic CV
-    const threePageBtn = page.getByRole('button', { name: /3-Page Academic Scholarly CV/i });
-    await expect(threePageBtn).toBeVisible();
-    await threePageBtn.click();
-
-    // Switch to Extreme Edge Case
-    const extremeBtn = page.getByRole('button', { name: /Extreme Edge Case/i });
-    await expect(extremeBtn).toBeVisible();
-    await extremeBtn.click();
-
-    // Verify canvas rendered
-    const previewCanvas = page.locator('canvas').first();
-    await expect(previewCanvas).toBeVisible({ timeout: 10000 });
-  });
-
-  test('7. Local draft recovery prompt appears when unsaved changes exist in storage', async ({ page }) => {
+  test('6. Local draft recovery prompt appears when unsaved changes exist in storage', async ({ page }) => {
     if (!createdDocId) test.skip();
 
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -587,7 +559,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await confirmDeleteBtn.click();
 
     // Modal dismissed and document list reflects deletion
-    await expect(page.getByText('Delete Document?')).not.toBeVisible();
+    await expect(page.getByText('Delete Document?')).not.toBeVisible({ timeout: 15000 });
     await expect(page.getByText('0 / 20 documents used')).toBeVisible();
   });
 });

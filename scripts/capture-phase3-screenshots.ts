@@ -16,7 +16,7 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const testEmail = `screenshot-user-${Date.now()}@folioone.local`;
+  const testEmail = `screenshot-user-${Date.now()}@quillfolio.local`;
   const testPassword = 'TestSecurePass123!';
 
   const { data: userRecord, error: userErr } = await adminClient.auth.admin.createUser({

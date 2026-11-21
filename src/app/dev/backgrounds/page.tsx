@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 export default function DevBackgroundsPage() {
-  // DEV-ONLY: Must return 404 in production builds
+  // DEV-ONLY: Must return 404 in production builds with no env override
   if (process.env.NODE_ENV === 'production') {
     notFound();
   }

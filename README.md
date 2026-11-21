@@ -29,8 +29,25 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Testing Architecture & Environment Isolation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Test Modes & Commands
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Unit & Engine Tests (Vitest)**
+   - **Command**: `npm test`
+   - **Scope**: Pure unit tests, validation schemas, WCAG contrast audits, fontkit glyph coverage, hyphenation/unbreakable token handling, PDF extraction, and document concurrency logic.
+   - **Environment**: Runs completely offline/standalone with zero HTTP server dependency.
+
+2. **Integration Tests (Vitest Integration Suite)**
+   - **Command**: `npm run test:integration`
+   - **Scope**: Live HTTP route tests against production API endpoints (`/api/documents/*`, `/api/profile/*`), dev route 404 guards (`/dev/*`), and direct PostgreSQL constraint / RLS verification.
+   - **Environment**: Executes against a running production server using `vitest.integration.config.ts`. All test users and created records are cleaned up in `afterAll` hooks.
+
+3. **End-to-End Tests (Playwright)**
+   - **Command**: `npx playwright test`
+   - **Scope**: Full browser flows across viewports (1440px, 1280px, 1100px, 390px, 360px, 320px), PDF download generation, ATS readiness checks, keyboard focus visibility, panel background isolation, and zero-layout-shift toolbar behavior.
+   - **Environment**: Automatically boots and tests against a dedicated production build (`npm run start -- -p 3100`) on port `3100` with `reuseExistingServer: false` to eliminate collision with any active local dev server.
+
+4. **Dev Template Gallery & Background Renderers**
+   - **Vitest Render Spec**: `npx vitest run src/tests/dev-templates-gallery.test.ts`
+   - **Interactive Dev Gallery**: In development mode (`NODE_ENV !== 'production'`), accessible at `http://localhost:3000/dev/templates` and `http://localhost:3000/dev/backgrounds`. In production deployments, these routes unconditionally trigger Next.js `notFound()`.
