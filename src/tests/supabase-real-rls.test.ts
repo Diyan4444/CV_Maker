@@ -18,7 +18,7 @@ const hasCredentials = Boolean(
   !supabaseUrl.includes('placeholder')
 );
 
-describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests', () => {
+describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests', { timeout: 60000 }, () => {
   let adminClient: ReturnType<typeof createClient>;
   let userAClient: ReturnType<typeof createClient>;
   let userBClient: ReturnType<typeof createClient>;
@@ -116,7 +116,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
         username: `user-a-${Date.now()}`,
         is_published: false,
       });
-  });
+  }, 30000);
 
   afterAll(async () => {
     // Cleanup: delete test users via admin API (cascades to all user rows)
@@ -131,7 +131,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
         await adminClient.auth.admin.deleteUser(r.id);
       }
     }
-  });
+  }, 30000);
 
   it('Step 0(b): on_auth_user_created trigger automatically populated profiles row for User A', async () => {
     const { data, error } = await (adminClient as any)
@@ -424,5 +424,5 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
       const { data } = await anonClient.from(tbl).select('*');
       expect(data === null || (Array.isArray(data) && data.length === 0), `Anon should not read ${tbl}`).toBe(true);
     }
-  });
+  }, 30000);
 });
