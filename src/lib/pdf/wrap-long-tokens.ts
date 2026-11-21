@@ -4,67 +4,72 @@
  * Breaks abnormally long unbroken tokens into newline-separated segments
  * so they wrap safely within page margins in react-pdf without clipping or overflowing.
  *
- * Calibrated Thresholds:
- * - URLs: breakUrl breaks at natural delimiters ('/', '?', '&', '=', '.') when > 65 chars.
- * - Emails: breakEmail breaks at '@' (and natural domain/local points) when > 65 chars.
- * - URLs <= 65 chars (e.g. 60 chars) and emails <= 65 chars (e.g. 45 chars) that fit on a line stay UNBROKEN.
- * - Headings / large non-URL words: tokens > 38 chars break at 35 chars to prevent 24pt header overflow.
+ * Calibrated Rules:
+ * - Names and headings break only after spaces or hyphens when any exist.
+ * - URLs break only after '/', '?', '&', '=' or '.'.
+ * - Emails break after '@' or '.'.
+ * - A segment is split in the middle ONLY when a single segment (between delimiters)
+ *   is wider than the available line width.
+ * - Normal-length words, names, and emails stay completely untouched.
  * - No visible hyphens or extra characters are inserted.
- * - Extracted text reconstructed across line segments retains every character without loss.
  */
 
 /**
  * Breaks long URLs at natural URL delimiters: after '/', '?', '&', '=', '.'
- * without inserting hyphens or modifying characters.
  * URLs <= maxSegmentLength (default 65 characters) remain completely unbroken.
  */
 export function breakUrl(url: string, maxSegmentLength: number = 65): string {
   if (!url || typeof url !== 'string' || url.length <= maxSegmentLength) return url || '';
 
-  const chunks: string[] = [];
-  let remaining = url;
+  const delimiters = new Set(['/', '?', '&', '=', '.']);
+  const segments: string[] = [];
+  let current = '';
 
-  while (remaining.length > maxSegmentLength) {
-    // Search backwards from maxSegmentLength down to 15 for a natural breakpoint after '/', '?', '&', '=', '.'
-    let breakIdx = -1;
-    for (let i = maxSegmentLength; i >= 15; i--) {
-      const ch = remaining[i - 1];
-      if (ch === '/' || ch === '?' || ch === '&' || ch === '=' || ch === '.') {
-        breakIdx = i;
-        break;
-      }
+  for (let i = 0; i < url.length; i++) {
+    current += url[i];
+    if (delimiters.has(url[i])) {
+      segments.push(current);
+      current = '';
     }
-
-    // If no delimiter was found in [15, maxSegmentLength], search from 14 down to 5
-    if (breakIdx === -1) {
-      for (let i = maxSegmentLength; i >= 5; i--) {
-        const ch = remaining[i - 1];
-        if (ch === '/' || ch === '?' || ch === '&' || ch === '=' || ch === '.') {
-          breakIdx = i;
-          break;
-        }
-      }
-    }
-
-    // If still no delimiter found (unbroken token), hard split at maxSegmentLength
-    if (breakIdx === -1) {
-      breakIdx = maxSegmentLength;
-    }
-
-    chunks.push(remaining.slice(0, breakIdx));
-    remaining = remaining.slice(breakIdx);
+  }
+  if (current.length > 0) {
+    segments.push(current);
   }
 
-  if (remaining.length > 0) {
-    chunks.push(remaining);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const seg of segments) {
+    if (seg.length > maxSegmentLength) {
+      if (currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+      for (let i = 0; i < seg.length; i += maxSegmentLength) {
+        lines.push(seg.slice(i, i + maxSegmentLength));
+      }
+      continue;
+    }
+
+    if (!currentLine) {
+      currentLine = seg;
+    } else if (currentLine.length + seg.length <= maxSegmentLength) {
+      currentLine += seg;
+    } else {
+      lines.push(currentLine);
+      currentLine = seg;
+    }
   }
 
-  return chunks.join('\n');
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines.join('\n');
 }
 
 /**
- * Breaks long emails at natural email delimiters: after '@', or after/before '.'
- * without inserting hyphens or modifying characters.
+ * Breaks long emails at natural delimiters: after '@', or after '.'
  * Emails <= maxSegmentLength (default 65 characters) remain completely unbroken.
  */
 export function breakEmail(email: string, maxSegmentLength: number = 65): string {
@@ -72,22 +77,91 @@ export function breakEmail(email: string, maxSegmentLength: number = 65): string
 
   const atIndex = email.indexOf('@');
   if (atIndex !== -1) {
-    const localPart = email.slice(0, atIndex);
+    const localPart = email.slice(0, atIndex + 1); // includes '@'
     const domainPart = email.slice(atIndex + 1);
 
-    // Only break parts that individually or collectively exceed limits
+    if (localPart.length <= maxSegmentLength && domainPart.length <= maxSegmentLength) {
+      return `${localPart}\n${domainPart}`;
+    }
+
     const brokenLocal = localPart.length > maxSegmentLength ? breakUrl(localPart, maxSegmentLength) : localPart;
     const brokenDomain = domainPart.length > maxSegmentLength ? breakUrl(domainPart, maxSegmentLength) : domainPart;
 
-    if (brokenDomain) {
-      return `${brokenLocal}@\n${brokenDomain}`;
-    }
-    return `${brokenLocal}@`;
+    return `${brokenLocal}\n${brokenDomain}`;
   }
 
   return breakUrl(email, maxSegmentLength);
 }
 
+/**
+ * Breaks hyphenated tokens (e.g. multi-part names like Montgomery-Chamberlain-Fitzgerald-Smithington)
+ * strictly AFTER hyphens, packing segments up to maxSegmentLength.
+ * A segment is split in the middle ONLY if an unbroken sub-segment exceeds maxSegmentLength.
+ */
+export function breakHyphenatedToken(token: string, maxSegmentLength: number = 35): string {
+  if (!token || token.length <= maxSegmentLength) return token;
+
+  if (!token.includes('-')) {
+    const chunks: string[] = [];
+    for (let i = 0; i < token.length; i += maxSegmentLength) {
+      chunks.push(token.slice(i, i + maxSegmentLength));
+    }
+    return chunks.join('\n');
+  }
+
+  const segments: string[] = [];
+  let current = '';
+  for (let i = 0; i < token.length; i++) {
+    current += token[i];
+    if (token[i] === '-') {
+      segments.push(current);
+      current = '';
+    }
+  }
+  if (current.length > 0) {
+    segments.push(current);
+  }
+
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const seg of segments) {
+    if (seg.length > maxSegmentLength) {
+      if (currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+      for (let i = 0; i < seg.length; i += maxSegmentLength) {
+        lines.push(seg.slice(i, i + maxSegmentLength));
+      }
+      continue;
+    }
+
+    if (!currentLine) {
+      currentLine = seg;
+    } else if (currentLine.length + seg.length <= maxSegmentLength) {
+      currentLine += seg;
+    } else {
+      lines.push(currentLine);
+      currentLine = seg;
+    }
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * General long token wrapping utility.
+ * - Names and headings break only after spaces or hyphens when any exist.
+ * - URLs break only after '/', '?', '&', '=' or '.'.
+ * - Emails break after '@' or '.'.
+ * - A segment is split in the middle ONLY when a single segment is wider than the available line width.
+ * - Normal-length words, names, and emails stay untouched.
+ */
 export function wrapLongTokens(
   text: string | null | undefined,
   maxTokenLength: number = 38,
@@ -101,13 +175,15 @@ export function wrapLongTokens(
       return line
         .split(' ')
         .map((token) => {
-          // Check if token is a URL
-          if (
+          // Check if token is a URL (with protocol or path-based URL like subdomain.domain.com/path)
+          const isUrl =
             token.startsWith('http://') ||
             token.startsWith('https://') ||
             token.startsWith('www.') ||
-            token.includes('://')
-          ) {
+            token.includes('://') ||
+            (token.includes('/') && (token.includes('.') || token.length > 30));
+
+          if (isUrl) {
             return breakUrl(token, 65);
           }
 
@@ -118,12 +194,8 @@ export function wrapLongTokens(
 
           if (token.length <= maxTokenLength) return token;
 
-          // Abnormally long unbroken non-URL token (e.g. giant name in header)
-          const chunks: string[] = [];
-          for (let i = 0; i < token.length; i += chunkSize) {
-            chunks.push(token.slice(i, i + chunkSize));
-          }
-          return chunks.join('\n');
+          // Non-URL long token: check for hyphens
+          return breakHyphenatedToken(token, chunkSize);
         })
         .join(' ');
     })

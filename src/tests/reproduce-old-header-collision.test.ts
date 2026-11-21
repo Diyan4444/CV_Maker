@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { pdf, Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { STANDARD_FONT_DATA_URL } from './test-utils/pdfjs-node-setup';
 import { AtsSingleColumnTemplate } from '../components/pdf/templates/AtsSingleColumn';
 import { DocumentSection, DocumentMeta } from '../lib/documents/types';
 
@@ -119,7 +120,10 @@ function Original7c50059HeaderDocument() {
 async function analyzeLayout(docComponent: any) {
   const blob = await pdf(docComponent).toBlob();
   const buffer = Buffer.from(await blob.arrayBuffer());
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  });
   const pdfDoc = await loadingTask.promise;
   const page = await pdfDoc.getPage(1);
   const textContent = await page.getTextContent();

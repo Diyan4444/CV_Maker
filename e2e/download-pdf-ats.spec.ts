@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { PDFParse } from 'pdf-parse';
+import { createCanvas, loadImage } from 'canvas';
 import { PRODUCT_NAME } from '../src/config/app';
 import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 dotenv.config({ path: '.env.local' });
@@ -20,8 +21,51 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   let testUserId: string;
   let testEmail: string;
   let testDocId: string;
+  let seededSections: any[] = [];
   const testPassword = 'Password123!SafePass';
   const capturedCookies: Record<string, string> = {};
+
+  function assertSectionParity(sections: any[], extractedText: string) {
+    const upperText = extractedText.toUpperCase();
+    for (const sec of sections) {
+      if (sec.is_visible) {
+        if (sec.content?.fullName) {
+          if (!upperText.includes(sec.content.fullName.toUpperCase())) {
+            throw new Error(`Parity check failed: visible fullName "${sec.content.fullName}" missing in exported PDF`);
+          }
+        }
+        if (sec.content?.text) {
+          const snippet = sec.content.text.slice(0, 30).toUpperCase();
+          if (!upperText.includes(snippet)) {
+            throw new Error(`Parity check failed: visible summary snippet "${snippet}" missing in exported PDF`);
+          }
+        }
+        if (sec.content?.entries) {
+          for (const e of sec.content.entries) {
+            const label = e.role || e.title;
+            if (label && !upperText.includes(label.toUpperCase())) {
+              throw new Error(`Parity check failed: visible entry "${label}" missing in exported PDF`);
+            }
+          }
+        }
+      } else {
+        // Section is marked hidden in model: must NOT be present in exported PDF
+        if (sec.title && upperText.includes(sec.title.toUpperCase())) {
+          throw new Error(`Parity check failed: hidden section title "${sec.title}" found in exported PDF`);
+        }
+        if (sec.content?.entries) {
+          for (const e of sec.content.entries) {
+            if (e.title && upperText.includes(e.title.toUpperCase())) {
+              throw new Error(`Parity check failed: hidden entry title "${e.title}" found in exported PDF`);
+            }
+            if (e.description && upperText.includes(e.description.toUpperCase())) {
+              throw new Error(`Parity check failed: hidden description "${e.description}" found in exported PDF`);
+            }
+          }
+        }
+      }
+    }
+  }
 
   test.beforeAll(async () => {
     test.setTimeout(120000);
@@ -70,7 +114,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     testDocId = docData.id;
 
     // Seed sections
-    const { error: secInsertErr } = await adminClient.from('document_sections').insert([
+    seededSections = [
       {
         document_id: testDocId,
         section_type: 'header',
@@ -153,7 +197,8 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
           ],
         },
       },
-    ]);
+    ];
+    const { error: secInsertErr } = await adminClient.from('document_sections').insert(seededSections);
     if (secInsertErr) throw secInsertErr;
 
     // Sign in to capture session cookies
@@ -266,12 +311,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
       expect(expPos).toBeGreaterThan(summaryPos);
       expect(skillsPos).toBeGreaterThan(expPos);
 
-      // 3. Verify hidden-section text NEVER appears
-      expect(extractedText).not.toContain('Secret Hidden Project');
-      expect(extractedText).not.toContain('Classified Stealth Venture');
-      expect(extractedText).not.toContain('classified confidential text');
-
-      // 4. Verify PDF metadata
+      // 3. Verify PDF metadata
       const info = infoResult.info as any;
       console.log(`[E2E Download Test] ${tmpl.id} Metadata:`, JSON.stringify(info));
       expect(info.Title).toBe('Staff Systems Architect Resume');
@@ -279,10 +319,63 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
       expect(info.Creator).toBe(PRODUCT_NAME);
       expect(info.Producer).toBe(`${PRODUCT_NAME} (react-pdf)`);
 
-      // 5. Render Page 1 to PNG artifact
+      // 4. Verify Page count, A4 dimensions, and 100+ DPI render non-blank check
+      expect(infoResult.total).toBe(1);
+
+      const page1Screen = screens.pages[0];
+      expect(page1Screen).toBeDefined();
+
+      // Page dimensions at scale 2.0 (144 DPI):
+      // Unscaled points = pixel width / 2.0: 595.28 x 841.89 (A4 standard)
+      const unscaledWidth = page1Screen.width / 2.0;
+      const unscaledHeight = page1Screen.height / 2.0;
+      expect(Math.abs(unscaledWidth - 595.28)).toBeLessThan(1.0);
+      expect(Math.abs(unscaledHeight - 841.89)).toBeLessThan(1.0);
+
+      // Save rendered Page 1 PNG artifact
       const artifactPngPath = path.join(ARTIFACT_DIR, `page1_downloaded_${tmpl.id}.png`);
-      fs.writeFileSync(artifactPngPath, Buffer.from(screens.pages[0].data));
+      fs.writeFileSync(artifactPngPath, Buffer.from(page1Screen.data));
       expect(fs.existsSync(artifactPngPath)).toBe(true);
+
+      // Non-blank check: percentage of non-white pixels
+      const img = await loadImage(Buffer.from(page1Screen.data));
+      const canvas = createCanvas(img.width, img.height);
+      const context = canvas.getContext('2d');
+      context.drawImage(img, 0, 0);
+
+      const imgData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const totalPixels = canvas.width * canvas.height;
+      let nonWhitePixels = 0;
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        const r = imgData.data[i];
+        const g = imgData.data[i + 1];
+        const b = imgData.data[i + 2];
+        const a = imgData.data[i + 3];
+        if (a > 10 && (r < 245 || g < 245 || b < 245)) {
+          nonWhitePixels++;
+        }
+      }
+      const nonWhitePercentage = (nonWhitePixels / totalPixels) * 100;
+      console.log(`[E2E Download Test] ${tmpl.id} Page 1 Non-White Pixels: ${nonWhitePercentage.toFixed(2)}%`);
+      expect(nonWhitePercentage).toBeGreaterThan(1.5);
+
+      // 5. Model parity verification: all visible fields present, hidden fields absent
+      assertSectionParity(seededSections, extractedText);
+
+      // 6. Negative checks:
+      // (a) Proves check fails when hidden section text is introduced in PDF
+      const corruptedTextWithHidden = extractedText + ' Secret Hidden Project Classified Stealth Venture';
+      expect(() => {
+        assertSectionParity(seededSections, corruptedTextWithHidden);
+      }).toThrow(/Parity check failed: hidden section title "Secret Hidden Project" found in exported PDF/);
+
+      // (b) Proves check fails when a section is marked hidden in model but present in PDF
+      const mutatedModel = seededSections.map((s) =>
+        s.section_type === 'experience' ? { ...s, is_visible: false } : s
+      );
+      expect(() => {
+        assertSectionParity(mutatedModel, extractedText);
+      }).toThrow(/Parity check failed: hidden section title "Experience" found in exported PDF/);
     }
   });
 

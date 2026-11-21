@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { STANDARD_FONT_DATA_URL } from './test-utils/pdfjs-node-setup';
 import { AtsSingleColumnTemplate } from '../components/pdf/templates/AtsSingleColumn';
 import { ModernProfessionalTemplate } from '../components/pdf/templates/ModernProfessional';
 import { AcademicCvTemplate } from '../components/pdf/templates/AcademicCv';
@@ -118,7 +119,10 @@ describe('Item 3: Long URLs and Emails Wrapping & Margin Safety', () => {
       const uint8 = new Uint8Array(buffer);
 
       // 1. pdfjs geometric text position check
-      const loadingTask = pdfjs.getDocument({ data: uint8 });
+      const loadingTask = pdfjs.getDocument({
+        data: uint8,
+        standardFontDataUrl: STANDARD_FONT_DATA_URL,
+      });
       const pdfDoc = await loadingTask.promise;
       const page = await pdfDoc.getPage(1);
       const viewport = page.getViewport({ scale: 1.0 });
@@ -249,6 +253,43 @@ describe('Item 3: Long URLs and Emails Wrapping & Margin Safety', () => {
     expect(wrappedEmail.includes('\n')).toBe(false);
   });
 
+  it('verifies URLs break only after delimiters and never inside words like departments or directory', () => {
+    const testUrl =
+      'https://subdomain.university.edu/departments/computer-science/faculty/directory/alexander-montgomery-chamberlain';
+    const broken = breakUrl(testUrl, 65);
+    const lines = broken.split('\n');
+
+    expect(lines.length).toBeGreaterThan(1);
+    for (let i = 0; i < lines.length - 1; i++) {
+      const line = lines[i];
+      // Every non-terminal line must end in a natural delimiter
+      const lastChar = line[line.length - 1];
+      expect(['/', '?', '&', '=', '.'], `Line "${line}" must end in natural delimiter`).toContain(lastChar);
+    }
+
+    // Assert words are intact and not split
+    expect(broken).toContain('departments/');
+    expect(broken).toContain('directory/');
+    expect(broken).not.toContain('department\n');
+    expect(broken).not.toContain('director\n');
+  });
+
+  it('verifies hyphenated names break only after hyphens and never split words like Smithington', () => {
+    const longName =
+      'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain-Fitzgerald-Smithington III';
+    const wrapped = wrapLongTokens(longName, 38, 35);
+    const lines = wrapped.split('\n');
+
+    expect(lines.length).toBeGreaterThan(1);
+    // Smithington must remain completely intact
+    expect(wrapped).toContain('Smithington');
+    expect(wrapped).not.toContain('S\nmithington');
+    expect(wrapped).not.toContain('Smith\nington');
+
+    // Any break inside the hyphenated token must occur after a hyphen
+    expect(wrapped).toContain('Montgomery-Chamberlain-Fitzgerald-\nSmithington');
+  });
+
   for (const { id, Component } of templates) {
     it(`[${id}] renders 60-char URL and 45-char email intact without internal newline in PDF extracted text`, async () => {
       const normalSections: DocumentSection[] = [
@@ -293,6 +334,7 @@ describe('Item 3: Long URLs and Emails Wrapping & Margin Safety', () => {
       const loadingTask = pdfjs.getDocument({
         data: new Uint8Array(arrayBuffer),
         useSystemFonts: true,
+        standardFontDataUrl: STANDARD_FONT_DATA_URL,
       });
       const pdfDoc = await loadingTask.promise;
       const page = await pdfDoc.getPage(1);

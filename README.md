@@ -46,6 +46,7 @@ Quillfolio employs an atomic, checksum-verified migration runner in `scripts/app
 3. `0004_db_constraints.sql` (Regex, Length Checks, & Reserved Username Trigger)
 4. `0005_version_and_caps.sql` (Optimistic Concurrency Versions & Per-User Row Caps)
 5. `0006_missing_caps.sql` (Row Caps for Certifications, Publications, Achievements, Custom Sections)
+6. `0007_indexes.sql` (Performance Indexes, Search Paths, and Anon/Authenticated Privilege Hardening)
 
 #### How to Deploy to an Empty Supabase Project:
 1. Create a new Supabase project in the Supabase Dashboard.
@@ -60,11 +61,77 @@ Quillfolio employs an atomic, checksum-verified migration runner in `scripts/app
 5. All tables, constraints, functions, triggers, and RLS policies will be created from scratch.
 6. Copy the **Transaction Pooler URI (port 6543)** and set it as `DATABASE_URL` in Vercel.
 
-#### Serverless Database Configuration References:
-- **Supabase Serverless & Connection Pooling**: [Supabase Pooler Documentation](https://supabase.com/docs/guides/database/connecting-to-postgres#serverless-and-transaction-pooler)
-- **Supabase Transaction Mode Requirements**: [Supabase PgBouncer & Supavisor Guide](https://supabase.com/docs/guides/database/connecting-to-postgres#how-connection-pooling-works)
-- **Postgres.js Serverless & Prepared Statements**: [Postgres.js Serverless Documentation](https://github.com/porsager/postgres#serverless--prepared-statements)
-- **Postgres.js Connection Options**: [Postgres.js Connection Parameters](https://github.com/porsager/postgres#connection-parameters)
+---
+
+## Production Deployment Checklist
+
+Follow these exact steps in order when setting up and deploying Quillfolio to a new production environment:
+
+### Step 1: Create an Empty Supabase Production Project
+1. Log in to the Supabase Dashboard and create a new project (e.g. `quillfolio-prod`).
+2. Navigate to **Project Settings -> Database -> Connection string**.
+3. Note your project reference (`<prod-ref>`) and connection strings:
+   - **Direct / Session Connection (port 5432)**: `postgresql://postgres.[prod-ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres` (or `db.[prod-ref].supabase.co:5432`).
+   - **Transaction Pooler Connection (port 6543)**: `postgresql://postgres.[prod-ref]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres`.
+
+### Step 2: Validate Migration Connection with Dry Run
+Run a dry run from your local workstation using the Direct connection string (port 5432) to verify URL syntax, port validation, and project reference extraction:
+```bash
+# Windows PowerShell:
+$env:MIGRATION_DATABASE_URL="postgresql://postgres.[prod-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres"
+npm run db:apply -- --dry-run
+```
+Expected output:
+- Identifies `MIGRATION_DATABASE_URL` as source.
+- Reports Host, Port `5432`, and Project Ref `<prod-ref>`.
+- Lists all 6 migrations with status `[unknown] (dry run)`.
+- Exits code 0 with `Dry run complete. No connection was made to the database.`
+
+### Step 3: Apply Full Database Schema with Explicit Reference Confirmation
+Execute the atomic schema apply targeting the production database:
+```bash
+npm run db:apply -- --confirm-ref <prod-ref>
+```
+Expected output:
+- Matches confirmation flag `--confirm-ref <prod-ref>`.
+- Connects over session connection (port 5432) with SSL.
+- Acquires advisory lock (`0x5175696c6c666f`).
+- Applies migrations `0001` through `0007` sequentially in isolated transactions.
+- Records checksums in `app_migrations` table.
+- Exits code 0 with `All pending migrations applied successfully.`
+
+### Step 4: Run Read-Only Schema Verification (`npm run db:verify`)
+Verify database structure, permissions, and security posture using the read-only verification suite:
+```bash
+npm run db:verify
+```
+Expected output:
+- Starts read-only transaction (`SET TRANSACTION READ ONLY`).
+- Audits and verifies:
+  - All 14 public tables exist: `app_migrations`, `master_profiles`, `profile_education`, `profile_experiences`, `profile_projects`, `profile_skills`, `profile_publications`, `profile_achievements`, `profile_certifications`, `profile_custom_sections`, `documents`, `document_sections`, `websites`, `ai_usage_logs`.
+  - Row Level Security (RLS) is enabled and forced on all tables.
+  - Anon role has zero table privileges (14/14 completely inaccessible).
+  - Authenticated role is strictly restricted to CRUD operations (and SELECT-only on `ai_usage_logs`).
+  - Auth trigger `on_auth_user_created` is registered on `auth.users`.
+  - Security definer functions (`handle_new_user`) declare explicit `search_path = public`.
+  - All migrations are recorded and verified.
+- Exits code 0 with `All verification checks passed cleanly!`
+
+### Step 5: Configure Production Environment Variables in Vercel
+In Vercel Dashboard -> **Project Settings -> Environment Variables**, configure the following variables for the Production environment:
+- `NEXT_PUBLIC_SUPABASE_URL` (e.g. `https://<prod-ref>.supabase.co`)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase Anon public key)
+- `SUPABASE_SERVICE_ROLE_KEY` (Supabase Service Role secret key)
+- `DATABASE_URL` (Supabase Transaction Pooler URI on port **6543**, e.g. `postgresql://postgres.<prod-ref>:[PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres`)
+- `NEXT_PUBLIC_APP_URL` (Production custom domain, e.g. `https://quillfolio.com`)
+
+> **IMPORTANT RULE: Environment Separation & Safety Guard**:
+> - Never set `MIGRATION_DATABASE_URL` in Vercel runtime.
+> - Never run automated tests or test scripts (`npm test`, `npm run test:integration`, `npx playwright test`, `scripts/list-and-clean-users.ts`) with production credentials or against the production database.
+> - Test suites and cleanup scripts enforce a strict `.test-projects` allowlist guard. Any attempt to run them against a database whose project reference is not in `.test-projects` will throw a fatal error and terminate immediately.
+
+### Step 6: Deploy to Vercel
+Trigger deployment via Vercel Git integration (`git push origin main` after confirmation) or Vercel CLI (`vercel --prod`).
 
 ---
 

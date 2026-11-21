@@ -11,6 +11,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit",
     "db:apply": "tsx scripts/apply-migrations.ts",
+    "db:verify": "tsx scripts/verify-database.ts",
     "copy:pdf-worker": "node scripts/copy-pdf-worker.mjs",
     "postinstall": "npm run copy:pdf-worker"
   },

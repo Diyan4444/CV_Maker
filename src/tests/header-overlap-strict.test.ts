@@ -3,6 +3,7 @@ import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { DocumentPdfRenderer } from '../components/pdf/DocumentPdfRenderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { STANDARD_FONT_DATA_URL } from './test-utils/pdfjs-node-setup';
 import { TemplateId } from '../lib/documents/types';
 
 const EXACT_80_CHAR_NAME = 'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain-Fitzgerald-Smithington III';
@@ -79,7 +80,10 @@ async function renderAndExtractTextBoxes(templateId: TemplateId): Promise<{
   const blob = await pdf(docElement).toBlob();
   const buffer = await blob.arrayBuffer();
 
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  });
   const pdfDoc = await loadingTask.promise;
 
   const boxes: TextBoundingBox[] = [];

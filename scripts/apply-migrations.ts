@@ -6,41 +6,127 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-function computeChecksum(content: string): string {
+export function computeChecksum(content: string): string {
   // Normalize line endings to ensure identical checksum across Linux/macOS/Windows
   const normalized = content.replace(/\r\n/g, '\n').trim();
   return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
 }
 
-async function main() {
-  const dbUrl = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
-  if (!dbUrl) {
-    console.error('ERROR: Missing MIGRATION_DATABASE_URL or DATABASE_URL environment variable.');
-    process.exit(1);
-  }
+export interface ParsedDbUrl {
+  host: string;
+  port: string;
+  ref: string;
+  rawParsed: URL;
+}
 
-  // Parse connection URL to extract target host and project ref without exposing password
-  let targetHost = '';
-  let targetRef = '';
+export function parseDatabaseUrl(urlStr: string): ParsedDbUrl {
+  let parsed: URL;
   try {
-    const parsed = new URL(dbUrl);
-    targetHost = parsed.hostname;
-    if (parsed.username.startsWith('postgres.')) {
-      targetRef = parsed.username.replace('postgres.', '');
-    } else if (parsed.hostname.startsWith('db.') && parsed.hostname.endsWith('.supabase.co')) {
-      targetRef = parsed.hostname.replace('db.', '').replace('.supabase.co', '');
-    } else {
-      targetRef = parsed.hostname.split('.')[0];
-    }
+    parsed = new URL(urlStr);
   } catch (err: any) {
-    console.error(`ERROR: Failed to parse database URL: ${err.message}`);
+    throw new Error(`Failed to parse connection URL: ${err.message}`);
+  }
+
+  const host = parsed.hostname;
+  const port = parsed.port || '5432';
+  let ref = '';
+
+  // 1. Check pooler format: username = postgres.<ref>
+  if (parsed.username.startsWith('postgres.')) {
+    ref = parsed.username.slice('postgres.'.length);
+  }
+  // 2. Check direct format: hostname = db.<ref>.supabase.co
+  else if (host.startsWith('db.') && host.endsWith('.supabase.co')) {
+    ref = host.slice(3, -('.supabase.co'.length));
+  }
+  // 3. Check alternative supabase direct hostname: <ref>.supabase.co
+  else if (host.endsWith('.supabase.co')) {
+    const parts = host.split('.');
+    if (parts.length >= 3) {
+      ref = parts[parts.length - 3];
+    }
+  }
+
+  return { host, port, ref, rawParsed: parsed };
+}
+
+async function main() {
+  const isDryRun = process.argv.includes('--dry-run');
+
+  // (a) Require MIGRATION_DATABASE_URL: no fallback to DATABASE_URL
+  const dbUrl = process.env.MIGRATION_DATABASE_URL;
+  if (!dbUrl) {
+    console.error(
+      'ERROR: Missing required environment variable MIGRATION_DATABASE_URL.\n' +
+        'db:apply requires MIGRATION_DATABASE_URL pointing to the direct database (port 5432) or session pooler.\n' +
+        'Fallback to DATABASE_URL is disabled for migration safety.'
+    );
     process.exit(1);
   }
 
+  // (b) Parse and extract ref from direct or pooler format
+  let parsedInfo: ParsedDbUrl;
+  try {
+    parsedInfo = parseDatabaseUrl(dbUrl);
+  } catch (err: any) {
+    console.error(`ERROR: ${err.message}`);
+    process.exit(1);
+  }
+
+  const { host: targetHost, port: targetPort, ref: targetRef } = parsedInfo;
+
+  // Refuse if ref cannot be determined
+  if (!targetRef) {
+    console.error(
+      `ERROR: Could not determine Supabase project ref from MIGRATION_DATABASE_URL on host "${targetHost}".\n` +
+        `Expected format:\n` +
+        `  Direct: postgresql://postgres:[password]@db.<project-ref>.supabase.co:5432/postgres\n` +
+        `  Pooler: postgresql://postgres.<project-ref>:[password]@aws-0-[region].pooler.supabase.com:5432/postgres`
+    );
+    process.exit(1);
+  }
+
+  // Refuse if port is 6543 (transaction pooler)
+  if (targetPort === '6543') {
+    console.error(
+      `ERROR: Port 6543 detected in MIGRATION_DATABASE_URL (host: "${targetHost}").\n` +
+        `Port 6543 is the Supabase Transaction Pooler, which does not support schema migrations\n` +
+        `(it disallows session-level statements, locks, and prepared statements).\n` +
+        `Migrations must run on port 5432 (direct connection or session pooler).`
+    );
+    process.exit(1);
+  }
+
+  // Scan supabase/migrations/*.sql
+  const migrationsDir = path.resolve(process.cwd(), 'supabase/migrations');
+  const files = fs.existsSync(migrationsDir)
+    ? fs
+        .readdirSync(migrationsDir)
+        .filter((f) => f.endsWith('.sql'))
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+    : [];
+
+  // Handle --dry-run
+  if (isDryRun) {
+    console.log('[db:apply --dry-run] DRY RUN MODE ENABLED (No database connection made)');
+    console.log('[db:apply] Environment Variable: MIGRATION_DATABASE_URL');
+    console.log(`[db:apply] Target Host: ${targetHost}`);
+    console.log(`[db:apply] Target Port: ${targetPort}`);
+    console.log(`[db:apply] Target Project Ref: ${targetRef}`);
+    console.log(`[db:apply] Found ${files.length} migration file(s) in numeric order:`);
+    for (const f of files) {
+      console.log(`  - ${f} (status: unknown)`);
+    }
+    console.log('[db:apply --dry-run] Dry run completed successfully.');
+    process.exit(0);
+  }
+
+  // Real execution output and safety check
   console.log(`[db:apply] Target Host: ${targetHost}`);
+  console.log(`[db:apply] Target Port: ${targetPort}`);
   console.log(`[db:apply] Target Project Ref: ${targetRef}`);
 
-  // Refuse execution unless --confirm-ref <ref> is passed and matches targetRef
+  // (c) Keep the --confirm-ref requirement
   const confirmRefIdx = process.argv.indexOf('--confirm-ref');
   const confirmedRef = confirmRefIdx !== -1 ? process.argv[confirmRefIdx + 1] : undefined;
 
@@ -81,18 +167,6 @@ async function main() {
     for (const row of existingRows) {
       appliedMap.set(row.filename, { checksum: row.checksum, applied_at: row.applied_at });
     }
-
-    // 3. Scan supabase/migrations/*.sql
-    const migrationsDir = path.resolve(process.cwd(), 'supabase/migrations');
-    if (!fs.existsSync(migrationsDir)) {
-      console.log(`[db:apply] No migrations directory found at ${migrationsDir}`);
-      return;
-    }
-
-    const files = fs
-      .readdirSync(migrationsDir)
-      .filter((f) => f.endsWith('.sql'))
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
     console.log(`[db:apply] Found ${files.length} migration file(s) in numeric order.\n`);
 
@@ -144,4 +218,6 @@ async function main() {
   }
 }
 
-main();
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+  main();
+}

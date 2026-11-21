@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { pdf } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import React from 'react';
+import { STANDARD_FONT_DATA_URL } from './test-utils/pdfjs-node-setup';
 import {
   ONE_PAGE_RESUME_FIXTURE,
   TWO_PAGE_RESUME_FIXTURE,
@@ -31,7 +32,10 @@ async function extractPdfText(doc: FullDocument, templateId: TemplateId): Promis
   const blob = await pdf(docElement).toBlob();
   const buffer = await blob.arrayBuffer();
 
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  });
   const pdfDoc = await loadingTask.promise;
 
   let fullText = '';

@@ -143,7 +143,10 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
   });
 
   it('4. asserts every parsed migration index exists in live database', async () => {
-    const liveIndexes = await sql`SELECT indexname FROM pg_indexes;`;
+    // Must fail if zero indexes were parsed from migrations
+    expect(allIndexes.size, 'Expected migration files to contain parsed indexes').toBeGreaterThan(0);
+
+    const liveIndexes = await sql`SELECT indexname FROM pg_indexes WHERE schemaname = 'public';`;
     const liveIndexSet = new Set(liveIndexes.map((r) => r.indexname.toLowerCase()));
 
     const missingIndexes: string[] = [];
@@ -159,12 +162,14 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     const rows = await sql`
       SELECT filename, checksum, applied_at FROM public.app_migrations ORDER BY id ASC;
     `;
-    expect(rows.length).toBeGreaterThanOrEqual(4);
+    expect(rows.length).toBeGreaterThanOrEqual(5);
     const recordedFiles = rows.map((r) => r.filename);
+    expect(recordedFiles).toContain('0001_core_schema.sql');
     expect(recordedFiles).toContain('0002_rls_policies_only.sql');
     expect(recordedFiles).toContain('0004_db_constraints.sql');
     expect(recordedFiles).toContain('0005_version_and_caps.sql');
     expect(recordedFiles).toContain('0006_missing_caps.sql');
+    expect(recordedFiles).toContain('0007_indexes.sql');
 
     for (const row of rows) {
       expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);

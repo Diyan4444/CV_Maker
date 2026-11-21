@@ -2,6 +2,7 @@ import { describe, it } from 'vitest';
 import { pdf } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import React from 'react';
+import { STANDARD_FONT_DATA_URL } from './test-utils/pdfjs-node-setup';
 import fs from 'fs';
 import path from 'path';
 import { EXTREME_EDGE_CASE_FIXTURE } from '../lib/fixtures/document-fixtures';
@@ -25,7 +26,10 @@ async function extractFullText(templateId: TemplateId): Promise<{ pageCount: num
   const blob = await pdf(docElement).toBlob();
   const buffer = await blob.arrayBuffer();
 
-  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  });
   const pdfDoc = await loadingTask.promise;
 
   let fullText = '';

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { pdf } from '@react-pdf/renderer';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { STANDARD_FONT_DATA_URL } from './test-utils/pdfjs-node-setup';
 import { DocumentPdfRenderer } from '../components/pdf/DocumentPdfRenderer';
 import { ONE_PAGE_RESUME_FIXTURE } from '../lib/fixtures/document-fixtures';
 import { PRODUCT_NAME } from '../config/app';
@@ -16,7 +17,10 @@ describe('PDF Metadata Generation and Extraction', () => {
     const blob = await pdf(docElement).toBlob();
     const buffer = await blob.arrayBuffer();
 
-    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      standardFontDataUrl: STANDARD_FONT_DATA_URL,
+    });
     const pdfDoc = await loadingTask.promise;
     const metadata = (await pdfDoc.getMetadata()) as { info: Record<string, any> };
     const info = metadata.info;
@@ -43,7 +47,10 @@ describe('PDF Metadata Generation and Extraction', () => {
     const blob = await pdf(docElement).toBlob();
     const buffer = await blob.arrayBuffer();
 
-    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) });
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      standardFontDataUrl: STANDARD_FONT_DATA_URL,
+    });
     const pdfDoc = await loadingTask.promise;
     const metadata = (await pdfDoc.getMetadata()) as { info: Record<string, any> };
     const info = metadata.info;
