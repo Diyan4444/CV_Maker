@@ -92,3 +92,9 @@ Quillfolio enforces strict isolation between test suites, active development ser
 4. **Dev Template Gallery & Background Renderers**
    - **Vitest Render Spec**: `npx vitest run src/tests/dev-templates-gallery.test.ts`
    - **Interactive Dev Gallery**: In development mode (`NODE_ENV !== 'production'`), accessible at `http://localhost:3000/dev/templates` and `http://localhost:3000/dev/backgrounds`. In production deployments, these routes unconditionally trigger Next.js `notFound()`.
+
+5. **Production Safety & Test Project Allowlist**
+   - **CRITICAL**: Automated test suites and user-manipulation scripts (`npm test`, `npm run test:integration`, `scripts/*.ts`) must **NEVER** be pointed at production databases or production Supabase projects.
+   - Any script or test utilizing `SUPABASE_SERVICE_ROLE_KEY` to create, modify, or delete test users enforces `assertTestProjectRefAllowed()`, checking the Supabase project reference in `NEXT_PUBLIC_SUPABASE_URL` against a local, git-ignored `.test-projects` allowlist file.
+   - If the project ref is not present in `.test-projects`, execution aborts immediately with a fatal security error.
+

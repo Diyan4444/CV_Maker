@@ -1,6 +1,7 @@
  
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { assertTestProjectRefAllowed } from '../lib/test-utils/production-guard';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -26,6 +27,7 @@ describe.skipIf(!hasCredentials)('Document Engine: 20-Document Cap Enforcement',
   const createdDocIds: string[] = [];
 
   beforeAll(async () => {
+    assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl!, serviceKey!, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

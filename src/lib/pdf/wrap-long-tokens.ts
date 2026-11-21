@@ -1,13 +1,14 @@
 /**
  * Natural Delimiter Token Wrapping Utility
  *
- * Breaks abnormally long unbroken tokens (> maxTokenLength) into newline-separated segments
+ * Breaks abnormally long unbroken tokens into newline-separated segments
  * so they wrap safely within page margins in react-pdf without clipping or overflowing.
  *
- * Guarantees:
- * - Normal words (<= maxTokenLength) stay intact.
- * - Long URLs are broken at natural URL delimiters (after '/', '?', '&', '=', '.').
- * - Long emails are broken at '@' (and after '.' if local/domain part is long).
+ * Calibrated Thresholds:
+ * - URLs: breakUrl breaks at natural delimiters ('/', '?', '&', '=', '.') when > 65 chars.
+ * - Emails: breakEmail breaks at '@' (and natural domain/local points) when > 65 chars.
+ * - URLs <= 65 chars (e.g. 60 chars) and emails <= 65 chars (e.g. 45 chars) that fit on a line stay UNBROKEN.
+ * - Headings / large non-URL words: tokens > 38 chars break at 35 chars to prevent 24pt header overflow.
  * - No visible hyphens or extra characters are inserted.
  * - Extracted text reconstructed across line segments retains every character without loss.
  */
@@ -15,8 +16,9 @@
 /**
  * Breaks long URLs at natural URL delimiters: after '/', '?', '&', '=', '.'
  * without inserting hyphens or modifying characters.
+ * URLs <= maxSegmentLength (default 65 characters) remain completely unbroken.
  */
-export function breakUrl(url: string, maxSegmentLength: number = 40): string {
+export function breakUrl(url: string, maxSegmentLength: number = 65): string {
   if (!url || typeof url !== 'string' || url.length <= maxSegmentLength) return url || '';
 
   const chunks: string[] = [];
@@ -63,8 +65,9 @@ export function breakUrl(url: string, maxSegmentLength: number = 40): string {
 /**
  * Breaks long emails at natural email delimiters: after '@', or after/before '.'
  * without inserting hyphens or modifying characters.
+ * Emails <= maxSegmentLength (default 65 characters) remain completely unbroken.
  */
-export function breakEmail(email: string, maxSegmentLength: number = 40): string {
+export function breakEmail(email: string, maxSegmentLength: number = 65): string {
   if (!email || typeof email !== 'string' || email.length <= maxSegmentLength) return email || '';
 
   const atIndex = email.indexOf('@');
@@ -72,8 +75,9 @@ export function breakEmail(email: string, maxSegmentLength: number = 40): string
     const localPart = email.slice(0, atIndex);
     const domainPart = email.slice(atIndex + 1);
 
-    const brokenLocal = breakUrl(localPart, maxSegmentLength);
-    const brokenDomain = breakUrl(domainPart, maxSegmentLength);
+    // Only break parts that individually or collectively exceed limits
+    const brokenLocal = localPart.length > maxSegmentLength ? breakUrl(localPart, maxSegmentLength) : localPart;
+    const brokenDomain = domainPart.length > maxSegmentLength ? breakUrl(domainPart, maxSegmentLength) : domainPart;
 
     if (brokenDomain) {
       return `${brokenLocal}@\n${brokenDomain}`;
@@ -86,11 +90,10 @@ export function breakEmail(email: string, maxSegmentLength: number = 40): string
 
 export function wrapLongTokens(
   text: string | null | undefined,
-  maxTokenLength: number = 40,
+  maxTokenLength: number = 38,
   chunkSize: number = 35
 ): string {
   if (!text || typeof text !== 'string') return text || '';
-  if (text.length <= maxTokenLength) return text;
 
   return text
     .split('\n')
@@ -98,8 +101,6 @@ export function wrapLongTokens(
       return line
         .split(' ')
         .map((token) => {
-          if (token.length <= maxTokenLength) return token;
-
           // Check if token is a URL
           if (
             token.startsWith('http://') ||
@@ -107,15 +108,17 @@ export function wrapLongTokens(
             token.startsWith('www.') ||
             token.includes('://')
           ) {
-            return breakUrl(token, chunkSize);
+            return breakUrl(token, 65);
           }
 
           // Check if token is an email
           if (token.includes('@')) {
-            return breakEmail(token, chunkSize);
+            return breakEmail(token, 65);
           }
 
-          // Abnormally long unbroken non-URL token
+          if (token.length <= maxTokenLength) return token;
+
+          // Abnormally long unbroken non-URL token (e.g. giant name in header)
           const chunks: string[] = [];
           for (let i = 0; i < token.length; i += chunkSize) {
             chunks.push(token.slice(i, i + chunkSize));

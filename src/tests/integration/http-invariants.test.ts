@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { FIELD_SPECS, createPayload } from '../../lib/validation/field-specs';
+import { assertTestProjectRefAllowed } from '../../lib/test-utils/production-guard';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
@@ -17,6 +18,10 @@ describe('HTTP Route Invariant Verification: sends fields through /api/documents
   beforeAll(async () => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    // Production Safety Guard: Assert project ref is allowlisted
+    assertTestProjectRefAllowed(supabaseUrl);
+
     adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const testEmail = `test-http-inv-${Date.now()}@example.com`;

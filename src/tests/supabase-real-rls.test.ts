@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { assertTestProjectRefAllowed } from '../lib/test-utils/production-guard';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -34,6 +35,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
   let docA: { id: string };
 
   beforeAll(async () => {
+    assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl!, serviceKey!, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

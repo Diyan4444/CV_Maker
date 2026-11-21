@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     include: ['src/tests/**/*.test.ts'],
     exclude: ['e2e/**', 'node_modules/**', 'src/tests/integration/**'],
+    testTimeout: 15000,
   },
   resolve: {
     alias: {

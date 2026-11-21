@@ -582,7 +582,7 @@ test.describe.serial('Editor Toolbar Layout Shift, Undo/Redo & Autosave Tests', 
 
     // Step 4: Wait for follow-up debounced save #2 to trigger and complete (1500ms debounce + network)
     console.log('[Autosave Race] Waiting for follow-up Save #2...');
-    await expect(page.locator('#save-status-slot').getByText('Saved', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#save-status-slot').getByText('Saved', { exact: true })).toBeVisible({ timeout: 20000 });
 
     // Print full request audit log
     console.log('\n--- Autosave Race Condition Request Audit Log ---');

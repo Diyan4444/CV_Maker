@@ -7,6 +7,13 @@ import { ModernProfessionalTemplate } from '../components/pdf/templates/ModernPr
 import { AcademicCvTemplate } from '../components/pdf/templates/AcademicCv';
 import { checkTextExtraction, checkSplitWords, runAtsReadinessChecks } from '../lib/ats/checker';
 import { DocumentSection, TemplateId } from '../lib/documents/types';
+import { breakUrl, breakEmail, wrapLongTokens } from '../lib/pdf/wrap-long-tokens';
+
+// Exactly 60 characters
+export const EXACT_60_CHAR_URL = 'https://example.com/portfolio/showcase/projects/profile/view';
+
+// Exactly 45 characters
+export const EXACT_45_CHAR_EMAIL = 'alexander.example.developer@engineering.co.uk';
 
 // Exactly 120 characters, hyphen-free, with natural '/' break opportunities
 export const EXACT_120_CHAR_URL =
@@ -217,6 +224,98 @@ describe('Item 3: Long URLs and Emails Wrapping & Margin Safety', () => {
 
       const fullReport = runAtsReadinessChecks(longTokenMeta as any, longTokenSections, fullExtractedText, 1);
       expect(fullReport.summary.passCount).toBeGreaterThanOrEqual(9);
+    });
+  }
+
+  it('verifies 60-character URL and 45-character email that fit on line are NOT broken', () => {
+    expect(EXACT_60_CHAR_URL.length).toBe(60);
+    expect(EXACT_45_CHAR_EMAIL.length).toBe(45);
+
+    // Pure function checks: zero newlines inserted
+    const unbrokenUrl = breakUrl(EXACT_60_CHAR_URL);
+    expect(unbrokenUrl).toBe(EXACT_60_CHAR_URL);
+    expect(unbrokenUrl.includes('\n')).toBe(false);
+
+    const unbrokenEmail = breakEmail(EXACT_45_CHAR_EMAIL);
+    expect(unbrokenEmail).toBe(EXACT_45_CHAR_EMAIL);
+    expect(unbrokenEmail.includes('\n')).toBe(false);
+
+    const wrappedUrl = wrapLongTokens(EXACT_60_CHAR_URL);
+    expect(wrappedUrl).toBe(EXACT_60_CHAR_URL);
+    expect(wrappedUrl.includes('\n')).toBe(false);
+
+    const wrappedEmail = wrapLongTokens(EXACT_45_CHAR_EMAIL);
+    expect(wrappedEmail).toBe(EXACT_45_CHAR_EMAIL);
+    expect(wrappedEmail.includes('\n')).toBe(false);
+  });
+
+  for (const { id, Component } of templates) {
+    it(`[${id}] renders 60-char URL and 45-char email intact without internal newline in PDF extracted text`, async () => {
+      const normalSections: DocumentSection[] = [
+        {
+          id: 'sec-header',
+          document_id: 'doc-normal-tokens',
+          section_type: 'header',
+          title: 'Header',
+          custom_title: null,
+          section_order: 0,
+          is_visible: true,
+          content: {
+            fullName: 'Alex Example',
+            headline: 'Systems Architect',
+            email: EXACT_45_CHAR_EMAIL,
+            phone: '+1 (555) 019-2834',
+            location: 'Cambridge, MA',
+            links: [{ label: EXACT_60_CHAR_URL, url: EXACT_60_CHAR_URL }],
+          },
+        },
+      ];
+
+      const normalMeta = {
+        id: 'doc-normal-tokens',
+        title: 'Normal Tokens Test',
+        slug: 'normal-tokens-test',
+        target_role: 'Systems Architect',
+        type: 'resume',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const element = React.createElement(Component, {
+        meta: normalMeta,
+        sections: normalSections,
+      });
+
+      const asPdf = pdf(element as any);
+      const blob = await asPdf.toBlob();
+      const arrayBuffer = await blob.arrayBuffer();
+
+      const loadingTask = pdfjs.getDocument({
+        data: new Uint8Array(arrayBuffer),
+        useSystemFonts: true,
+      });
+      const pdfDoc = await loadingTask.promise;
+      const page = await pdfDoc.getPage(1);
+      const textContent = await page.getTextContent();
+      const extractedStrings = (textContent.items as any[]).map((it) => it.str);
+      const fullText = extractedStrings.join(' ');
+
+      // Verify the 60-char URL appears unbroken in extracted text
+      expect(fullText).toContain(EXACT_60_CHAR_URL);
+      // Verify the 45-char email appears unbroken in extracted text
+      expect(fullText).toContain(EXACT_45_CHAR_EMAIL);
+
+      // Verify the 60-char URL appears unbroken with NO internal newline
+      const urlItem = extractedStrings.find((s) => s.includes('portfolio/showcase'));
+      expect(urlItem, 'URL text item should exist in extracted text').toBeDefined();
+      expect(urlItem).toContain(EXACT_60_CHAR_URL);
+      expect(urlItem!.includes('\n')).toBe(false);
+
+      // Verify the 45-char email appears unbroken with NO internal newline
+      const emailItem = extractedStrings.find((s) => s.includes('alexander.example.developer'));
+      expect(emailItem, 'Email text item should exist in extracted text').toBeDefined();
+      expect(emailItem).toContain(EXACT_45_CHAR_EMAIL);
+      expect(emailItem!.includes('\n')).toBe(false);
     });
   }
 });

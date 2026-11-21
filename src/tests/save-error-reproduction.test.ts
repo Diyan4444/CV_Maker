@@ -2,11 +2,15 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { z } from 'zod';
 import { SectionContentSchemaMap } from '../lib/documents/schemas';
 import { createClient } from '@supabase/supabase-js';
+import { assertTestProjectRefAllowed } from '../lib/test-utils/production-guard';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+assertTestProjectRefAllowed(supabaseUrl);
+
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseUrl,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 

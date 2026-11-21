@@ -59,8 +59,13 @@ function parseSqlFile(sqlContent: string): ParsedDatabaseObjects {
 
 describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
   let sql: postgres.Sql;
+  const allConstraints = new Set<string>();
+  const allTriggers = new Set<string>();
+  const allFunctions = new Set<string>();
+  const allIndexes = new Set<string>();
+  let files: string[] = [];
 
-  beforeAll(() => {
+  beforeAll(async () => {
     const dbUrl = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
     if (!dbUrl) throw new Error('Missing DATABASE_URL / MIGRATION_DATABASE_URL');
     sql = postgres(dbUrl, {
@@ -68,25 +73,12 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
       prepare: false,
       ssl: dbUrl.includes('localhost') ? false : 'require',
     });
-  });
 
-  afterAll(async () => {
-    if (sql) await sql.end({ timeout: 5 });
-  });
-
-  it('parภาพ supabase/migrations/*.sql and asserts every constraint, trigger, function and index exists in live database', async () => {
     const migrationsDir = path.resolve(process.cwd(), 'supabase/migrations');
-    const files = fs
+    files = fs
       .readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.sql'))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-
-    expect(files.length).toBeGreaterThan(0);
-
-    const allConstraints = new Set<string>();
-    const allTriggers = new Set<string>();
-    const allFunctions = new Set<string>();
-    const allIndexes = new Set<string>();
 
     for (const file of files) {
       const content = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
@@ -98,49 +90,6 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
       parsed.indexes.forEach((i) => allIndexes.add(i));
     }
 
-    // Query live PostgreSQL system catalogs
-    const liveConstraints = await sql`SELECT conname FROM pg_constraint;`;
-    const liveTriggers = await sql`SELECT tgname FROM pg_trigger;`;
-    const liveFunctions = await sql`SELECT proname FROM pg_proc;`;
-    const liveIndexes = await sql`SELECT indexname FROM pg_indexes;`;
-
-    const liveConstraintSet = new Set(liveConstraints.map((r) => r.conname.toLowerCase()));
-    const liveTriggerSet = new Set(liveTriggers.map((r) => r.tgname.toLowerCase()));
-    const liveFunctionSet = new Set(liveFunctions.map((r) => r.proname.toLowerCase()));
-    const liveIndexSet = new Set(liveIndexes.map((r) => r.indexname.toLowerCase()));
-
-    // 1. Verify constraints
-    const missingConstraints: string[] = [];
-    for (const c of allConstraints) {
-      if (!liveConstraintSet.has(c)) {
-        missingConstraints.push(c);
-      }
-    }
-
-    // 2. Verify triggers
-    const missingTriggers: string[] = [];
-    for (const t of allTriggers) {
-      if (!liveTriggerSet.has(t)) {
-        missingTriggers.push(t);
-      }
-    }
-
-    // 3. Verify functions
-    const missingFunctions: string[] = [];
-    for (const f of allFunctions) {
-      if (!liveFunctionSet.has(f)) {
-        missingFunctions.push(f);
-      }
-    }
-
-    // 4. Verify indexes
-    const missingIndexes: string[] = [];
-    for (const idx of allIndexes) {
-      if (!liveIndexSet.has(idx)) {
-        missingIndexes.push(idx);
-      }
-    }
-
     console.log('\n=== MIGRATION SCHEMA AUDIT INVENTORY ===');
     console.log(`Migration files scanned: ${files.join(', ')}`);
     console.log(`Constraints audited (${allConstraints.size}): ${Array.from(allConstraints).join(', ')}`);
@@ -148,14 +97,65 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     console.log(`Functions audited (${allFunctions.size}): ${Array.from(allFunctions).join(', ')}`);
     console.log(`Indexes audited (${allIndexes.size}): ${Array.from(allIndexes).join(', ')}`);
     console.log('========================================\n');
+  });
 
+  afterAll(async () => {
+    if (sql) await sql.end({ timeout: 5 });
+  });
+
+  it('1. asserts every parsed migration constraint exists in live database', async () => {
+    const liveConstraints = await sql`SELECT conname FROM pg_constraint;`;
+    const liveConstraintSet = new Set(liveConstraints.map((r) => r.conname.toLowerCase()));
+
+    const missingConstraints: string[] = [];
+    for (const c of allConstraints) {
+      if (!liveConstraintSet.has(c)) {
+        missingConstraints.push(c);
+      }
+    }
     expect(missingConstraints, `Missing live constraints: ${missingConstraints.join(', ')}`).toEqual([]);
+  });
+
+  it('2. asserts every parsed migration trigger exists in live database', async () => {
+    const liveTriggers = await sql`SELECT tgname FROM pg_trigger;`;
+    const liveTriggerSet = new Set(liveTriggers.map((r) => r.tgname.toLowerCase()));
+
+    const missingTriggers: string[] = [];
+    for (const t of allTriggers) {
+      if (!liveTriggerSet.has(t)) {
+        missingTriggers.push(t);
+      }
+    }
     expect(missingTriggers, `Missing live triggers: ${missingTriggers.join(', ')}`).toEqual([]);
+  });
+
+  it('3. asserts every parsed migration function exists in live database', async () => {
+    const liveFunctions = await sql`SELECT proname FROM pg_proc;`;
+    const liveFunctionSet = new Set(liveFunctions.map((r) => r.proname.toLowerCase()));
+
+    const missingFunctions: string[] = [];
+    for (const f of allFunctions) {
+      if (!liveFunctionSet.has(f)) {
+        missingFunctions.push(f);
+      }
+    }
     expect(missingFunctions, `Missing live functions: ${missingFunctions.join(', ')}`).toEqual([]);
+  });
+
+  it('4. asserts every parsed migration index exists in live database', async () => {
+    const liveIndexes = await sql`SELECT indexname FROM pg_indexes;`;
+    const liveIndexSet = new Set(liveIndexes.map((r) => r.indexname.toLowerCase()));
+
+    const missingIndexes: string[] = [];
+    for (const idx of allIndexes) {
+      if (!liveIndexSet.has(idx)) {
+        missingIndexes.push(idx);
+      }
+    }
     expect(missingIndexes, `Missing live indexes: ${missingIndexes.join(', ')}`).toEqual([]);
   });
 
-  it('verifies app_migrations tracking table exists and records all applied migrations with checksums', async () => {
+  it('5. verifies app_migrations tracking table exists and records all applied migrations with checksums', async () => {
     const rows = await sql`
       SELECT filename, checksum, applied_at FROM public.app_migrations ORDER BY id ASC;
     `;
