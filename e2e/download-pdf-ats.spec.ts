@@ -374,6 +374,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
+    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 30000 });
 
     // Tab through controls to focus the download button
     await page.locator('#download-pdf-button').focus();
