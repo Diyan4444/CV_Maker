@@ -199,7 +199,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   test('1. Download PDF across all 3 templates: triggers download, verifies filename, metadata, and parses content with pdf-parse', async ({ page }) => {
     test.setTimeout(180000);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${testDocId}`);
+    await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for initial preview render
@@ -289,7 +289,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   test('2. ATS Readiness Checks Panel: all-pass state, needs-attention state, jump-to-section link, and screenshots', async ({ page }) => {
     test.setTimeout(60000);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${testDocId}`);
+    await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for preview to settle
@@ -372,7 +372,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   test('3. Keyboard accessibility: download button and ATS tabs operable via keyboard', async ({ page }) => {
     test.setTimeout(30000);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${testDocId}`);
+    await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
 
     // Tab through controls to focus the download button
