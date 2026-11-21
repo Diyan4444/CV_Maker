@@ -1,25 +1,29 @@
 import postgres from 'postgres';
 import path from 'node:path';
 import dotenv from 'dotenv';
+import { getTableName, is } from 'drizzle-orm';
+import { PgTable } from 'drizzle-orm/pg-core';
+import * as schema from '../src/lib/db/schema';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-export const EXPECTED_CORE_TABLES = [
-  'profiles',
-  'master_profiles',
-  'education',
-  'experiences',
-  'projects',
-  'skills',
-  'publications',
-  'achievements',
-  'certifications',
-  'custom_sections',
-  'documents',
-  'document_sections',
-  'websites',
-  'ai_usage_logs',
-];
+/**
+ * Derives the expected public table list dynamically from Drizzle schema definition,
+ * plus the internal migration tracking table.
+ */
+export function getExpectedTables(): string[] {
+  const tableNames = new Set<string>();
+  tableNames.add('app_migrations');
+
+  for (const exported of Object.values(schema)) {
+    if (is(exported, PgTable)) {
+      tableNames.add(getTableName(exported));
+    }
+  }
+  return Array.from(tableNames).sort();
+}
+
+export const EXPECTED_CORE_TABLES = getExpectedTables();
 
 export async function verifyDatabase(): Promise<boolean> {
   const dbUrl = process.env.MIGRATION_DATABASE_URL;
@@ -92,17 +96,25 @@ export async function verifyDatabase(): Promise<boolean> {
       }
       console.log();
 
-      // Check all 14 expected core tables are present
+      // Check all 15 expected tables (from schema.ts + app_migrations) are present
       for (const expected of EXPECTED_CORE_TABLES) {
         if (!existingTableMap.has(expected)) {
           hasErrors = true;
           failureReasons.push(`Missing expected table: "${expected}"`);
         } else {
           const tInfo = existingTableMap.get(expected)!;
-          if (!tInfo.rls_enabled) {
+          if (expected !== 'app_migrations' && !tInfo.rls_enabled) {
             hasErrors = true;
             failureReasons.push(`Table "${expected}" lacks Row Level Security (RLS is disabled)`);
           }
+        }
+      }
+
+      // Check for any unexpected tables in public schema
+      for (const [existingTable] of existingTableMap) {
+        if (!EXPECTED_CORE_TABLES.includes(existingTable)) {
+          hasErrors = true;
+          failureReasons.push(`Unexpected table in public schema: "${existingTable}"`);
         }
       }
 
@@ -119,6 +131,8 @@ export async function verifyDatabase(): Promise<boolean> {
         ORDER BY tablename, policyname;
       `;
 
+      console.log(`Total active policies: ${policies.length}\n`);
+
       const tablePolicyCounts = new Map<string, number>();
       for (const p of policies) {
         tablePolicyCounts.set(p.tablename, (tablePolicyCounts.get(p.tablename) || 0) + 1);
@@ -128,8 +142,9 @@ export async function verifyDatabase(): Promise<boolean> {
       }
       console.log();
 
-      // Assert each expected core table has >= 1 policy
+      // Assert each core application table (14 tables) has >= 1 policy
       for (const expected of EXPECTED_CORE_TABLES) {
+        if (expected === 'app_migrations') continue;
         const count = tablePolicyCounts.get(expected) || 0;
         if (count === 0) {
           hasErrors = true;

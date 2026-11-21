@@ -218,6 +218,12 @@ async function main() {
   }
 }
 
-if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+const isDirectRun =
+  process.argv[1] &&
+  (process.argv[1].endsWith('apply-migrations.ts') ||
+    process.argv[1].endsWith('apply-migrations.js') ||
+    process.argv[1].endsWith('apply-migrations'));
+
+if (isDirectRun) {
   main();
 }

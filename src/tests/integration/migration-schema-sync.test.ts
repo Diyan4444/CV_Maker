@@ -11,6 +11,7 @@ interface ParsedDatabaseObjects {
   triggers: string[];
   functions: string[];
   indexes: string[];
+  droppedIndexes: string[];
 }
 
 function parseSqlFile(sqlContent: string): ParsedDatabaseObjects {
@@ -18,6 +19,7 @@ function parseSqlFile(sqlContent: string): ParsedDatabaseObjects {
   const triggers = new Set<string>();
   const functions = new Set<string>();
   const indexes = new Set<string>();
+  const droppedIndexes = new Set<string>();
 
   // Strip SQL comments to avoid false matches
   const cleanSql = sqlContent
@@ -49,11 +51,18 @@ function parseSqlFile(sqlContent: string): ParsedDatabaseObjects {
     indexes.add(match[1].toLowerCase());
   }
 
+  // 5. Match DROP INDEX [IF EXISTS] [public.]name
+  const dropIdxRegex = /DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = dropIdxRegex.exec(cleanSql)) !== null) {
+    droppedIndexes.add(match[1].toLowerCase());
+  }
+
   return {
     constraints: Array.from(constraints),
     triggers: Array.from(triggers),
     functions: Array.from(functions),
     indexes: Array.from(indexes),
+    droppedIndexes: Array.from(droppedIndexes),
   };
 }
 
@@ -88,6 +97,7 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
       parsed.triggers.forEach((t) => allTriggers.add(t));
       parsed.functions.forEach((f) => allFunctions.add(f));
       parsed.indexes.forEach((i) => allIndexes.add(i));
+      parsed.droppedIndexes.forEach((i) => allIndexes.delete(i));
     }
 
     console.log('\n=== MIGRATION SCHEMA AUDIT INVENTORY ===');
@@ -170,6 +180,7 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     expect(recordedFiles).toContain('0005_version_and_caps.sql');
     expect(recordedFiles).toContain('0006_missing_caps.sql');
     expect(recordedFiles).toContain('0007_indexes.sql');
+    expect(recordedFiles).toContain('0008_drop_duplicate_indexes.sql');
 
     for (const row of rows) {
       expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);
