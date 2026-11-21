@@ -1953,6 +1953,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 setActiveRightTab('preview');
                 if (mobileTab === 'ats') setMobileTab('preview');
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActiveRightTab('preview');
+                  if (mobileTab === 'ats') setMobileTab('preview');
+                }
+              }}
               className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors ${
                 (mobileTab === 'ats' ? false : activeRightTab === 'preview')
                   ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
@@ -1967,6 +1974,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               onClick={() => {
                 setActiveRightTab('ats');
                 if (mobileTab === 'preview') setMobileTab('ats');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setActiveRightTab('ats');
+                  if (mobileTab === 'preview') setMobileTab('ats');
+                }
               }}
               className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors inline-flex items-center justify-center gap-1.5 ${
                 (mobileTab === 'ats' || activeRightTab === 'ats')
