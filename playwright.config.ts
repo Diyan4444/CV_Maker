@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
+import { assertTestProjectRefAllowed } from './src/lib/test-utils/production-guard';
+
+dotenv.config({ path: path.resolve(__dirname, '.env.local') });
+assertTestProjectRefAllowed();
 
 export default defineConfig({
   testDir: './e2e',

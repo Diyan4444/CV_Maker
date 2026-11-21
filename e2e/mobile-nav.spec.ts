@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import dotenv from 'dotenv';
 import path from 'path';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -32,6 +33,7 @@ test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () =>
 
   test.beforeAll(async () => {
     if (!hasCredentials) return;
+    assertTestProjectRefAllowed(supabaseUrl);
 
     adminClient = createClient(supabaseUrl!, serviceKey!, {
       auth: { autoRefreshToken: false, persistSession: false },

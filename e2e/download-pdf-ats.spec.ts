@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { PDFParse } from 'pdf-parse';
 import { PRODUCT_NAME } from '../src/config/app';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 dotenv.config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -23,6 +24,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   const capturedCookies: Record<string, string> = {};
 
   test.beforeAll(async () => {
+    assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

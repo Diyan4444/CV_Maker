@@ -3,8 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import dotenv from 'dotenv';
 import path from 'path';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard.mjs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+assertTestProjectRefAllowed();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

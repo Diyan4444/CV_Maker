@@ -19,6 +19,41 @@ async function main() {
     process.exit(1);
   }
 
+  // Parse connection URL to extract target host and project ref without exposing password
+  let targetHost = '';
+  let targetRef = '';
+  try {
+    const parsed = new URL(dbUrl);
+    targetHost = parsed.hostname;
+    if (parsed.username.startsWith('postgres.')) {
+      targetRef = parsed.username.replace('postgres.', '');
+    } else if (parsed.hostname.startsWith('db.') && parsed.hostname.endsWith('.supabase.co')) {
+      targetRef = parsed.hostname.replace('db.', '').replace('.supabase.co', '');
+    } else {
+      targetRef = parsed.hostname.split('.')[0];
+    }
+  } catch (err: any) {
+    console.error(`ERROR: Failed to parse database URL: ${err.message}`);
+    process.exit(1);
+  }
+
+  console.log(`[db:apply] Target Host: ${targetHost}`);
+  console.log(`[db:apply] Target Project Ref: ${targetRef}`);
+
+  // Refuse execution unless --confirm-ref <ref> is passed and matches targetRef
+  const confirmRefIdx = process.argv.indexOf('--confirm-ref');
+  const confirmedRef = confirmRefIdx !== -1 ? process.argv[confirmRefIdx + 1] : undefined;
+
+  if (!confirmedRef || confirmedRef !== targetRef) {
+    console.error(
+      `\n[SECURITY REFUSAL] db:apply requires explicit project confirmation.\n` +
+        `Refusing to apply migrations to "${targetRef}" on host "${targetHost}".\n` +
+        `To confirm and proceed, re-run with:\n` +
+        `  npm run db:apply -- --confirm-ref ${targetRef}\n`
+    );
+    process.exit(1);
+  }
+
   const sql = postgres(dbUrl, {
     max: 1,
     prepare: false,

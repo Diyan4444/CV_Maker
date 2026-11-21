@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
+import { assertTestProjectRefAllowed } from '../lib/test-utils/production-guard';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -26,6 +27,7 @@ describe.skipIf(!hasCredentials)('Profile Save Route: Concurrency, Versioning & 
   let masterProfileA: { id: string; version: number };
 
   beforeAll(async () => {
+    assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl!, serviceKey!, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

@@ -1,8 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+
+assertTestProjectRefAllowed();
 
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const databaseUrl = process.env.DATABASE_URL || '';
