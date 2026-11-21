@@ -4,7 +4,7 @@ import { pdf, Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer
 import { AtsSingleColumnTemplate } from '../src/components/pdf/templates/AtsSingleColumn';
 import path from 'path';
 
-const ARTIFACT_DIR = 'C:/Users/Diyan/.gemini/antigravity/brain/0476a383-8a86-41cb-a552-ce7ab883faf8';
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity', 'brain', '0476a383-8a86-41cb-a552-ce7ab883faf8');
 
 const EXACT_80_CHAR_NAME = 'Prof. Dr. Maximilian Alexander Montgomery-Chamberlain-Fitzgerald-Smithington III';
 const EXACT_300_CHAR_HEADLINE =

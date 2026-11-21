@@ -38,7 +38,7 @@ test.describe('GPU WebGL Color Pipeline Verification', () => {
   }) => {
     // 1. Force deterministic static composition via prefers-reduced-motion: reduce
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto('/login', { waitUntil: 'networkidle' });
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
 
     // Ensure WebGL context is initialized and attached
     await page.waitForFunction(

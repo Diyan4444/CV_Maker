@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import dotenv from 'dotenv';
 import path from 'path';
+import { assertTestProjectRefAllowed } from '../../lib/test-utils/production-guard';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -10,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3100';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3101';
 
 const hasCredentials = Boolean(
   supabaseUrl && anonKey && serviceKey && !supabaseUrl.includes('placeholder')
@@ -24,11 +25,14 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
   let userBCookies: string = '';
   let docAId: string = '';
 
-  const emailA = `test-api-a-${Date.now()}@folioone.local`;
-  const emailB = `test-api-b-${Date.now()}@folioone.local`;
+  const emailA = `test-api-a-${Date.now()}@quillfolio.local`;
+  const emailB = `test-api-b-${Date.now()}@quillfolio.local`;
   const password = 'TestSecurePass123!';
 
   beforeAll(async () => {
+    // Production Safety Guard: Assert project ref is allowlisted
+    assertTestProjectRefAllowed(supabaseUrl);
+
     adminClient = createClient(supabaseUrl!, serviceKey!, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -103,30 +107,33 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     }
   });
 
-  it('1. returns 401 UNAUTHORIZED when unauthenticated request calls API routes', async () => {
-    // GET /api/documents/[id] without auth
+  // Group 1: 401 UNAUTHORIZED for unauthenticated requests across API routes
+  it('1. GET /api/documents/[id] without auth returns 401 UNAUTHORIZED', async () => {
     const getRes = await fetch(`${BASE_URL}/api/documents/${docAId}`);
     expect(getRes.status).toBe(401);
     const getData = await getRes.json();
     expect(getData.error).toBe('UNAUTHORIZED');
+  });
 
-    // POST /api/documents/create without auth
+  it('2. POST /api/documents/create without auth returns 401 UNAUTHORIZED', async () => {
     const postRes = await fetch(`${BASE_URL}/api/documents/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Unauthenticated Doc' }),
     });
     expect(postRes.status).toBe(401);
+  });
 
-    // PUT /api/documents/[id]/save without auth
+  it('3. PUT /api/documents/[id]/save without auth returns 401 UNAUTHORIZED', async () => {
     const putRes = await fetch(`${BASE_URL}/api/documents/${docAId}/save`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clientVersion: 1, sections: [] }),
     });
     expect(putRes.status).toBe(401);
+  });
 
-    // POST /api/profile/save without auth
+  it('4. POST /api/profile/save without auth returns 401 UNAUTHORIZED', async () => {
     const profRes = await fetch(`${BASE_URL}/api/profile/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -135,14 +142,15 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     expect(profRes.status).toBe(401);
   });
 
-  it("2. returns 404 when another user attempts to read, save, duplicate, or delete User A's document", async () => {
-    // User B attempts to GET User A document
+  // Group 2: Cross-user tenant isolation (404 NOT FOUND)
+  it("5. User B attempting GET User A document returns 404 NOT FOUND", async () => {
     const getRes = await fetch(`${BASE_URL}/api/documents/${docAId}`, {
       headers: { Cookie: userBCookies },
     });
     expect(getRes.status).toBe(404);
+  });
 
-    // User B attempts to save/overwrite User A document
+  it("6. User B attempting PUT/save User A document returns 404 NOT FOUND", async () => {
     const saveRes = await fetch(`${BASE_URL}/api/documents/${docAId}/save`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Cookie: userBCookies },
@@ -153,29 +161,33 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
       }),
     });
     expect(saveRes.status).toBe(404);
+  });
 
-    // User B attempts to duplicate User A document
+  it("7. User B attempting POST/duplicate User A document returns 404 NOT FOUND", async () => {
     const dupRes = await fetch(`${BASE_URL}/api/documents/${docAId}/duplicate`, {
       method: 'POST',
       headers: { Cookie: userBCookies },
     });
     expect(dupRes.status).toBe(404);
+  });
 
-    // User B attempts to delete User A document
+  it("8. User B attempting DELETE User A document returns 404 NOT FOUND", async () => {
     const delRes = await fetch(`${BASE_URL}/api/documents/${docAId}/delete`, {
       method: 'DELETE',
       headers: { Cookie: userBCookies },
     });
     expect(delRes.status).toBe(404);
+  });
 
-    // Confirm User A can still fetch their own document successfully
+  it("9. User A can successfully fetch their own document (200 OK)", async () => {
     const checkRes = await fetch(`${BASE_URL}/api/documents/${docAId}`, {
       headers: { Cookie: userACookies },
     });
     expect(checkRes.status).toBe(200);
   });
 
-  it('3. returns 400 when an invalid section payload is submitted', async () => {
+  // Group 3 & 4: Payload validation
+  it('10. PUT /api/documents/[id]/save with invalid section payload returns 400 Validation error', async () => {
     const invalidSaveRes = await fetch(`${BASE_URL}/api/documents/${docAId}/save`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Cookie: userACookies },
@@ -199,8 +211,7 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     expect(data.error).toContain('Unknown section type');
   });
 
-  it('4. rejects an oversized section payload exceeding the 64KB database limit', async () => {
-    // Generate a payload exceeding 64KB (65536 bytes)
+  it('11. PUT /api/documents/[id]/save with oversized section payload (>64KB) returns 400', async () => {
     const giantText = 'X'.repeat(70000);
     const oversizedSaveRes = await fetch(`${BASE_URL}/api/documents/${docAId}/save`, {
       method: 'PUT',
@@ -225,12 +236,5 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     expect(oversizedSaveRes.status).toBe(400);
     const data = await oversizedSaveRes.json();
     expect(data.error).toContain('exceeds the 64KB database limit');
-  });
-
-  afterAll(async () => {
-    if (adminClient) {
-      if (userAId) await adminClient.auth.admin.deleteUser(userAId);
-      if (userBId) await adminClient.auth.admin.deleteUser(userBId);
-    }
   });
 });

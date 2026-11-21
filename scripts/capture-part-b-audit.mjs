@@ -3,14 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import dotenv from 'dotenv';
 import path from 'path';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard.mjs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+assertTestProjectRefAllowed();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const artifactDir = 'C:\\Users\\Diyan\\.gemini\\antigravity\\brain\\0476a383-8a86-41cb-a552-ce7ab883faf8';
+const artifactDir = process.env.ARTIFACT_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity', 'brain', '0476a383-8a86-41cb-a552-ce7ab883faf8');
 
 const viewports = [
   { name: '1440px', width: 1440, height: 900 },
@@ -47,14 +49,14 @@ async function main() {
     // Seed master profile with Step 1 fields
     await adminClient.from('master_profiles').insert({
       user_id: userId,
-      preferred_name: 'Diyan Shah',
-      professional_email: 'diyanshah2301@gmail.com',
+      preferred_name: 'Alex Example',
+      professional_email: 'alex.example@example.com',
       phone: '+91 98765 43210',
       current_city: 'Mumbai',
       current_country: 'India',
-      linkedin_url: 'https://linkedin.com/in/diyanshah',
-      github_url: 'https://github.com/diyanshah',
-      personal_website_url: 'https://quillfolio.me/diyanshah',
+      linkedin_url: 'https://linkedin.com/in/alexexample',
+      github_url: 'https://github.com/alexexample',
+      personal_website_url: 'https://example.com/alex',
       other_links: ['https://scholar.google.com/citations?user=demo'],
       background_group: 'engineering_technology',
       specialization: 'Computer Science Engineering',

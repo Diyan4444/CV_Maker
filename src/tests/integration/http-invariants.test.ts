@@ -1,21 +1,27 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
-import { FIELD_SPECS, createPayload } from '../field-invariants.test';
+import { FIELD_SPECS, createPayload } from '../../lib/validation/field-specs';
+import { assertTestProjectRefAllowed } from '../../lib/test-utils/production-guard';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3100';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3101';
 
 describe('HTTP Route Invariant Verification: sends fields through /api/documents/[documentId]/save', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId: string;
   let testDocId: string;
   let cookieHeader: string;
+  let currentVersion = 1;
 
   beforeAll(async () => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    // Production Safety Guard: Assert project ref is allowlisted
+    assertTestProjectRefAllowed(supabaseUrl);
+
     adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const testEmail = `test-http-inv-${Date.now()}@example.com`;
@@ -85,76 +91,119 @@ describe('HTTP Route Invariant Verification: sends fields through /api/documents
     }
   });
 
-  it(
-    'asserts 200 at limit and 400 at limit+1 through HTTP save route (0 unhandled 500s)',
-    async () => {
-      const testCases = [
-        { section: 'header', field: 'headline', limit: 300 },
-        { section: 'experience', field: 'role', limit: 200 },
-        { section: 'education', field: 'institution', limit: 255 },
-      ];
+  // 1 through 26: Individual field limit vs limit+1 invariant tests
+  for (const spec of FIELD_SPECS) {
+    it(`field invariant: ${spec.sectionType}.${spec.fieldKey} (200 @ ${spec.inputMaxLength}, 400 @ ${spec.inputMaxLength + 1})`, async () => {
+      // Step A: Limit + 1 must return 400
+      const overPayload = createPayload(spec, spec.inputMaxLength + 1);
+      const resOver = await fetch(`${BASE_URL}/api/documents/${testDocId}/save`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookieHeader,
+        },
+        body: JSON.stringify({
+          clientVersion: currentVersion,
+          sections: [
+            {
+              id: '11111111-1111-4111-a111-111111111111',
+              sectionType: spec.sectionType,
+              title: spec.sectionType.toUpperCase(),
+              orderIndex: 0,
+              isVisible: true,
+              content: overPayload,
+            },
+          ],
+        }),
+      });
 
-      let currentVersion = 1;
+      const overData = await resOver.json();
+      expect(resOver.status, `Expected 400 for ${spec.fieldKey} at limit+1, got ${resOver.status}`).toBe(400);
+      expect(typeof overData.error).toBe('string');
+      expect(overData.error).toMatch(/Validation error/);
 
-      for (const tc of testCases) {
-        const spec = FIELD_SPECS.find((s) => s.columnOrProperty === tc.field)!;
+      // Step B: Limit exact must return 200
+      const limitPayload = createPayload(spec, spec.inputMaxLength);
+      const resLimit = await fetch(`${BASE_URL}/api/documents/${testDocId}/save`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookieHeader,
+        },
+        body: JSON.stringify({
+          clientVersion: currentVersion,
+          sections: [
+            {
+              id: '11111111-1111-4111-a111-111111111111',
+              sectionType: spec.sectionType,
+              title: spec.sectionType.toUpperCase(),
+              orderIndex: 0,
+              isVisible: true,
+              content: limitPayload,
+            },
+          ],
+        }),
+      });
 
-        // 1. Limit + 1 => must return 400
-        const overPayload = createPayload(spec, tc.limit + 1);
-        const resOver = await fetch(`${BASE_URL}/api/documents/${testDocId}/save`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Cookie: cookieHeader,
+      const limitData = await resLimit.json();
+      expect(resLimit.status, `Expected 200 for ${spec.fieldKey} at limit, got ${resLimit.status}`).toBe(200);
+      currentVersion = limitData.newVersion;
+    });
+  }
+
+  // 27: Payload size limit check (content exceeding 64KB rejected with 400)
+  it('payload invariant: section content exceeding 64KB returns 400', async () => {
+    const hugePayload = {
+      schema_version: '1.0.0',
+      text: 'X'.repeat(66000),
+    };
+    const res = await fetch(`${BASE_URL}/api/documents/${testDocId}/save`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: cookieHeader,
+      },
+      body: JSON.stringify({
+        clientVersion: currentVersion,
+        sections: [
+          {
+            id: '11111111-1111-4111-a111-111111111111',
+            sectionType: 'summary',
+            title: 'SUMMARY',
+            orderIndex: 0,
+            isVisible: true,
+            content: hugePayload,
           },
-          body: JSON.stringify({
-            clientVersion: currentVersion,
-            sections: [
-              {
-                id: '11111111-1111-4111-a111-111111111111',
-                sectionType: spec.sectionType,
-                title: spec.sectionType.toUpperCase(),
-                orderIndex: 0,
-                isVisible: true,
-                content: overPayload,
-              },
-            ],
-          }),
-        });
+        ],
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
 
-        const overData = await resOver.json();
-        expect(resOver.status, `Expected 400 for ${tc.field} at limit+1, got ${resOver.status}`).toBe(400);
-        expect(typeof overData.error).toBe('string');
-        expect(overData.error).toMatch(/Validation error/);
-
-        // 2. Exact limit => must return 200
-        const atLimitPayload = createPayload(spec, tc.limit);
-        const resLimit = await fetch(`${BASE_URL}/api/documents/${testDocId}/save`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Cookie: cookieHeader,
+  // 28: Concurrency conflict check: stale clientVersion returns 409
+  it('concurrency invariant: stale clientVersion returns 409 STALE_SAVE_CONFLICT', async () => {
+    const resConflict = await fetch(`${BASE_URL}/api/documents/${testDocId}/save`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: cookieHeader,
+      },
+      body: JSON.stringify({
+        clientVersion: 1, // Stale version
+        sections: [
+          {
+            id: '11111111-1111-4111-a111-111111111111',
+            sectionType: 'header',
+            title: 'HEADER',
+            orderIndex: 0,
+            isVisible: true,
+            content: { schema_version: '1.0.0', fullName: 'Stale Edit' },
           },
-          body: JSON.stringify({
-            clientVersion: currentVersion,
-            sections: [
-              {
-                id: '11111111-1111-4111-a111-111111111111',
-                sectionType: spec.sectionType,
-                title: spec.sectionType.toUpperCase(),
-                orderIndex: 0,
-                isVisible: true,
-                content: atLimitPayload,
-              },
-            ],
-          }),
-        });
-
-        const limitData = await resLimit.json();
-        expect(resLimit.status, `Expected 200 for ${tc.field} at limit, got ${resLimit.status}: ${JSON.stringify(limitData)}`).toBe(200);
-        currentVersion = limitData.newVersion;
-      }
-    },
-    30000
-  );
+        ],
+      }),
+    });
+    const data = await resConflict.json();
+    expect(resConflict.status).toBe(409);
+    expect(data.error).toBe('STALE_SAVE_CONFLICT');
+  });
 });

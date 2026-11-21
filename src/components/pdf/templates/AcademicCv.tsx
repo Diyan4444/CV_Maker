@@ -2,6 +2,7 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Link } from '@react-pdf/renderer';
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 import { stripNonLatinScript } from '@/lib/validation/pdf-text';
+import { breakUrl, breakEmail } from '@/lib/pdf/wrap-long-tokens';
 import { registerNotoFonts } from '@/lib/pdf/fonts';
 import { PRODUCT_NAME } from '@/config/app';
 
@@ -163,7 +164,8 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
     });
 
   const headerSec = sections.find((s) => (s.sectionType || (s as any).section_type) === 'header');
-  const authorName = headerSec ? stripNonLatinScript((headerSec.content as any)?.fullName || (headerSec.content as any)?.full_name || '') : '';
+  const rawAuthor = headerSec ? stripNonLatinScript((headerSec.content as any)?.fullName || (headerSec.content as any)?.full_name || '').trim() : '';
+  const authorName = rawAuthor || undefined;
   const docSubject = (meta as any).target_role || (meta as any).targetRole || (meta.type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume');
 
   return (
@@ -171,7 +173,6 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
       title={stripNonLatinScript(meta.title) || 'Resume'}
       author={authorName}
       subject={docSubject}
-      keywords={meta.type || 'resume, cv'}
       creator={PRODUCT_NAME}
       producer={`${PRODUCT_NAME} (react-pdf)`}
       language="en"
@@ -188,17 +189,25 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             const cleanHeadline = stripNonLatinScript(h.headline || '');
 
             const formatDisplayUrl = (rawUrl: string, fallback?: string): string => {
+              if (fallback && (fallback.startsWith('http://') || fallback.startsWith('https://') || fallback.includes('@') || fallback.length > 30)) {
+                return fallback;
+              }
               if (!rawUrl) return fallback || '';
               return rawUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
             };
 
             const contactItems: Array<{ text: string; url?: string }> = [];
-            if (h.email) contactItems.push({ text: h.email, url: `mailto:${h.email}` });
-            if (h.phone) contactItems.push({ text: h.phone, url: `tel:${h.phone}` });
+            if (h.email) {
+              contactItems.push({
+                text: breakEmail(stripNonLatinScript(h.email)),
+                url: `mailto:${h.email}`,
+              });
+            }
+            if (h.phone) contactItems.push({ text: stripNonLatinScript(h.phone), url: `tel:${h.phone}` });
             if (h.location) {
-              contactItems.push({ text: h.location });
+              contactItems.push({ text: stripNonLatinScript(h.location) });
             } else if (h.city || h.country) {
-              contactItems.push({ text: [h.city, h.country].filter(Boolean).join(', ') });
+              contactItems.push({ text: stripNonLatinScript([h.city, h.country].filter(Boolean).join(', ')) });
             }
 
             if (h.links && Array.isArray(h.links)) {
@@ -206,25 +215,28 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
                 const url = l?.url || '';
                 const display = formatDisplayUrl(url, l?.label);
                 if (display) {
-                  contactItems.push({ text: display, url: url || undefined });
+                  contactItems.push({
+                    text: breakUrl(stripNonLatinScript(display)),
+                    url: url || undefined,
+                  });
                 }
               });
             } else {
               if (h.linkedinUrl) {
                 contactItems.push({
-                  text: formatDisplayUrl(h.linkedinUrl, 'LinkedIn'),
+                  text: breakUrl(stripNonLatinScript(formatDisplayUrl(h.linkedinUrl, 'LinkedIn'))),
                   url: h.linkedinUrl,
                 });
               }
               if (h.githubUrl) {
                 contactItems.push({
-                  text: formatDisplayUrl(h.githubUrl, 'GitHub'),
+                  text: breakUrl(stripNonLatinScript(formatDisplayUrl(h.githubUrl, 'GitHub'))),
                   url: h.githubUrl,
                 });
               }
               if (h.websiteUrl) {
                 contactItems.push({
-                  text: formatDisplayUrl(h.websiteUrl, 'Curriculum Vitae'),
+                  text: breakUrl(stripNonLatinScript(formatDisplayUrl(h.websiteUrl, 'Curriculum Vitae'))),
                   url: h.websiteUrl,
                 });
               }
@@ -279,7 +291,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             return (
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
-                {entries.map((edu: any) => {
+                {entries.map((edu: any, idx: number) => {
                   const inst = stripNonLatinScript(edu.institution || edu.subtitle || '').trim();
                   const deg = stripNonLatinScript(edu.degree || edu.title || '').trim();
                   const dateStr = formatDateRange(edu.startDate, edu.endDate, edu.isCurrent);
@@ -290,7 +302,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
                   if (!hasFirstRow && !hasSecondRow && !hasBullets) return null;
 
                   return (
-                    <View key={edu.id} style={styles.entryContainer}>
+                    <View key={edu.id || idx} style={styles.entryContainer}>
                       {hasFirstRow ? (
                         <View style={styles.entryRow}>
                           {deg ? <Text style={styles.entryTitle}>{deg}</Text> : <View />}
@@ -329,7 +341,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
             return (
               <View key={sec.id} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: accent }]}>{displayTitle}</Text>
-                {entries.map((exp: any) => {
+                {entries.map((exp: any, idx: number) => {
                   const org = stripNonLatinScript(exp.organization || exp.subtitle || exp.company || '').trim();
                   const role = stripNonLatinScript(exp.role || exp.title || '').trim();
                   const dateStr = formatDateRange(exp.startDate, exp.endDate, exp.isCurrent);
@@ -340,7 +352,7 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
                   if (!hasFirstRow && !hasSecondRow && !hasBullets) return null;
 
                   return (
-                    <View key={exp.id} style={styles.entryContainer}>
+                    <View key={exp.id || idx} style={styles.entryContainer}>
                       {hasFirstRow ? (
                         <View style={styles.entryRow}>
                           {role ? <Text style={styles.entryTitle}>{role}</Text> : <View />}

@@ -97,8 +97,8 @@ describe('PDF Text Stripping and Non-Latin Detection', () => {
           section_order: 0,
           is_visible: true,
           content: {
-            full_name: 'Diyan Shah',
-            email: 'diyan@example.com',
+            full_name: 'Alex Example',
+            email: 'alex@example.com',
             phone: '1234567890',
             location: 'Mumbai',
             links: [],

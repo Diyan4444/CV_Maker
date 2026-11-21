@@ -84,7 +84,7 @@ describe('ATS Readiness Checks (10 Pure Rules)', () => {
   // 3. Text Extraction & Order
   describe('3. Text Extraction & Order', () => {
     it('passes when extracted text contains name first and document order', () => {
-      const text = 'Diyan Shah • diyan@example.com\nSUMMARY\nPassionate engineer\nEXPERIENCE\nSenior Developer';
+      const text = 'Alex Example • alex@example.com\nSUMMARY\nPassionate engineer\nEXPERIENCE\nSenior Developer';
       const result = checkTextExtraction(ONE_PAGE_RESUME_FIXTURE.sections, text);
       expect(result.status).toBe('pass');
     });
@@ -96,7 +96,7 @@ describe('ATS Readiness Checks (10 Pure Rules)', () => {
     });
 
     it('needs attention when name appears after section headings', () => {
-      const text = 'EXPERIENCE\nSenior Developer\nDiyan Shah';
+      const text = 'EXPERIENCE\nSenior Developer\nAlex Example';
       const result = checkTextExtraction(ONE_PAGE_RESUME_FIXTURE.sections, text);
       expect(result.status).toBe('needs_attention');
       expect(result.explanation).toContain('Applicant name appears after section headings');
@@ -266,7 +266,7 @@ describe('ATS Readiness Checks (10 Pure Rules)', () => {
   // Full Suite Execution & Timing
   describe('Full Suite Execution', () => {
     it('runs all 10 checks in under 10ms with accurate summary counts', () => {
-      const extractedText = 'Diyan Shah • diyan@example.com\nSUMMARY\nPassionate engineer\nEXPERIENCE\nSenior Developer';
+      const extractedText = 'Alex Example • alex@example.com\nSUMMARY\nPassionate engineer\nEXPERIENCE\nSenior Developer';
       const report = runAtsReadinessChecks(
         ONE_PAGE_RESUME_FIXTURE.meta,
         ONE_PAGE_RESUME_FIXTURE.sections,

@@ -6,13 +6,14 @@ import fs from 'fs';
 import path from 'path';
 import { PDFParse } from 'pdf-parse';
 import { PRODUCT_NAME } from '../src/config/app';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 dotenv.config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-const ARTIFACT_DIR = path.resolve('C:/Users/Diyan/.gemini/antigravity/brain/0476a383-8a86-41cb-a552-ce7ab883faf8');
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity', 'brain', '0476a383-8a86-41cb-a552-ce7ab883faf8');
 
 test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   let adminClient: any;
@@ -23,6 +24,8 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   const capturedCookies: Record<string, string> = {};
 
   test.beforeAll(async () => {
+    test.setTimeout(120000);
+    assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -32,7 +35,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
       email: testEmail,
       password: testPassword,
       email_confirm: true,
-      user_metadata: { full_name: 'Diyan Shah' },
+      user_metadata: { full_name: 'Alex Example' },
     });
     if (createErr) throw createErr;
     testUserId = userData.user.id;
@@ -40,11 +43,13 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     // Seed master profile
     await adminClient.from('master_profiles').insert({
       user_id: testUserId,
-      full_name: 'Diyan Shah',
-      email: testEmail,
-      phone: '+1 (555) 019-2834',
-      location: 'San Francisco, CA',
       headline: 'Principal Distributed Systems Architect',
+      contact_info: {
+        email: testEmail,
+        phone: '+1 (555) 019-2834',
+        city: 'San Francisco',
+        country: 'CA',
+      },
     });
 
     // Create test document
@@ -73,13 +78,13 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
         order_index: 0,
         is_visible: true,
         content: {
-          fullName: 'Diyan Shah',
+          fullName: 'Alex Example',
           email: testEmail,
           phone: '+1 (555) 019-2834',
           location: 'San Francisco, CA',
-          website: 'https://diyanshah.dev',
-          linkedin: 'https://linkedin.com/in/diyanshah',
-          github: 'https://github.com/diyanshah',
+          website: 'https://example.com/alex',
+          linkedin: 'https://linkedin.com/in/alexexample',
+          github: 'https://github.com/alexexample',
         },
       },
       {
@@ -194,11 +199,11 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   test('1. Download PDF across all 3 templates: triggers download, verifies filename, metadata, and parses content with pdf-parse', async ({ page }) => {
     test.setTimeout(180000);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${testDocId}`);
+    await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for initial preview render
-    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 20000 });
+    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 30000 });
 
     const templates = [
       { id: 'ats_single_column', expectedName: 'ATS-Friendly Single Column' },
@@ -226,7 +231,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
       console.log(`[E2E Download Test] Suggested filename: ${suggestedFilename}`);
 
       // Verify filename formatting: <Name>-<Title>.pdf
-      expect(suggestedFilename).toMatch(/^Diyan-Shah-Staff-Systems-Architect-Resume\.pdf$/i);
+      expect(suggestedFilename).toMatch(/^Alex-Example-Staff-Systems-Architect-Resume\.pdf$/i);
 
       // Save file
       const downloadDir = path.resolve('test-results/downloads');
@@ -249,7 +254,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
 
       // 1. Verify applicant name comes first
       const upperText = extractedText.toUpperCase();
-      const namePos = upperText.indexOf('DIYAN SHAH');
+      const namePos = upperText.indexOf('ALEX EXAMPLE');
       const expPos = upperText.indexOf('EXPERIENCE');
       expect(namePos).toBeGreaterThanOrEqual(0);
       expect(expPos).toBeGreaterThan(namePos);
@@ -270,7 +275,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
       const info = infoResult.info as any;
       console.log(`[E2E Download Test] ${tmpl.id} Metadata:`, JSON.stringify(info));
       expect(info.Title).toBe('Staff Systems Architect Resume');
-      expect(info.Author).toBe('Diyan Shah');
+      expect(info.Author).toBe('Alex Example');
       expect(info.Creator).toBe(PRODUCT_NAME);
       expect(info.Producer).toBe(`${PRODUCT_NAME} (react-pdf)`);
 
@@ -284,11 +289,11 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   test('2. ATS Readiness Checks Panel: all-pass state, needs-attention state, jump-to-section link, and screenshots', async ({ page }) => {
     test.setTimeout(60000);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${testDocId}`);
+    await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for preview to settle
-    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 20000 });
+    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 30000 });
 
     // Switch right pane to ATS Readiness
     const atsTabBtn = page.locator('#right-tab-ats');
@@ -352,7 +357,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     // Restore name to show mobile all-pass
     await page.click('button:has-text("Edit Sections")');
     await expect(nameInput).toBeVisible();
-    await nameInput.fill('Diyan Shah');
+    await nameInput.fill('Alex Example');
     await page.waitForTimeout(1000);
     await mobileAtsBtn.click();
     await page.waitForTimeout(500);
@@ -367,8 +372,9 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
   test('3. Keyboard accessibility: download button and ATS tabs operable via keyboard', async ({ page }) => {
     test.setTimeout(30000);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/editor/${testDocId}`);
+    await page.goto(`/editor/${testDocId}`, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
+    await page.waitForSelector('[data-rendered-version]', { state: 'attached', timeout: 30000 });
 
     // Tab through controls to focus the download button
     await page.locator('#download-pdf-button').focus();

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -6,6 +7,8 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+assertTestProjectRefAllowed(supabaseUrl);
 
 const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -19,11 +22,18 @@ async function main() {
   }
 
   console.log(`Initial total users: ${data.users.length}`);
-  const primaryEmail = 'diyanshah2301@gmail.com';
+  const primaryEmail = process.env.PRIMARY_ADMIN_EMAIL || process.env.USER_ACCOUNT_EMAIL || '';
 
   for (const u of data.users) {
     console.log(`- ${u.id} | ${u.email} (created: ${u.created_at})`);
-    if (u.email && u.email !== primaryEmail) {
+    const isTestUser = u.email && (
+      u.email.includes('test') ||
+      u.email.includes('audit') ||
+      u.email.endsWith('.local') ||
+      u.email.endsWith('@example.com')
+    );
+    const shouldDelete = isTestUser && (!primaryEmail || u.email !== primaryEmail);
+    if (shouldDelete) {
       console.log(`  Deleting temporary test user: ${u.email}`);
       const { error: delErr } = await supabase.auth.admin.deleteUser(u.id);
       if (delErr) {

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import dotenv from 'dotenv';
 import path from 'path';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -20,6 +21,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
 
   test.beforeAll(async () => {
     if (!supabaseUrl || !serviceKey || supabaseUrl.includes('placeholder')) return;
+    assertTestProjectRefAllowed(supabaseUrl);
 
     adminClient = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -49,10 +51,10 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     if (profErr) throw profErr;
 
     // Add experience entry
-    await (adminClient as any).from('experience').insert({
-      master_profile_id: profileRecord.id,
-      title: 'Principal Systems Architect',
-      company: 'Distributed Systems Corp',
+    await (adminClient as any).from('experiences').insert({
+      profile_id: profileRecord.id,
+      role: 'Principal Systems Architect',
+      organization: 'Distributed Systems Corp',
       location: 'Bengaluru, India',
       start_date: '2021-01',
       is_current: true,
@@ -65,7 +67,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
 
     // Add education entry
     await (adminClient as any).from('education').insert({
-      master_profile_id: profileRecord.id,
+      profile_id: profileRecord.id,
       institution: 'Indian Institute of Technology Madras',
       degree: 'B.Tech in Computer Science',
       field_of_study: 'Distributed Computing',

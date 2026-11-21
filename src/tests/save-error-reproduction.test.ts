@@ -2,11 +2,15 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { z } from 'zod';
 import { SectionContentSchemaMap } from '../lib/documents/schemas';
 import { createClient } from '@supabase/supabase-js';
+import { assertTestProjectRefAllowed } from '../lib/test-utils/production-guard';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+assertTestProjectRefAllowed(supabaseUrl);
+
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseUrl,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
@@ -15,23 +19,39 @@ describe('Item 2: Save Error Root Cause & Field Invariant Tests', () => {
   let testProfileId: string;
 
   beforeAll(async () => {
-    const { data: users } = await supabase.auth.admin.listUsers();
-    testUserId = users?.users?.find(u => u.email === 'diyanshah2301@gmail.com')?.id || users?.users?.[0]?.id || '';
-    const { data: mp } = await supabase.from('master_profiles').select('id').eq('user_id', testUserId).single();
-    testProfileId = mp?.id || '';
-    if (!testProfileId) {
-      // Create master profile if absent
-      const { data: newMp } = await supabase.from('master_profiles').insert({
-        user_id: testUserId,
-        headline: 'Test Profile',
-      }).select('id').single();
-      testProfileId = newMp?.id || '';
-    }
+    const testEmail = `test-cert-${Date.now()}@example.com`;
+    const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
+      email: testEmail,
+      password: 'Password123!',
+      email_confirm: true,
+    });
+    if (authErr || !authUser?.user) throw new Error(`Failed to create test user: ${authErr?.message}`);
+    testUserId = authUser.user.id;
+
+    // Ensure profiles row exists
+    await supabase.from('profiles').upsert({
+      id: testUserId,
+      email: testEmail,
+      full_name: 'Test Cert User',
+    });
+
+    const { data: newMp, error: mpErr } = await supabase.from('master_profiles').insert({
+      user_id: testUserId,
+      headline: 'Test Profile',
+      schema_version: '1.0.0',
+    }).select('id').single();
+    if (mpErr || !newMp) throw new Error(`Failed to create master profile: ${mpErr?.message}`);
+    testProfileId = newMp.id;
   });
 
   afterAll(async () => {
     if (testProfileId) {
-      await supabase.from('certifications').delete().eq('profile_id', testProfileId).ilike('name', 'x%');
+      await supabase.from('certifications').delete().eq('profile_id', testProfileId);
+      await supabase.from('master_profiles').delete().eq('id', testProfileId);
+    }
+    if (testUserId) {
+      await supabase.from('profiles').delete().eq('id', testUserId);
+      await supabase.auth.admin.deleteUser(testUserId);
     }
   });
 

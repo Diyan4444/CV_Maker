@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import * as dotenv from 'dotenv';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 dotenv.config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -17,6 +18,7 @@ test.describe('Item 2: Editor Error UX & Offline/Draft Verification', () => {
   const capturedCookies: Record<string, string> = {};
 
   test.beforeAll(async () => {
+    assertTestProjectRefAllowed(supabaseUrl);
     adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
