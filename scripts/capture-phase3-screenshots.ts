@@ -9,7 +9,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const artifactDir = 'C:\\Users\\Diyan\\.gemini\\antigravity\\brain\\0476a383-8a86-41cb-a552-ce7ab883faf8';
+const artifactDir = process.env.ARTIFACT_DIR || path.join(process.env.USERPROFILE || process.env.HOME || '', '.gemini', 'antigravity', 'brain', '0476a383-8a86-41cb-a552-ce7ab883faf8');
 
 async function main() {
   const adminClient = createClient(supabaseUrl, serviceKey, {

@@ -49,10 +49,10 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     if (profErr) throw profErr;
 
     // Add experience entry
-    await (adminClient as any).from('experience').insert({
-      master_profile_id: profileRecord.id,
-      title: 'Principal Systems Architect',
-      company: 'Distributed Systems Corp',
+    await (adminClient as any).from('experiences').insert({
+      profile_id: profileRecord.id,
+      role: 'Principal Systems Architect',
+      organization: 'Distributed Systems Corp',
       location: 'Bengaluru, India',
       start_date: '2021-01',
       is_current: true,
@@ -65,7 +65,7 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
 
     // Add education entry
     await (adminClient as any).from('education').insert({
-      master_profile_id: profileRecord.id,
+      profile_id: profileRecord.id,
       institution: 'Indian Institute of Technology Madras',
       degree: 'B.Tech in Computer Science',
       field_of_study: 'Distributed Computing',

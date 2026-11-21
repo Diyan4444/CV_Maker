@@ -6,7 +6,7 @@ async function testRegion(host) {
     port: 6543,
     database: 'postgres',
     username: 'postgres.gluuewqktdvbjqaqykqv',
-    password: 'diyan.shah@india',
+    password: process.env.DATABASE_PASSWORD || process.env.DB_PASSWORD || '',
     connect_timeout: 4,
     ssl: 'require'
   });

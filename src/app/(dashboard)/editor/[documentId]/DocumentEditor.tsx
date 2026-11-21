@@ -488,9 +488,15 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     if (historyIndexRef.current > 0) {
       historyIndexRef.current -= 1;
       const snap = historyRef.current[historyIndexRef.current];
-      metaRef.current = snap.meta;
+      // Concurrency metadata (version, updatedAt) must track latest server version, not regress
+      const restoredMeta: DocumentMeta = {
+        ...snap.meta,
+        version: metaRef.current.version,
+        updatedAt: metaRef.current.updatedAt,
+      };
+      metaRef.current = restoredMeta;
       sectionsRef.current = snap.sections;
-      setMeta(snap.meta);
+      setMeta(restoredMeta);
       setSections(snap.sections);
       setCanUndo(historyIndexRef.current > 0);
       setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
@@ -503,7 +509,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
       // Check whether restored snapshot equals last saved content
       const isSaved = isDocumentContentEqual(
-        snap.meta,
+        restoredMeta,
         snap.sections,
         lastSavedSnapshotRef.current.meta,
         lastSavedSnapshotRef.current.sections
@@ -517,13 +523,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       } else {
         setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
-          handleSave(snap.meta, snap.sections);
+          handleSave(restoredMeta, snap.sections);
         }, 1500);
 
         try {
           localStorage.setItem(
             `cv_maker_draft_${snap.meta.id}`,
-            JSON.stringify({ meta: snap.meta, sections: snap.sections, timestamp: Date.now() })
+            JSON.stringify({ meta: restoredMeta, sections: snap.sections, timestamp: Date.now() })
           );
         } catch {}
       }
@@ -535,9 +541,15 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     if (historyIndexRef.current < historyRef.current.length - 1) {
       historyIndexRef.current += 1;
       const snap = historyRef.current[historyIndexRef.current];
-      metaRef.current = snap.meta;
+      // Concurrency metadata (version, updatedAt) must track latest server version, not regress
+      const restoredMeta: DocumentMeta = {
+        ...snap.meta,
+        version: metaRef.current.version,
+        updatedAt: metaRef.current.updatedAt,
+      };
+      metaRef.current = restoredMeta;
       sectionsRef.current = snap.sections;
-      setMeta(snap.meta);
+      setMeta(restoredMeta);
       setSections(snap.sections);
       setCanUndo(true);
       setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
@@ -550,7 +562,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
       // Check whether restored snapshot equals last saved content
       const isSaved = isDocumentContentEqual(
-        snap.meta,
+        restoredMeta,
         snap.sections,
         lastSavedSnapshotRef.current.meta,
         lastSavedSnapshotRef.current.sections
@@ -564,13 +576,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       } else {
         setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
-          handleSave(snap.meta, snap.sections);
+          handleSave(restoredMeta, snap.sections);
         }, 1500);
 
         try {
           localStorage.setItem(
             `cv_maker_draft_${snap.meta.id}`,
-            JSON.stringify({ meta: snap.meta, sections: snap.sections, timestamp: Date.now() })
+            JSON.stringify({ meta: restoredMeta, sections: snap.sections, timestamp: Date.now() })
           );
         } catch {}
       }

@@ -39,6 +39,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+/public/pdf.worker.min.mjs
 
 # typescript
 *.tsbuildinfo

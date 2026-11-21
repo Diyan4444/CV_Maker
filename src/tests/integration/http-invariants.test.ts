@@ -5,7 +5,7 @@ import { FIELD_SPECS, createPayload } from '../field-invariants.test';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3100';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3101';
 
 describe('HTTP Route Invariant Verification: sends fields through /api/documents/[documentId]/save', () => {
   let adminClient: ReturnType<typeof createClient>;

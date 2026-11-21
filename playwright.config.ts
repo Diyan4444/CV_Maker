@@ -17,10 +17,10 @@ export default defineConfig({
     screenshot: 'off',
   },
   webServer: {
-    command: 'npm run start -- -p 3100',
+    command: 'npm run build && npm run start -- -p 3100',
     url: 'http://localhost:3100',
     reuseExistingServer: false,
-    timeout: 120000,
+    timeout: 180000,
   },
   projects: [
     {

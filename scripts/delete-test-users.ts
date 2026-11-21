@@ -18,8 +18,10 @@ async function main() {
     return;
   }
 
+  const preserveEmail = process.env.PRIMARY_ADMIN_EMAIL || process.env.USER_ACCOUNT_EMAIL || '';
+
   for (const u of users) {
-    if (u.email && u.email !== 'diyanshah2301@gmail.com') {
+    if (u.email && (!preserveEmail || u.email !== preserveEmail) && (u.email.includes('test') || u.email.endsWith('.local') || u.email.includes('audit') || u.email.endsWith('@example.com'))) {
       console.log(`Deleting test user: ${u.email} (${u.id})`);
       await adminClient.auth.admin.deleteUser(u.id);
     }

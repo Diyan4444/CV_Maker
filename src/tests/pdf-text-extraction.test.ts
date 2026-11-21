@@ -33,10 +33,10 @@ describe('PDF Text Extraction & Template Rendering', () => {
     const text = await extractPdfText(element);
 
     // 1. Candidate name is at the very beginning of the document
-    expect(text.trim().startsWith('Diyan Shah')).toBe(true);
+    expect(text.trim().startsWith('Alex Example')).toBe(true);
 
     // 2. Contact details present
-    expect(text).toContain('diyan.shah@example.com');
+    expect(text).toContain('alex.example@example.com');
     expect(text).toContain('+91 98765 43210');
     expect(text).toContain('Mumbai, Maharashtra, India');
 

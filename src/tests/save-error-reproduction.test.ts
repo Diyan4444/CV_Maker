@@ -16,7 +16,8 @@ describe('Item 2: Save Error Root Cause & Field Invariant Tests', () => {
 
   beforeAll(async () => {
     const { data: users } = await supabase.auth.admin.listUsers();
-    testUserId = users?.users?.find(u => u.email === 'diyanshah2301@gmail.com')?.id || users?.users?.[0]?.id || '';
+    const adminEmail = process.env.PRIMARY_ADMIN_EMAIL || process.env.USER_ACCOUNT_EMAIL || '';
+    testUserId = (adminEmail ? users?.users?.find(u => u.email === adminEmail)?.id : undefined) || users?.users?.[0]?.id || '';
     const { data: mp } = await supabase.from('master_profiles').select('id').eq('user_id', testUserId).single();
     testProfileId = mp?.id || '';
     if (!testProfileId) {

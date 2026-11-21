@@ -41,7 +41,7 @@ export default function PreviewSpikePage() {
   if (process.env.NODE_ENV === 'production') {
     notFound();
   }
-  const [name, setName] = useState('Diyan Shah');
+  const [name, setName] = useState('Alex Example');
   const [count, setCount] = useState(15);
   const [stats, setStats] = useState({
     compileTimeMs: 0,

@@ -1,0 +1,174 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import postgres from 'postgres';
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+
+interface ParsedDatabaseObjects {
+  constraints: string[];
+  triggers: string[];
+  functions: string[];
+  indexes: string[];
+}
+
+function parseSqlFile(sqlContent: string): ParsedDatabaseObjects {
+  const constraints = new Set<string>();
+  const triggers = new Set<string>();
+  const functions = new Set<string>();
+  const indexes = new Set<string>();
+
+  // Strip SQL comments to avoid false matches
+  const cleanSql = sqlContent
+    .replace(/--.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // 1. Match ADD CONSTRAINT [IF NOT EXISTS] name ...
+  const conRegex = /(?:ADD\s+CONSTRAINT|CONSTRAINT)\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?\s+(?:CHECK|UNIQUE|FOREIGN\s+KEY|PRIMARY\s+KEY)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = conRegex.exec(cleanSql)) !== null) {
+    constraints.add(match[1].toLowerCase());
+  }
+
+  // 2. Match CREATE [OR REPLACE] TRIGGER name ...
+  const trgRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\s+["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = trgRegex.exec(cleanSql)) !== null) {
+    triggers.add(match[1].toLowerCase());
+  }
+
+  // 3. Match CREATE [OR REPLACE] FUNCTION [public.]name(...) ...
+  const fnRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?["']?([a-zA-Z0-9_]+)["']?\s*\(/gi;
+  while ((match = fnRegex.exec(cleanSql)) !== null) {
+    functions.add(match[1].toLowerCase());
+  }
+
+  // 4. Match CREATE [UNIQUE] INDEX [IF NOT EXISTS] name ON ...
+  const idxRegex = /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?\s+ON/gi;
+  while ((match = idxRegex.exec(cleanSql)) !== null) {
+    indexes.add(match[1].toLowerCase());
+  }
+
+  return {
+    constraints: Array.from(constraints),
+    triggers: Array.from(triggers),
+    functions: Array.from(functions),
+    indexes: Array.from(indexes),
+  };
+}
+
+describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
+  let sql: postgres.Sql;
+
+  beforeAll(() => {
+    const dbUrl = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
+    if (!dbUrl) throw new Error('Missing DATABASE_URL / MIGRATION_DATABASE_URL');
+    sql = postgres(dbUrl, {
+      max: 1,
+      prepare: false,
+      ssl: dbUrl.includes('localhost') ? false : 'require',
+    });
+  });
+
+  afterAll(async () => {
+    if (sql) await sql.end({ timeout: 5 });
+  });
+
+  it('parภาพ supabase/migrations/*.sql and asserts every constraint, trigger, function and index exists in live database', async () => {
+    const migrationsDir = path.resolve(process.cwd(), 'supabase/migrations');
+    const files = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    expect(files.length).toBeGreaterThan(0);
+
+    const allConstraints = new Set<string>();
+    const allTriggers = new Set<string>();
+    const allFunctions = new Set<string>();
+    const allIndexes = new Set<string>();
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      const parsed = parseSqlFile(content);
+
+      parsed.constraints.forEach((c) => allConstraints.add(c));
+      parsed.triggers.forEach((t) => allTriggers.add(t));
+      parsed.functions.forEach((f) => allFunctions.add(f));
+      parsed.indexes.forEach((i) => allIndexes.add(i));
+    }
+
+    // Query live PostgreSQL system catalogs
+    const liveConstraints = await sql`SELECT conname FROM pg_constraint;`;
+    const liveTriggers = await sql`SELECT tgname FROM pg_trigger;`;
+    const liveFunctions = await sql`SELECT proname FROM pg_proc;`;
+    const liveIndexes = await sql`SELECT indexname FROM pg_indexes;`;
+
+    const liveConstraintSet = new Set(liveConstraints.map((r) => r.conname.toLowerCase()));
+    const liveTriggerSet = new Set(liveTriggers.map((r) => r.tgname.toLowerCase()));
+    const liveFunctionSet = new Set(liveFunctions.map((r) => r.proname.toLowerCase()));
+    const liveIndexSet = new Set(liveIndexes.map((r) => r.indexname.toLowerCase()));
+
+    // 1. Verify constraints
+    const missingConstraints: string[] = [];
+    for (const c of allConstraints) {
+      if (!liveConstraintSet.has(c)) {
+        missingConstraints.push(c);
+      }
+    }
+
+    // 2. Verify triggers
+    const missingTriggers: string[] = [];
+    for (const t of allTriggers) {
+      if (!liveTriggerSet.has(t)) {
+        missingTriggers.push(t);
+      }
+    }
+
+    // 3. Verify functions
+    const missingFunctions: string[] = [];
+    for (const f of allFunctions) {
+      if (!liveFunctionSet.has(f)) {
+        missingFunctions.push(f);
+      }
+    }
+
+    // 4. Verify indexes
+    const missingIndexes: string[] = [];
+    for (const idx of allIndexes) {
+      if (!liveIndexSet.has(idx)) {
+        missingIndexes.push(idx);
+      }
+    }
+
+    console.log('\n=== MIGRATION SCHEMA AUDIT INVENTORY ===');
+    console.log(`Migration files scanned: ${files.join(', ')}`);
+    console.log(`Constraints audited (${allConstraints.size}): ${Array.from(allConstraints).join(', ')}`);
+    console.log(`Triggers audited (${allTriggers.size}): ${Array.from(allTriggers).join(', ')}`);
+    console.log(`Functions audited (${allFunctions.size}): ${Array.from(allFunctions).join(', ')}`);
+    console.log(`Indexes audited (${allIndexes.size}): ${Array.from(allIndexes).join(', ')}`);
+    console.log('========================================\n');
+
+    expect(missingConstraints, `Missing live constraints: ${missingConstraints.join(', ')}`).toEqual([]);
+    expect(missingTriggers, `Missing live triggers: ${missingTriggers.join(', ')}`).toEqual([]);
+    expect(missingFunctions, `Missing live functions: ${missingFunctions.join(', ')}`).toEqual([]);
+    expect(missingIndexes, `Missing live indexes: ${missingIndexes.join(', ')}`).toEqual([]);
+  });
+
+  it('verifies app_migrations tracking table exists and records all applied migrations with checksums', async () => {
+    const rows = await sql`
+      SELECT filename, checksum, applied_at FROM public.app_migrations ORDER BY id ASC;
+    `;
+    expect(rows.length).toBeGreaterThanOrEqual(4);
+    const recordedFiles = rows.map((r) => r.filename);
+    expect(recordedFiles).toContain('0002_rls_policies_only.sql');
+    expect(recordedFiles).toContain('0004_db_constraints.sql');
+    expect(recordedFiles).toContain('0005_version_and_caps.sql');
+    expect(recordedFiles).toContain('0006_missing_caps.sql');
+
+    for (const row of rows) {
+      expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);
+      expect(row.applied_at).toBeTruthy();
+    }
+  });
+});

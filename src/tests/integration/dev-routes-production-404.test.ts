@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3100';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3101';
 
 describe('Dev Routes Production 404 Guard', () => {
   it('returns 404 Not Found for /dev/templates in production', async () => {
