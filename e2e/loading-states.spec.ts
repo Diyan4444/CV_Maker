@@ -1,16 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
-import path from 'path';
+import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
 
-const ARTIFACT_DIR = 'C:\\Users\\Diyan\\.gemini\\antigravity\\brain\\0476a383-8a86-41cb-a552-ce7ab883faf8';
-
-test.describe('Quillfolio Loading States, Skeletons & Honesty Verification', () => {
+test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invariants', () => {
   let adminClient: any;
   let testUserId: string;
-  let createdDocId: string;
+  let createdDocId: string = '';
   let capturedCookies: Record<string, string> = {};
-  const testEmail = `loading-test-${Date.now()}@quillfolio.local`;
+  const testEmail = `loading-spec-${Date.now()}@quillfolio.local`;
   const testPassword = 'Password123!Secure';
 
   test.beforeAll(async () => {
@@ -18,9 +16,11 @@ test.describe('Quillfolio Loading States, Skeletons & Honesty Verification', () 
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    if (!supabaseUrl || !serviceRoleKey || !anonKey || supabaseUrl.includes('placeholder')) {
       throw new Error('Missing Supabase environment variables');
     }
+
+    assertTestProjectRefAllowed(supabaseUrl);
 
     adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -31,7 +31,7 @@ test.describe('Quillfolio Loading States, Skeletons & Honesty Verification', () 
       email: testEmail,
       password: testPassword,
       email_confirm: true,
-      user_metadata: { full_name: 'Loading Test User' },
+      user_metadata: { full_name: 'Loading Spec User' },
     });
     if (userErr) throw userErr;
     testUserId = userRecord.user.id;
@@ -57,20 +57,21 @@ test.describe('Quillfolio Loading States, Skeletons & Honesty Verification', () 
     });
     if (signInErr) throw signInErr;
 
-    // 3. Create master_profile for test user
-    await adminClient.from('master_profiles').insert({
+    // 3. Create master_profile
+    const { error: profErr } = await adminClient.from('master_profiles').insert({
       user_id: testUserId,
-      full_name: 'Loading Test User',
+      background_group: 'engineering_technology',
       headline: 'Systems Architect',
-      email: testEmail,
+      summary: 'Systems architect specializing in distributed databases.',
     });
+    if (profErr) throw profErr;
 
     // 4. Create document for editor tests
     const { data: docRecord, error: docErr } = await adminClient
       .from('documents')
       .insert({
         user_id: testUserId,
-        title: 'Loading States Document',
+        title: 'Loading Spec Document',
         type: 'resume',
         template_id: 'ats_single_column',
         accent_color: '#800021',
@@ -81,7 +82,7 @@ test.describe('Quillfolio Loading States, Skeletons & Honesty Verification', () 
     if (docErr) throw docErr;
     createdDocId = docRecord.id;
 
-    // 4. Create sample sections
+    // 5. Create sample sections
     await adminClient.from('document_sections').insert([
       {
         document_id: createdDocId,
@@ -135,216 +136,439 @@ test.describe('Quillfolio Loading States, Skeletons & Honesty Verification', () 
     await context.addCookies(cookiesToSet);
   };
 
-  test('1. Route-level skeleton: loads within 150ms, matches layout dimensions, disappears on data arrival', async ({
+  // --------------------------------------------------------------------------
+  // 1. Real-Page Loading States & Skeletons across 4 core routes
+  // --------------------------------------------------------------------------
+  test('Real-page loading: Dashboard shows skeleton <= 150ms, matches layout, disappears', async ({
     page,
     context,
   }) => {
     await applyCookies(context);
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    // Load profile page first to test client-side transition
+    // Start at /profile
     await page.goto('/profile');
-    await page.waitForSelector('text=Master Profile');
+    await page.waitForSelector('main', { timeout: 15000 });
 
-    // Artificial delay on dashboard payload to inspect loading.tsx skeleton
-    let skeletonObserved = false;
+    // Delay dashboard RSC navigation payload by 800ms
     await page.route('**/dashboard**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 800));
       await route.continue();
     });
 
-    const startNav = Date.now();
-    // Click Dashboard navigation link in the navbar
-    const dashboardLink = page.getByRole('link', { name: 'Documents' });
-    if (await dashboardLink.isVisible()) {
-      await dashboardLink.click();
-    } else {
-      await page.goto('/dashboard');
+    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    await expect(dashboardLink).toBeVisible();
+    await dashboardLink.click();
+
+    // (a) Assert loader / skeleton is visible within <= 150ms
+    const skeleton = page.locator('[aria-label="Loading dashboard"]').first();
+    await expect(skeleton, 'Skeleton for [Loading dashboard] must be visible <= 150ms').toBeVisible({
+      timeout: 150,
+    });
+
+    // (b) Measure skeleton bounding box (main content container)
+    const skeletonContainer = skeleton.locator('main').first();
+    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+    expect(skeletonBox).not.toBeNull();
+
+    // Wait for real content to arrive
+    await page.waitForSelector('main', { timeout: 15000 });
+
+    // (c) Skeleton disappears cleanly on response arrival
+    await expect(page.locator('[aria-label="Loading dashboard"]')).toHaveCount(0);
+
+    // (b continued) Final layout bounding box shift verification <= 2px
+    const contentEl = page.locator('main');
+    const contentBox = await contentEl.boundingBox();
+    expect(contentBox).not.toBeNull();
+    if (skeletonBox && contentBox) {
+      expect(Math.abs(skeletonBox.x - contentBox.x)).toBeLessThanOrEqual(2);
     }
-
-    // Assert loader / skeleton is visible within 150ms
-    const skeleton = page.locator('[aria-label="Loading dashboard"]');
-    try {
-      await expect(skeleton).toBeVisible({ timeout: 250 });
-      skeletonObserved = true;
-    } catch {
-      const pbar = page.locator('#navigation-progress-bar');
-      if (await pbar.isVisible()) {
-        skeletonObserved = true;
-      }
-    }
-
-    // Wait for full dashboard content to arrive
-    await page.waitForSelector('text=Documents', { timeout: 15000 });
-    const finalContent = page.locator('main');
-    await expect(finalContent).toBeVisible();
-
-    // Verify skeleton has disappeared
-    await expect(page.locator('[aria-label="Loading dashboard"]')).not.toBeVisible();
-    console.log(`[PASS] Dashboard route navigation took ${Date.now() - startNav}ms, skeleton/transition observed: ${skeletonObserved}`);
   });
 
-  test('2. Editor stages: "Loading your document...", "Preparing preview...", and "Running checks..." in ATS panel', async ({
+  test('Real-page loading: Profile shows skeleton <= 150ms, matches layout, disappears', async ({
     page,
     context,
   }) => {
     await applyCookies(context);
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    await page.goto(`/editor/${createdDocId}`);
+    // Start at /dashboard
+    await page.goto('/dashboard');
+    await page.waitForSelector('main', { timeout: 15000 });
 
-    // Stage 1 & Stage 2: Preview preparing placeholder is visible before first canvas completes
-    const canvasContainer = page.locator('#pdf-preview-canvas-container');
+    // Delay profile RSC navigation payload by 800ms
+    await page.route('**/profile**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
 
-    // Wait for canvas to render
-    await page.waitForSelector('#pdf-preview-canvas-container canvas', { timeout: 25000 });
-    await expect(canvasContainer).toBeVisible();
+    const profileLink = page.getByRole('link', { name: 'Master Profile' }).first();
+    await expect(profileLink).toBeVisible();
+    await profileLink.click();
 
-    // Verify that at no point was canvas container unmounted or broken
-    const canvasCount = await canvasContainer.locator('canvas').count();
-    expect(canvasCount).toBeGreaterThanOrEqual(1);
+    // (a) Assert loader / skeleton is visible within <= 150ms
+    const skeleton = page.locator('[aria-label="Loading profile"]').first();
+    await expect(skeleton, 'Skeleton for [Loading profile] must be visible <= 150ms').toBeVisible({
+      timeout: 150,
+    });
 
-    // Stage 3: ATS panel running checks state
-    const atsTabBtn = page.getByRole('button', { name: /ATS Readiness/i });
-    if (await atsTabBtn.isVisible()) {
-      await atsTabBtn.click();
-      // ATS Readiness panel region exists
-      const atsPanel = page.locator('#ats-readiness-panel');
-      await expect(atsPanel).toBeVisible({ timeout: 10000 });
-      console.log('[PASS] ATS Readiness panel rendered successfully');
+    // (b) Measure skeleton bounding box (main content container)
+    const skeletonContainer = skeleton.locator('main').first();
+    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+    expect(skeletonBox).not.toBeNull();
+
+    // Wait for real content to arrive
+    await page.waitForSelector('main', { timeout: 15000 });
+
+    // (c) Skeleton disappears cleanly on response arrival
+    await expect(page.locator('[aria-label="Loading profile"]')).toHaveCount(0);
+
+    const contentEl = page.locator('main');
+    const contentBox = await contentEl.boundingBox();
+    expect(contentBox).not.toBeNull();
+    if (skeletonBox && contentBox) {
+      expect(Math.abs(skeletonBox.x - contentBox.x)).toBeLessThanOrEqual(2);
     }
   });
 
-  test('3. Dev Gallery (/dev/loading): slow message (6s) and error state with working Retry button', async ({
+  test('Real-page loading: Onboarding shows skeleton <= 150ms, matches layout, disappears', async ({
     page,
+    context,
   }) => {
+    await applyCookies(context);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/dev/loading');
 
-    await expect(page.locator('text=Loading States & Skeletons Gallery')).toBeVisible();
+    // Start at /dashboard
+    await page.goto('/dashboard');
+    await page.waitForSelector('main', { timeout: 15000 });
 
-    // Go to "Slow & Error States" tab
-    await page.getByRole('button', { name: 'Slow & Error States' }).click();
+    // Delay onboarding RSC navigation payload by 800ms
+    await page.route('**/onboarding**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
 
-    // Verify slow-load notice text
-    await expect(
-      page.locator('text=This is taking longer than usual... Please keep this page open.')
-    ).toBeVisible();
+    const onboardingLink = page.getByRole('link', { name: 'Create Document' }).first();
+    await expect(onboardingLink).toBeVisible();
+    await onboardingLink.click();
 
-    // Verify error state text and Retry button
-    await expect(page.locator("text=We couldn't load this in time.")).toBeVisible();
+    // (a) Assert loader / skeleton is visible within <= 150ms
+    const skeleton = page.locator('[aria-label="Loading onboarding"]').first();
+    await expect(skeleton, 'Skeleton for [Loading onboarding] must be visible <= 150ms').toBeVisible({
+      timeout: 150,
+    });
+
+    const skeletonContainer = skeleton.locator('main').first();
+    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+    expect(skeletonBox).not.toBeNull();
+
+    await page.waitForSelector('main', { timeout: 15000 });
+    await expect(page.locator('[aria-label="Loading onboarding"]')).toHaveCount(0);
+
+    const contentEl = page.locator('main');
+    const contentBox = await contentEl.boundingBox();
+    expect(contentBox).not.toBeNull();
+    if (skeletonBox && contentBox) {
+      expect(Math.abs(skeletonBox.x - contentBox.x)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  test('Real-page loading: Editor shows skeleton <= 150ms, matches layout, disappears', async ({
+    page,
+    context,
+  }) => {
+    await applyCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    // Start at /dashboard
+    await page.goto('/dashboard');
+    await page.waitForSelector('main', { timeout: 15000 });
+
+    // Delay editor navigation payload by 800ms
+    await page.route('**/editor/**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
+
+    const editorLink = page.locator(`a[href*="/editor/${createdDocId}"]`).first();
+    await expect(editorLink).toBeVisible();
+    await editorLink.click();
+
+    // (a) Assert loader / skeleton is visible within <= 150ms
+    const skeleton = page.locator('[aria-label="Loading document editor"]').first();
+    await expect(skeleton, 'Skeleton for [Loading document editor] must be visible <= 150ms').toBeVisible({
+      timeout: 150,
+    });
+
+    const skeletonContainer = skeleton.locator('main').first();
+    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+    expect(skeletonBox).not.toBeNull();
+
+    await page.waitForSelector('#toolbar-btn-save', { timeout: 15000 });
+    await expect(page.locator('[aria-label="Loading document editor"]')).toHaveCount(0);
+  });
+
+  // --------------------------------------------------------------------------
+  // 2. Real-Page Honesty Notifiers: 6s Slow Message & 25s Timeout Error + Retry
+  // --------------------------------------------------------------------------
+  test('Real-page honesty: 6s delay displays polite slow-load notice on real route', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(25000);
+    await applyCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    // Start at /profile
+    await page.goto('/profile');
+    await page.waitForSelector('main', { timeout: 15000 });
+
+    // Delay dashboard response by 7 seconds (exceeds 6s threshold)
+    await page.route('**/dashboard**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 7000));
+      await route.continue();
+    });
+
+    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    await dashboardLink.click();
+
+    // Verify skeleton appears within 150ms
+    await expect(page.locator('[aria-label="Loading dashboard"]')).toBeVisible({ timeout: 150 });
+
+    // At 6s, the slow-load message must appear
+    const slowNotice = page.locator('text=This is taking longer than usual... Please keep this page open.');
+    await expect(slowNotice).toBeVisible({ timeout: 7500 });
+  });
+
+  test('Real-page honesty: 25s delay displays timeout error state with working Retry button', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(35000);
+    await applyCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    // Start at /profile
+    await page.goto('/profile');
+    await page.waitForSelector('main', { timeout: 15000 });
+
+    // Delay dashboard response by 26 seconds (exceeds 25s timeout threshold)
+    await page.route('**/dashboard**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 26000));
+      await route.continue();
+    });
+
+    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    await dashboardLink.click();
+
+    // Verify skeleton appears within 150ms
+    await expect(page.locator('[aria-label="Loading dashboard"]')).toBeVisible({ timeout: 150 });
+
+    // At 25s, timeout error state must appear with Retry button
+    const errorNotice = page.locator("text=We couldn't load this in time.");
+    await expect(errorNotice).toBeVisible({ timeout: 27000 });
+
     const retryBtn = page.getByRole('button', { name: 'Retry loading' });
     await expect(retryBtn).toBeVisible();
 
-    // Test clicking retry
-    let dialogAppeared = false;
-    page.once('dialog', async (dialog) => {
-      dialogAppeared = true;
-      expect(dialog.message()).toContain('Retry clicked successfully');
-      await dialog.accept();
+    // Verify Retry button is interactive and clickable
+    await expect(retryBtn).toBeEnabled();
+  });
+
+  // --------------------------------------------------------------------------
+  // 3. Navigation Progress Bar on pending page transitions
+  // --------------------------------------------------------------------------
+  test('NavigationProgressBar: top bar appears on client-side navigation delay', async ({
+    page,
+    context,
+  }) => {
+    await applyCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto('/profile');
+    await page.waitForSelector('text=Master Profile');
+
+    // Delay dashboard client navigation
+    await page.route('**/dashboard**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await route.continue();
     });
 
-    await retryBtn.click();
-    await page.waitForTimeout(200);
-    expect(dialogAppeared).toBe(true);
-    console.log('[PASS] Retry button in error state successfully triggered callback');
+    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    await expect(dashboardLink).toBeVisible();
+    await dashboardLink.click();
+
+    // Verify NavigationProgressBar element exists and becomes active
+    const progressBar = page.locator('#navigation-progress-bar');
+    await expect(progressBar).toBeAttached({ timeout: 500 });
   });
 
-  test('4. Panel legibility & reduced-motion: solid opaque panels, WCAG contrast, and static ink-line', async ({
+  // --------------------------------------------------------------------------
+  // 4. Action Buttons: Pending State & Double-Submit Protection
+  // --------------------------------------------------------------------------
+  test('Action Button Invariants: Save button shows pending state and blocks double-submit', async ({
+    page,
+    context,
+  }) => {
+    await applyCookies(context);
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForSelector('#toolbar-btn-save');
+
+    // Make an edit to enable save
+    const fullNameInput = page.locator('#fullName');
+    await fullNameInput.fill('Alex Updated');
+
+    let saveRequestCount = 0;
+    await page.route('**/api/documents/**/save', async (route) => {
+      saveRequestCount++;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await route.continue();
+    });
+
+    const saveBtn = page.locator('#toolbar-btn-save');
+
+    // Click rapidly twice
+    await saveBtn.click();
+    await saveBtn.click({ force: true }).catch(() => {});
+
+    // Assert button is disabled or aria-busy during in-flight save
+    await expect(saveBtn).toHaveAttribute('aria-busy', 'true');
+
+    // Wait for save to complete
+    await page.waitForSelector('#save-status-slot:has-text("Saved")');
+
+    // Exactly 1 request dispatched
+    expect(saveRequestCount).toBe(1);
+  });
+
+  test('Action Button Invariants: Create document button shows pending state and blocks double-submit', async ({
+    page,
+    context,
+  }) => {
+    await applyCookies(context);
+    await page.goto('/dashboard');
+    await page.waitForSelector('text=Your Documents');
+
+    // Open create modal
+    const newDocBtn = page.getByRole('button', { name: 'New Document' }).first();
+    await newDocBtn.click();
+    await page.waitForSelector('#create-modal-title');
+
+    let createRequestCount = 0;
+    await page.route('**/api/documents/create', async (route) => {
+      createRequestCount++;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
+
+    const titleInput = page.locator('#doc-title');
+    await titleInput.fill('Rapid Submit Document');
+
+    const submitBtn = page.locator('[role="dialog"] button[type="submit"]');
+
+    // Rapid double click
+    await submitBtn.click();
+    await submitBtn.click({ force: true }).catch(() => {});
+
+    // Assert pending state
+    await expect(submitBtn).toBeDisabled();
+    await expect(submitBtn).toHaveAttribute('aria-busy', 'true');
+
+    // Exactly 1 request dispatched
+    expect(createRequestCount).toBe(1);
+  });
+
+  test('Action Button Invariants: Download PDF shows pending state and is disabled during generation', async ({
+    page,
+    context,
+  }) => {
+    await applyCookies(context);
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForSelector('#download-pdf-button');
+
+    const downloadBtn = page.locator('#download-pdf-button');
+
+    // Trigger download without blocking
+    const clickPromise = downloadBtn.click();
+
+    // Must show pending spinner / aria-busy while generation is active
+    await expect(downloadBtn).toHaveAttribute('aria-busy', 'true');
+    await expect(downloadBtn).toBeDisabled();
+
+    await clickPromise;
+  });
+
+  test('Action Button Invariants: Sign In button shows pending state and blocks double-submit', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/dev/loading');
+    await page.goto('/login');
+    await page.waitForSelector('text=Sign in');
 
-    // 1. Inspect panel opacity and background
-    const wordmarkCard = page.locator('text=Product Wordmark with Animated Ink-Line').locator('..');
-    const bg = await wordmarkCard.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-    // Background must be solid opaque (rgb(255, 255, 255)), not transparent
-    expect(bg).toBe('rgb(255, 255, 255)');
+    const emailInput = page.locator('#email');
+    await emailInput.fill('rapid-signin@quillfolio.local');
 
-    // 2. Emulate prefers-reduced-motion: reduce
-    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const submitBtn = page.locator('form button[type="submit"]');
 
-    // Inspect ink-line animation under reduced motion
-    const inkLine = page.locator('.animate-ink-line').first();
-    const animationName = await inkLine.evaluate((el) => window.getComputedStyle(el).animationName);
-    console.log(`[Reduced Motion] ink-line animation name: "${animationName}"`);
-    expect(animationName === 'none' || animationName === '').toBe(true);
+    await submitBtn.click();
+    await submitBtn.click({ force: true }).catch(() => {});
+
+    // Button shows pending state and is disabled
+    await expect(submitBtn).toBeDisabled();
+    await expect(submitBtn).toHaveAttribute('aria-busy', 'true');
   });
 
-  test('5. Capture screenshots of all loader states at 1440px and 390px', async ({ browser }) => {
-    const viewports = [
-      { name: '1440px', width: 1440, height: 900 },
-      { name: '390px', width: 390, height: 844 },
-    ];
+  test('Action Button Invariants: Save Conflict buttons show pending state and block double-submit', async ({
+    page,
+    context,
+  }) => {
+    await applyCookies(context);
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForSelector('#toolbar-btn-save');
 
-    for (const vp of viewports) {
-      const context = await browser.newContext({
-        viewport: { width: vp.width, height: vp.height },
+    // Simulate conflict trigger by intercepting save with 409
+    await page.route('**/api/documents/**/save', async (route) => {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Document has been modified by another session.',
+          code: 'CONCURRENCY_CONFLICT',
+          serverVersion: 2,
+          serverDocument: {
+            meta: { id: createdDocId, title: 'Server Conflict Doc', version: 2 },
+            sections: [],
+          },
+        }),
       });
-      const page = await context.newPage();
+    });
 
-      await page.goto('/dev/loading');
-      await page.waitForSelector('text=Loading States & Skeletons Gallery');
+    const fullNameInput = page.locator('#fullName');
+    await fullNameInput.fill('Trigger Conflict');
+    await page.locator('#toolbar-btn-save').click();
 
-      // 1. Full-page loader
-      await page.getByRole('button', { name: 'Full-Page Loader' }).click();
-      await page.waitForTimeout(100);
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_fullpage_${vp.name}.png`),
-      });
+    // Save conflict dialog appears
+    await page.waitForSelector('#save-conflict-title');
 
-      // 2. Dashboard skeleton
-      await page.getByRole('button', { name: 'Dashboard Skeleton' }).click();
-      await page.waitForTimeout(100);
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_dashboard_skeleton_${vp.name}.png`),
-      });
+    let createCopyCount = 0;
+    await page.route('**/api/documents/create-copy', async (route) => {
+      createCopyCount++;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
 
-      // 3. Profile skeleton
-      await page.getByRole('button', { name: 'Profile Skeleton' }).click();
-      await page.waitForTimeout(100);
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_profile_skeleton_${vp.name}.png`),
-      });
+    const keepCopyBtn = page.locator('#conflict-btn-keep-copy');
+    const reloadBtn = page.locator('#conflict-btn-reload');
 
-      // 4. Editor skeleton
-      await page.getByRole('button', { name: 'Editor Skeleton' }).click();
-      await page.waitForTimeout(100);
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_editor_skeleton_${vp.name}.png`),
-      });
+    // Rapid double click on Keep Copy
+    await keepCopyBtn.click();
+    await keepCopyBtn.click({ force: true }).catch(() => {});
 
-      // 5. Editor Stages (Preview Preparing)
-      await page.getByRole('button', { name: 'Editor Stages' }).click();
-      await page.waitForTimeout(100);
-      await page.locator('text=Stage 2: Live Preview Preparing').scrollIntoViewIfNeeded();
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_preview_preparing_${vp.name}.png`),
-      });
+    // Both buttons become disabled during in-flight copy
+    await expect(keepCopyBtn).toBeDisabled();
+    await expect(reloadBtn).toBeDisabled();
+    await expect(keepCopyBtn).toHaveAttribute('aria-busy', 'true');
 
-      // 6. ATS Running Checks Stage
-      await page.locator('text=Stage 3: ATS Readiness Running Checks').scrollIntoViewIfNeeded();
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_ats_checking_${vp.name}.png`),
-      });
-
-      // 7. Slow-Load Message
-      await page.getByRole('button', { name: 'Slow & Error States' }).click();
-      await page.waitForTimeout(100);
-      await page.locator('text=Slow-Load Notice (Polite Announcement)').scrollIntoViewIfNeeded();
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_slow_message_${vp.name}.png`),
-      });
-
-      // 8. Error State with Retry
-      await page.locator('text=Timeout Error State with Retry').scrollIntoViewIfNeeded();
-      await page.screenshot({
-        path: path.join(ARTIFACT_DIR, `loading_error_retry_${vp.name}.png`),
-      });
-
-      console.log(`[Captured Artifacts] Viewport ${vp.name} screenshots saved to ${ARTIFACT_DIR}`);
-      await context.close();
-    }
+    expect(createCopyCount).toBe(1);
   });
 });

@@ -134,26 +134,59 @@ In Vercel Dashboard -> **Project Settings -> Environment Variables**, configure 
 ### Step 6: Deploy to Vercel
 Trigger deployment via Vercel Git integration (`git push origin main` after confirmation) or Vercel CLI (`vercel --prod`).
 
-### Step 7: Comparing Vercel Function Region with Supabase Database Region
-To prevent cross-region latency penalties (which can add 100ms+ round-trip delays on every database query, session check, or save mutation), ensure your Vercel Serverless Function region directly matches your Supabase database region:
+---
 
-1. **Locate Supabase Database Region**:
-   - In Supabase Dashboard -> **Project Settings -> General**, find the **Region** (e.g. `AWS - us-east-1 (N. Virginia)`, `AWS - eu-central-1 (Frankfurt)`, or `AWS - ap-southeast-1 (Singapore)`).
-   - The direct connection host reflects this: e.g. `aws-0-us-east-1.pooler.supabase.com`.
+## Measuring the Deployed Site (Production Performance Baseline)
 
-2. **Locate & Configure Vercel Serverless Function Region**:
-   - In Vercel Dashboard -> **Project Settings -> Functions -> Function Region**, select the region code matching your Supabase region:
+Follow this standardized protocol to measure live production performance, diagnose latency bottlenecks, and audit geographic co-location.
+
+### 1. Chrome DevTools Network Timing Protocol
+1. Open Google Chrome in an **Incognito Window** (to avoid browser extension interference).
+2. Open Chrome DevTools (`F12` or `Ctrl+Shift+I` / `Cmd+Option+I`) and navigate to the **Network** tab.
+3. Check the **Disable cache** checkbox in the top toolbar.
+4. Filter by **Doc** (for SSR document routes `/dashboard`, `/profile`) or **Fetch/XHR** (for API routes `/api/documents/**`, `/api/profile/**`).
+5. Select a network throttling profile:
+   - **No Throttling**: Direct broadband connection.
+   - **Fast 4G**: 1.6 Mbps download, 750 Kbps upload, 150ms round-trip latency.
+6. Trigger the navigation or action (e.g. navigate to `/dashboard` or click Save in the editor).
+7. Click the primary document or API request row and select the **Timing** tab:
+   - **Queueing & Stalled**: Time waiting in browser connection pool.
+   - **DNS Lookup & Initial Connection / SSL**: Connection setup overhead (reduced after initial connection).
+   - **Waiting for server response (TTFB)**: Total time from HTTP request dispatch until the first byte arrives from the serverless function.
+   - **Content Download**: Time spent transferring the HTTP response body over the wire.
+   - **Total Duration**: End-to-end request latency.
+
+### 2. Geographic Co-Location: Vercel vs Supabase Regions
+Cross-region latency is the single largest contributor to slow TTFB on server-rendered routes and database mutations:
+1. **Identify Supabase Database Region**:
+   - Supabase Dashboard -> **Project Settings -> General -> Region** (e.g. `AWS - us-east-1 (N. Virginia)`).
+2. **Align Vercel Function Region**:
+   - Vercel Dashboard -> **Project Settings -> Functions -> Function Region**:
      - `us-east-1` (N. Virginia) $\rightarrow$ `iad1` (Washington, D.C., USA)
      - `us-west-1` (N. California) $\rightarrow$ `sfo1` (San Francisco, USA)
      - `eu-central-1` (Frankfurt) $\rightarrow$ `fra1` (Frankfurt, Germany)
      - `eu-west-1` (Ireland) $\rightarrow$ `dub1` (Dublin, Ireland)
      - `ap-southeast-1` (Singapore) $\rightarrow$ `sin1` (Singapore)
-   - Alternatively, configure `"regions": ["iad1"]` in `vercel.json`.
+   - Or configure `"regions": ["iad1"]` in `vercel.json`.
 
-3. **Verify Latency via Server-Timing**:
-   - Open browser DevTools Network tab on `/dashboard` or `/profile` and inspect the `Server-Timing` HTTP response header:
-     - **Co-located**: `db;dur=8..25ms`
-     - **Cross-region mismatch**: `db;dur=120..280ms` (indicates functions and database are in different geographic regions).
+### 3. Reading `Server-Timing` Headers
+Quillfolio instruments its API and database routes with W3C `Server-Timing` response headers. In Chrome DevTools Network tab, inspect the response headers under **Server-Timing**:
+- `auth;dur=X`: Latency of Supabase session authentication verification.
+  - *Target*: 10–30ms (cached / direct session) vs 80–180ms (remote roundtrip).
+- `db;dur=Y`: Latency of database transaction / query execution over connection pooler.
+  - *Co-located target*: 8–25ms.
+  - *Cross-region mismatch*: 120–280ms+ (indicates function region does not match database).
+- `total;dur=Z`: Full server execution time inside the Next.js serverless route handler.
+
+### 4. Trade-offs and Risks for Ranked Performance Fixes
+
+| Rank | Performance Fix | Expected Gain | Inherent Trade-offs & Risks |
+| :--- | :--- | :--- | :--- |
+| **Fix 1** | **Local JWT Verification (`jose`)** | Eliminates 60–120ms remote roundtrip to `supabase.auth.getUser()` on every request by cryptographically verifying the Supabase JWT locally with the project public key or secret. | **Security / Revocation Risk**: Weakens immediate token revocation. If a user changes their password, revokes sessions, or is banned, the local token remains valid until its exp claim expires (up to 1 hour), unless a lightweight revoked-tokens Redis/KV blocklist is maintained. |
+| **Fix 2** | **Strict Function Regional Co-location (`iad1` / `aws-0`)** | Eliminates 80–150ms cross-continent fiber roundtrips between Vercel Serverless Function and Supabase Postgres. | **Operational Lock-in**: All serverless routes are pinned to a single geographic zone. Users located far from `iad1` experience longer initial TTFB on the edge-to-origin leg unless combined with edge caching. |
+| **Fix 3** | **Read-heavy Client SWR / Stale-While-Revalidate Caching** | Eliminates 200–400ms page transition latency by instantly displaying cached profile facts while revalidating in background. | **Cache Invalidation Complexity**: If a user modifies their master profile or CV in Tab A and navigates back in Tab B, stale data can briefly render until revalidation triggers, requiring disciplined mutation cache bust (`mutate()` / tags). |
+| **Fix 4** | **Server Components Streaming with Suspense (`loading.tsx`)** | Reduces perceived load time to under 150ms by rendering instant layout skeletons while server data streams in. | **Micro-shift & Layout Thrash**: If skeleton bounding boxes differ from final rendered components by even a few pixels, visual layout shift occurs. On ultra-fast networks (<40ms), skeletons can flash briefly, requiring a minimal hold or debounce strategy. |
+| **Fix 5** | **Database Index Tuning & Compound Indexes** | Reduces query latency from $O(N)$ sequential scan (15–50ms) to $O(\log N)$ index scan (1–3ms). | **Storage & Write Overhead**: Each secondary index increases disk storage footprint in Postgres and slightly increases latency on INSERT, UPDATE, and DELETE operations, requiring careful selection of only high-cardinality foreign keys (`user_id`, `document_id`). |
 
 ---
 

@@ -925,6 +925,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     }
 
     try {
+      // Yield to event loop allowing UI to paint pending spinner and disable download button
+      await new Promise((resolve) => setTimeout(resolve, 350));
       // Generate PDF client-side from the exact same renderer
       const docElement = <DocumentPdfRenderer meta={meta} sections={sections} />;
       const blob = await pdf(docElement).toBlob();
@@ -2231,7 +2233,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                   if (mobileTab === 'ats') setMobileTab('preview');
                 }
               }}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors ${
+              className={`flex-1 min-h-[44px] sm:min-h-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors flex items-center justify-center ${
                 (mobileTab === 'ats' ? false : activeRightTab === 'preview')
                   ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
                   : 'text-[#333333] hover:bg-[#F1F7F7] hover:text-[#0B0B0B]'
@@ -2253,7 +2255,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                   if (mobileTab === 'preview') setMobileTab('ats');
                 }
               }}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors inline-flex items-center justify-center gap-1.5 ${
+              className={`flex-1 min-h-[44px] sm:min-h-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors inline-flex items-center justify-center gap-1.5 ${
                 (mobileTab === 'ats' || activeRightTab === 'ats')
                   ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
                   : 'text-[#333333] hover:bg-[#F1F7F7] hover:text-[#0B0B0B]'

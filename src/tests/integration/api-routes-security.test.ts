@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import dotenv from 'dotenv';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { assertTestProjectRefAllowed } from '../../lib/test-utils/production-guard';
+import { db } from '../../lib/db';
+import { documents, documentSections } from '../../lib/db/schema';
+import { eq, inArray, count } from 'drizzle-orm';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
@@ -273,7 +277,7 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     expect(data.error).toContain('Validation error');
   });
 
-  it('14. POST /api/documents/create-copy creates independent document without touching original', async () => {
+  it('14. POST /api/documents/create-copy creates independent document with new section IDs, untouched original, and enforced ownership', async () => {
     const copyRes = await fetch(`${BASE_URL}/api/documents/create-copy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: userACookies },
@@ -284,6 +288,7 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
         accentColor: '#800021',
         sections: [
           {
+            id: 'legacy-frontend-sec-id-1',
             sectionType: 'header',
             title: 'Contact Details',
             orderIndex: 0,
@@ -299,6 +304,7 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
             },
           },
           {
+            id: 'legacy-frontend-sec-id-2',
             sectionType: 'summary',
             title: 'Executive Summary',
             orderIndex: 1,
@@ -337,5 +343,137 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     expect(newDoc.meta.version).toBe(1);
     expect(newDoc.meta.title).toBe('User A Recovered Copy');
     expect(newDoc.sections.length).toBe(2);
+
+    // 1. Verify cloned sections get brand new IDs (not legacy IDs from payload)
+    expect(newDoc.sections[0].id).not.toBe('legacy-frontend-sec-id-1');
+    expect(newDoc.sections[1].id).not.toBe('legacy-frontend-sec-id-2');
+
+    // 2. Verify ownership is strictly enforced: User B cannot access User A's new copy (404)
+    const unauthorizedAccessRes = await fetch(`${BASE_URL}/api/documents/${copyData.documentId}`, {
+      headers: { Cookie: userBCookies },
+    });
+    expect(unauthorizedAccessRes.status).toBe(404);
+  });
+
+  it('15. POST /api/documents/create-copy when user reaches 20-document cap returns 400 with friendly message', async () => {
+    // Determine how many documents user A currently has
+    const { count: currentCount } = await db
+      .select({ count: count() })
+      .from(documents)
+      .where(eq(documents.userId, userAId))
+      .then((rows) => ({ count: Number(rows[0]?.count || 0) }));
+
+    // Insert dummy documents until user A reaches 20
+    const dummyIds: string[] = [];
+    const needed = Math.max(0, 20 - currentCount);
+    for (let i = 0; i < needed; i++) {
+      const dummyId = randomUUID();
+      dummyIds.push(dummyId);
+      await db.insert(documents).values({
+        id: dummyId,
+        userId: userAId,
+        title: `Dummy Cap Document ${i + 1}`,
+        type: 'resume',
+        templateId: 'ats_single_column',
+        accentColor: '#0B0B0B',
+        version: 1,
+      });
+    }
+
+    try {
+      // Attempt create-copy when cap of 20 is met
+      const capRes = await fetch(`${BASE_URL}/api/documents/create-copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: userACookies },
+        body: JSON.stringify({
+          title: '21st Document Copy',
+          type: 'resume',
+          sections: [
+            {
+              sectionType: 'header',
+              title: 'Header',
+              content: {
+                fullName: 'Alex Example',
+                email: 'alex@example.com',
+                schema_version: '1.0.0',
+              },
+            },
+          ],
+        }),
+      });
+
+      expect(capRes.status).toBe(400);
+      const capData = await capRes.json();
+      expect(capData.code).toBe('DOCUMENT_LIMIT_REACHED');
+      expect(capData.error).toBe(
+        'You have reached the maximum limit of 20 documents. Please delete an older document to create a new one.'
+      );
+    } finally {
+      // Clean up the dummy documents
+      if (dummyIds.length > 0) {
+        await db.delete(documents).where(inArray(documents.id, dummyIds));
+      }
+    }
+  });
+
+  it("16. POST /api/documents/create-copy ignores another user's documentId/userId in payload and enforces caller ownership with new IDs", async () => {
+    // User B attempts to pass User A's documentId and userId in create-copy payload
+    const spoofAttemptRes = await fetch(`${BASE_URL}/api/documents/create-copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userBCookies },
+      body: JSON.stringify({
+        id: docAId,
+        documentId: docAId,
+        userId: userAId,
+        user_id: userAId,
+        title: 'User B Document Cloned from Foreign Context',
+        type: 'resume',
+        sections: [
+          {
+            id: 'injected-foreign-sec-id',
+            sectionType: 'header',
+            title: 'Injected Header',
+            content: {
+              fullName: 'User B Spoofed Name',
+              email: 'userb@example.com',
+              schema_version: '1.0.0',
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(spoofAttemptRes.status).toBe(200);
+    const spoofData = await spoofAttemptRes.json();
+    expect(spoofData.success).toBe(true);
+
+    // Document ID must NOT be User A's documentId
+    expect(spoofData.documentId).toBeTruthy();
+    expect(spoofData.documentId).not.toBe(docAId);
+
+    // Verify User A's original document is completely unaffected
+    const checkDocARes = await fetch(`${BASE_URL}/api/documents/${docAId}`, {
+      headers: { Cookie: userACookies },
+    });
+    expect(checkDocARes.status).toBe(200);
+    const docAContent = await checkDocARes.json();
+    expect(docAContent.meta.title).toBe('User A Confidential Resume');
+    expect(docAContent.meta.userId).toBe(userAId);
+
+    // Verify the newly created document is owned by User B (caller), NOT User A
+    const userBFetchRes = await fetch(`${BASE_URL}/api/documents/${spoofData.documentId}`, {
+      headers: { Cookie: userBCookies },
+    });
+    expect(userBFetchRes.status).toBe(200);
+    const userBDoc = await userBFetchRes.json();
+    expect(userBDoc.meta.userId).toBe(userBId);
+    expect(userBDoc.meta.title).toBe('User B Document Cloned from Foreign Context');
+
+    // Verify sections have new generated IDs and not the injected ID
+    expect(userBDoc.sections[0].id).not.toBe('injected-foreign-sec-id');
+
+    // Clean up created doc
+    await db.delete(documentSections).where(eq(documentSections.documentId, spoofData.documentId));
+    await db.delete(documents).where(eq(documents.id, spoofData.documentId));
   });
 });

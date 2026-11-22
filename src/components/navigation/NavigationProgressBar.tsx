@@ -15,31 +15,39 @@ import React, { useEffect, useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useLinkStatus } from 'next/link';
+import {
+  DashboardSkeleton,
+  ProfileSkeleton,
+  OnboardingSkeleton,
+  EditorSkeleton,
+  QuillfolioPageLoader,
+} from '@/components/ui/LoadingSystem';
 
 export function NavigationProgressBar() {
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [targetHref, setTargetHref] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Complete navigation when route changes
   useEffect(() => {
-    let doneTimer: NodeJS.Timeout | null = null;
-    const frameId = requestAnimationFrame(() => {
+    const frame = requestAnimationFrame(() => {
+      setIsNavigating(false);
+      setTargetHref(null);
       setProgress(100);
-      doneTimer = setTimeout(() => {
-        setIsNavigating(false);
-        setProgress(0);
-      }, 200);
     });
+    const doneTimer = setTimeout(() => {
+      setProgress(0);
+    }, 150);
 
     return () => {
-      cancelAnimationFrame(frameId);
-      if (doneTimer) clearTimeout(doneTimer);
+      cancelAnimationFrame(frame);
+      clearTimeout(doneTimer);
     };
   }, [pathname]);
 
-  // Intercept link clicks to show immediate progress feedback
+  // Intercept link clicks to show immediate progress feedback and instant skeleton
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement)?.closest('a');
@@ -68,8 +76,9 @@ export function NavigationProgressBar() {
       const currentUrl = window.location.pathname + window.location.search;
       if (href === currentUrl) return;
 
-      // Start progress bar animation
+      // Start progress bar animation and mount instant skeleton
       setIsNavigating(true);
+      setTargetHref(href);
       setProgress(25);
 
       if (timerRef.current) clearInterval(timerRef.current);
@@ -95,23 +104,41 @@ export function NavigationProgressBar() {
   if (!isNavigating && progress === 0) return null;
 
   return (
-    <div
-      id="navigation-progress-bar"
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={progress}
-      aria-label="Page navigation progress"
-      className="fixed top-0 left-0 right-0 h-[2.5px] z-[9999] pointer-events-none bg-transparent"
-    >
+    <>
       <div
-        className="h-full bg-[#800021] shadow-[0_0_8px_#800021] transition-all duration-200 ease-out motion-reduce:transition-none"
-        style={{
-          width: `${progress}%`,
-          opacity: progress === 100 ? 0 : 1,
-        }}
-      />
-    </div>
+        id="navigation-progress-bar"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        aria-label="Page navigation progress"
+        className="fixed top-0 left-0 right-0 h-[2.5px] z-[9999] pointer-events-none bg-transparent"
+      >
+        <div
+          className="h-full bg-[#800021] shadow-[0_0_8px_#800021] transition-all duration-200 ease-out motion-reduce:transition-none"
+          style={{
+            width: `${progress}%`,
+            opacity: progress === 100 ? 0 : 1,
+          }}
+        />
+      </div>
+
+      {isNavigating && targetHref && (
+        <div className="fixed inset-0 z-40 bg-[#FFFFFF] overflow-y-auto animate-in fade-in duration-100">
+          {targetHref.startsWith('/dashboard') ? (
+            <DashboardSkeleton />
+          ) : targetHref.startsWith('/profile') ? (
+            <ProfileSkeleton />
+          ) : targetHref.startsWith('/onboarding') ? (
+            <OnboardingSkeleton />
+          ) : targetHref.startsWith('/editor') ? (
+            <EditorSkeleton />
+          ) : (
+            <QuillfolioPageLoader message="Loading Quillfolio..." />
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

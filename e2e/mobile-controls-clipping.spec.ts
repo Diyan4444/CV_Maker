@@ -97,7 +97,7 @@ test.describe.serial('Bug 2: Mobile Controls Clipping & Touch Targets', () => {
         is_visible: true,
         content: {
           schema_version: '1.0.0',
-          text: 'Expert in fault-tolerant distributed consensus algorithms.',
+          text: 'Expert in fault-tolerant distributed consensus algorithms and high-scale architecture.',
         },
       },
       {
@@ -110,19 +110,21 @@ test.describe.serial('Bug 2: Mobile Controls Clipping & Touch Targets', () => {
           schema_version: '1.0.0',
           entries: [
             {
-              id: 'a1111111-1111-4111-8111-111111111111',
+              id: 'exp-entry-1',
               type: 'work',
               role: 'Staff Infrastructure Engineer',
               organization: 'Global Systems LLC',
+              location: 'San Francisco, CA',
               startDate: '2021-01',
               endDate: 'Present',
               bullets: ['Architected low-latency message streaming layer.'],
             },
             {
-              id: 'a2222222-2222-4222-8222-222222222222',
+              id: 'exp-entry-2',
               type: 'work',
               role: 'Senior Cloud Engineer',
               organization: 'Distributed Labs',
+              location: 'New York, NY',
               startDate: '2018-05',
               endDate: '2020-12',
               bullets: ['Optimized Raft consensus throughput across edge regions.'],
@@ -132,17 +134,194 @@ test.describe.serial('Bug 2: Mobile Controls Clipping & Touch Targets', () => {
       },
       {
         document_id: docId,
-        section_type: 'skills',
-        title: 'Skills',
+        section_type: 'education',
+        title: 'Education',
         order_index: 3,
         is_visible: true,
         content: {
           schema_version: '1.0.0',
           entries: [
             {
-              id: 'c1111111-1111-4111-8111-111111111111',
-              category: 'Core Technologies',
+              id: 'edu-entry-1',
+              institution: 'Massachusetts Institute of Technology',
+              degree: 'M.S. in Computer Science',
+              fieldOfStudy: 'Distributed Systems',
+              location: 'Cambridge, MA',
+              startDate: '2016-09',
+              endDate: '2018-05',
+              bullets: ['Thesis on Byzantine fault tolerance in federated networks.'],
+            },
+            {
+              id: 'edu-entry-2',
+              institution: 'Stanford University',
+              degree: 'B.S. in Electrical Engineering & Computer Science',
+              fieldOfStudy: 'Computer Systems',
+              location: 'Stanford, CA',
+              startDate: '2012-09',
+              endDate: '2016-06',
+              bullets: ['Graduated with departmental honors.'],
+            },
+          ],
+        },
+      },
+      {
+        document_id: docId,
+        section_type: 'projects',
+        title: 'Projects',
+        order_index: 4,
+        is_visible: true,
+        content: {
+          schema_version: '1.0.0',
+          entries: [
+            {
+              id: 'proj-entry-1',
+              title: 'VectorFlow Distributed Graph Engine',
+              role: 'Lead Architect',
+              startDate: '2022-01',
+              endDate: '2022-11',
+              url: 'https://github.com/example/vectorflow',
+              bullets: ['High-throughput vector search over sharded memory indices.'],
+            },
+            {
+              id: 'proj-entry-2',
+              title: 'MeshLock Distributed Mutex Provider',
+              role: 'Creator & Maintainer',
+              startDate: '2020-03',
+              endDate: '2021-02',
+              url: 'https://github.com/example/meshlock',
+              bullets: ['Lease-based lock provider with strict linearizability guarantees.'],
+            },
+          ],
+        },
+      },
+      {
+        document_id: docId,
+        section_type: 'skills',
+        title: 'Skills & Competencies',
+        order_index: 5,
+        is_visible: true,
+        content: {
+          schema_version: '1.0.0',
+          entries: [
+            {
+              id: 'skill-entry-1',
+              category: 'Core Systems & Languages',
               items: [{ name: 'Rust' }, { name: 'Go' }, { name: 'TypeScript' }],
+            },
+            {
+              id: 'skill-entry-2',
+              category: 'Distributed Databases & Cloud',
+              items: [{ name: 'PostgreSQL' }, { name: 'Raft' }, { name: 'Docker' }],
+            },
+          ],
+        },
+      },
+      {
+        document_id: docId,
+        section_type: 'publications',
+        title: 'Publications',
+        order_index: 6,
+        is_visible: true,
+        content: {
+          schema_version: '1.0.0',
+          entries: [
+            {
+              id: 'pub-entry-1',
+              title: 'Formal Verification of Non-Volatile Multi-Paxos with Bounded Replay',
+              authors: ['Alex Example', 'Jordan Vance'],
+              venue: 'Proceedings of ACM SOSP 2023',
+              publicationDate: '2023-10',
+              doiOrUrl: 'https://doi.org/10.1145/3600006.3613145',
+            },
+            {
+              id: 'pub-entry-2',
+              title: 'Zero-Copy Interconnects for Disaggregated Microservices',
+              authors: ['Alex Example', 'Taylor Morgan'],
+              venue: 'USENIX NSDI 2022',
+              publicationDate: '2022-04',
+              doiOrUrl: 'https://doi.org/10.5555/3548606.3548624',
+            },
+          ],
+        },
+      },
+      {
+        document_id: docId,
+        section_type: 'achievements',
+        title: 'Honors & Achievements',
+        order_index: 7,
+        is_visible: true,
+        content: {
+          schema_version: '1.0.0',
+          entries: [
+            {
+              id: 'ach-entry-1',
+              title: 'Best Paper Award (SOSP 2023)',
+              issuer: 'ACM Special Interest Group on Operating Systems',
+              date: '2023-10',
+              description: 'Awarded for breakthrough formal proof in distributed consensus log recovery.',
+            },
+            {
+              id: 'ach-entry-2',
+              title: 'Google Ph.D. Fellowship in Distributed Systems',
+              issuer: 'Google Research',
+              date: '2021-05',
+              description: 'Recognized for pioneering scalable replication algorithms.',
+            },
+          ],
+        },
+      },
+      {
+        document_id: docId,
+        section_type: 'certifications',
+        title: 'Certifications',
+        order_index: 8,
+        is_visible: true,
+        content: {
+          schema_version: '1.0.0',
+          entries: [
+            {
+              id: 'cert-entry-1',
+              name: 'Google Cloud Professional Cloud Architect',
+              issuingOrg: 'Google Cloud',
+              issuer: 'Google Cloud',
+              issueDate: '2022-03',
+              credentialUrl: 'https://cloud.google.com/certification',
+            },
+            {
+              id: 'cert-entry-2',
+              name: 'Certified Kubernetes Administrator (CKA)',
+              issuingOrg: 'Cloud Native Computing Foundation',
+              issuer: 'Cloud Native Computing Foundation',
+              issueDate: '2021-08',
+              credentialUrl: 'https://www.cncf.io/certification/cka/',
+            },
+          ],
+        },
+      },
+      {
+        document_id: docId,
+        section_type: 'custom',
+        title: 'Grants & Fellowships',
+        order_index: 9,
+        is_visible: true,
+        content: {
+          schema_version: '1.0.0',
+          entries: [
+            {
+              id: 'custom-entry-1',
+              title: 'NSF Postdoctoral Research Grant ($200,000)',
+              subtitle: 'National Science Foundation #2308912',
+              date: '2023',
+              description: 'Principal Investigator researching verified Paxos state transitions.',
+              bullets: ['Multi-year federal research grant support.'],
+            },
+            {
+              id: 'custom-entry-2',
+              title: 'Open Source Systems Research Fellowship',
+              subtitle: 'Open Source Security Foundation',
+              date: '2022',
+              description: 'Supported hardening of core Linux network driver stacks.',
+              bullets: ['Delivered zero-cost memory safety bindings.'],
             },
           ],
         },
@@ -271,7 +450,7 @@ test.describe.serial('Bug 2: Mobile Controls Clipping & Touch Targets', () => {
   };
 
   for (const width of [320, 360, 390, 1440]) {
-    test(`Viewport ${width}px: no controls clipped and touch targets compliant`, async ({
+    test(`Viewport ${width}px: all 10 section headers, entry rows, toolbar, and ATS panel compliant`, async ({
       page,
       context,
     }) => {
@@ -280,15 +459,81 @@ test.describe.serial('Bug 2: Mobile Controls Clipping & Touch Targets', () => {
       await page.goto(`/editor/${docId}`);
       await page.waitForSelector('#toolbar-btn-save');
 
-      // Expand Experience section so entries are visible
-      const expSection = page.locator('[data-section-type="experience"]');
-      await expect(expSection).toBeVisible();
+      // 1. Verify Top Toolbar
+      const saveBtn = page.locator('#toolbar-btn-save');
+      await expect(saveBtn).toBeVisible();
+      const exportBtn = page.locator('#download-pdf-button');
+      await expect(exportBtn).toBeVisible();
 
-      const violations = await checkClippingAndTouchTargets(page, width);
+      // 2. Verify all 10 section headers exist and are visible
+      const allSectionTypes = [
+        'header',
+        'summary',
+        'experience',
+        'education',
+        'projects',
+        'skills',
+        'publications',
+        'achievements',
+        'certifications',
+        'custom',
+      ];
+
+      for (const st of allSectionTypes) {
+        const secEl = page.locator(`[data-section-type="${st}"]`);
+        await expect(secEl, `Section header for [${st}] should be rendered`).toBeVisible();
+      }
+
+      // 3. Verify entry rows in all entry-bearing sections
+      const entrySectionTypes = [
+        'experience',
+        'education',
+        'projects',
+        'skills',
+        'publications',
+        'achievements',
+        'certifications',
+        'custom',
+      ];
+
+      for (const st of entrySectionTypes) {
+        const secEl = page.locator(`[data-section-type="${st}"]`);
+        await secEl.scrollIntoViewIfNeeded();
+        // Check for presence of entry controls (buttons with aria-label containing entry or category)
+        const entryControls = secEl.locator('button[aria-label*="Entry"], button[aria-label*="entry"], input');
+        const count = await entryControls.count();
+        expect(count, `Section [${st}] must contain interactive entry controls`).toBeGreaterThanOrEqual(1);
+      }
+
+      // 4. Run clipping & touch targets audit on Editor view
+      const editorViolations = await checkClippingAndTouchTargets(page, width);
       expect(
-        violations,
-        `Violations found at ${width}px:\n${violations.map((v: any) => `${v.label} (${v.selector}): ${v.reason}`).join('\n')}`
+        editorViolations,
+        `Editor violations found at ${width}px:\n${editorViolations.map((v: any) => `${v.label} (${v.selector}): ${v.reason}`).join('\n')}`
       ).toHaveLength(0);
+
+      // 5. Verify ATS Panel
+      if (width < 640) {
+        const atsTabBtn = page.locator('#mobile-ats-tab-btn');
+        if (await atsTabBtn.isVisible()) {
+          await atsTabBtn.click();
+          await page.waitForSelector('#ats-readiness-panel', { timeout: 10000 });
+          const atsViolations = await checkClippingAndTouchTargets(page, width);
+          expect(
+            atsViolations,
+            `ATS panel violations at ${width}px:\n${atsViolations.map((v: any) => `${v.label} (${v.selector}): ${v.reason}`).join('\n')}`
+          ).toHaveLength(0);
+        }
+      } else {
+        const atsPanel = page.locator('#ats-readiness-panel');
+        if (await atsPanel.isVisible()) {
+          const atsViolations = await checkClippingAndTouchTargets(page, width);
+          expect(
+            atsViolations,
+            `Desktop ATS panel violations at ${width}px:\n${atsViolations.map((v: any) => `${v.label} (${v.selector}): ${v.reason}`).join('\n')}`
+          ).toHaveLength(0);
+        }
+      }
     });
   }
 

@@ -200,6 +200,51 @@ export function QuillfolioPageLoader({
    Layout Skeletons (Matching exact final layouts to eliminate layout shift)
    ========================================================================== */
 
+/** Honesty Notifier: displays a 6-second slow-load message and a 25-second timeout error with working retry */
+export function HonestyNotifier() {
+  const [isSlow, setIsSlow] = useState(false);
+  const [isTimedOut, setIsTimedOut] = useState(false);
+
+  useEffect(() => {
+    const slowTimer = setTimeout(() => setIsSlow(true), 6000);
+    const timeoutTimer = setTimeout(() => setIsTimedOut(true), 25000);
+    return () => {
+      clearTimeout(slowTimer);
+      clearTimeout(timeoutTimer);
+    };
+  }, []);
+
+  if (isTimedOut) {
+    return (
+      <div
+        role="alert"
+        aria-live="assertive"
+        className="fixed inset-0 z-50 bg-[#0B0B0B]/40 backdrop-blur-xs flex items-center justify-center p-4"
+      >
+        <TimeoutErrorState
+          onRetry={() => {
+            if (typeof window !== 'undefined') window.location.reload();
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (isSlow) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300"
+      >
+        <SlowLoadNotice />
+      </div>
+    );
+  }
+
+  return null;
+}
+
 /** Common Skeleton Pulse Block with solid opaque contrast */
 export function SkeletonBlock({
   className = '',
@@ -225,6 +270,7 @@ export function DashboardSkeleton() {
       aria-label="Loading dashboard"
       className="min-h-screen flex flex-col p-4 sm:p-8"
     >
+      <HonestyNotifier />
       {/* AppHeader Skeleton */}
       <div className="max-w-6xl mx-auto w-full mb-6">
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 shadow-sm flex items-center justify-between">
@@ -322,6 +368,7 @@ export function ProfileSkeleton() {
       aria-label="Loading profile"
       className="min-h-screen flex flex-col p-4 sm:p-8"
     >
+      <HonestyNotifier />
       {/* AppHeader Skeleton */}
       <div className="max-w-6xl mx-auto w-full mb-6">
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 shadow-sm flex items-center justify-between">
@@ -334,7 +381,7 @@ export function ProfileSkeleton() {
         </div>
       </div>
 
-      <main className="flex-1 max-w-6xl mx-auto w-full space-y-6">
+      <main className="flex-1 max-w-5xl mx-auto w-full space-y-6">
         {/* Top Save Bar Skeleton */}
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
@@ -402,6 +449,7 @@ export function EditorSkeleton() {
       aria-label="Loading document editor"
       className="min-h-screen flex flex-col bg-[#F7F7F8]"
     >
+      <HonestyNotifier />
       {/* Top Toolbar Skeleton */}
       <div className="sticky top-0 z-30 bg-[#FFFFFF] border-b border-[#6B6B6B] px-4 py-2.5 shadow-xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
@@ -490,7 +538,8 @@ export function OnboardingSkeleton() {
       aria-label="Loading onboarding"
       className="min-h-screen flex flex-col p-4 sm:p-8"
     >
-      <div className="max-w-3xl mx-auto w-full space-y-6">
+      <HonestyNotifier />
+      <main className="max-w-2xl mx-auto w-full space-y-6">
         {/* Header Skeleton */}
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-4 shadow-sm flex items-center justify-between">
           <SkeletonBlock className="h-7 w-32" />
@@ -524,7 +573,7 @@ export function OnboardingSkeleton() {
             <SkeletonBlock className="h-10 w-32 rounded-lg" />
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
