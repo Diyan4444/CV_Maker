@@ -20,15 +20,15 @@ import {
   ProfileSkeleton,
   OnboardingSkeleton,
   EditorSkeleton,
-  QuillfolioPageLoader,
 } from '@/components/ui/LoadingSystem';
 
 export function NavigationProgressBar() {
   const pathname = usePathname();
+  const [progress, setProgress] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [targetHref, setTargetHref] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const safetyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Complete navigation when route changes
   useEffect(() => {
@@ -36,7 +36,9 @@ export function NavigationProgressBar() {
       setIsNavigating(false);
       setTargetHref(null);
       setProgress(100);
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     });
+
     const doneTimer = setTimeout(() => {
       setProgress(0);
     }, 150);
@@ -64,6 +66,7 @@ export function NavigationProgressBar() {
         href.startsWith('mailto:') ||
         href.startsWith('tel:') ||
         target.target === '_blank' ||
+        target.hasAttribute('download') ||
         e.ctrlKey ||
         e.metaKey ||
         e.shiftKey ||
@@ -76,10 +79,26 @@ export function NavigationProgressBar() {
       const currentUrl = window.location.pathname + window.location.search;
       if (href === currentUrl) return;
 
-      // Start progress bar animation and mount instant skeleton
-      setIsNavigating(true);
-      setTargetHref(href);
+      // Start progress bar animation
       setProgress(25);
+
+      // Only mount instant skeleton for core app routes
+      if (
+        href.startsWith('/dashboard') ||
+        href.startsWith('/profile') ||
+        href.startsWith('/onboarding') ||
+        href.startsWith('/editor')
+      ) {
+        setIsNavigating(true);
+        setTargetHref(href);
+
+        // Auto-dismiss skeleton after 30s safety window
+        if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+        safetyTimerRef.current = setTimeout(() => {
+          setIsNavigating(false);
+          setTargetHref(null);
+        }, 30000);
+      }
 
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
@@ -98,10 +117,11 @@ export function NavigationProgressBar() {
     return () => {
       document.removeEventListener('click', handleDocumentClick, { capture: true });
       if (timerRef.current) clearInterval(timerRef.current);
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     };
   }, []);
 
-  if (!isNavigating && progress === 0) return null;
+  if (progress === 0 && !isNavigating) return null;
 
   return (
     <>
@@ -133,9 +153,7 @@ export function NavigationProgressBar() {
             <OnboardingSkeleton />
           ) : targetHref.startsWith('/editor') ? (
             <EditorSkeleton />
-          ) : (
-            <QuillfolioPageLoader message="Loading Quillfolio..." />
-          )}
+          ) : null}
         </div>
       )}
     </>

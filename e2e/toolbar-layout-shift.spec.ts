@@ -166,6 +166,25 @@ test.describe.serial('Editor Toolbar Layout Shift, Undo/Redo & Autosave Tests', 
   });
 
   test.beforeEach(async ({ page }) => {
+    if (adminClient && testEmail) {
+      const ssrClient = createServerClient(supabaseUrl!, anonKey!, {
+        cookies: {
+          getAll() {
+            return Object.entries(capturedCookies).map(([name, value]) => ({ name, value }));
+          },
+          setAll(toSet) {
+            toSet.forEach((c) => {
+              capturedCookies[c.name] = c.value;
+            });
+          },
+        },
+      });
+      await ssrClient.auth.signInWithPassword({
+        email: testEmail,
+        password: testPassword,
+      });
+    }
+
     if (Object.keys(capturedCookies).length > 0) {
       await page.context().addCookies(
         Object.entries(capturedCookies).map(([name, value]) => ({

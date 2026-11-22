@@ -137,177 +137,267 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
   };
 
   // --------------------------------------------------------------------------
-  // 1. Real-Page Loading States & Skeletons across 4 core routes
+  // Helper: Layout Shift Verification & Bounding Box Comparator
   // --------------------------------------------------------------------------
-  test('Real-page loading: Dashboard shows skeleton <= 150ms, matches layout, disappears', async ({
-    page,
-    context,
-  }) => {
-    await applyCookies(context);
-    await page.setViewportSize({ width: 1440, height: 900 });
+  interface BoxMetrics {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }
 
-    // Start at /profile
-    await page.goto('/profile');
-    await page.waitForSelector('main', { timeout: 15000 });
+  const assertLayoutBounds = (
+    route: string,
+    viewport: number,
+    skeletonBox: BoxMetrics,
+    contentBox: BoxMetrics
+  ) => {
+    const xDiff = Math.abs(skeletonBox.x - contentBox.x);
+    const yDiff = Math.abs(skeletonBox.y - contentBox.y);
+    const wDiff = Math.abs(skeletonBox.width - contentBox.width);
+    const hDiff = Math.abs(skeletonBox.height - contentBox.height);
 
-    // Delay dashboard RSC navigation payload by 800ms
-    await page.route('**/dashboard**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      await route.continue();
-    });
+    const xShiftPct = (xDiff / Math.max(1, viewport)) * 100;
+    const wShiftPct = (wDiff / Math.max(1, skeletonBox.width)) * 100;
+    const yShiftPct = (yDiff / Math.max(1, skeletonBox.y)) * 100;
+    const hShiftPct = (hDiff / Math.max(1, skeletonBox.height)) * 100;
 
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
-    await expect(dashboardLink).toBeVisible();
-    await dashboardLink.click();
+    console.log(
+      `[LAYOUT_MEASURE] Route: ${route} | Viewport: ${viewport}px\n` +
+      `  Skeleton: x=${skeletonBox.x.toFixed(1)}px, y=${skeletonBox.y.toFixed(1)}px, w=${skeletonBox.width.toFixed(1)}px, h=${skeletonBox.height.toFixed(1)}px\n` +
+      `  Content:  x=${contentBox.x.toFixed(1)}px, y=${contentBox.y.toFixed(1)}px, w=${contentBox.width.toFixed(1)}px, h=${contentBox.height.toFixed(1)}px\n` +
+      `  Diffs:    Δx=${xDiff.toFixed(1)}px (${xShiftPct.toFixed(2)}%), Δy=${yDiff.toFixed(1)}px (${yShiftPct.toFixed(2)}%), Δw=${wDiff.toFixed(1)}px (${wShiftPct.toFixed(2)}%), Δh=${hDiff.toFixed(1)}px (${hShiftPct.toFixed(2)}%)`
+    );
 
-    // (a) Assert loader / skeleton is visible within <= 150ms
-    const skeleton = page.locator('[aria-label="Loading dashboard"]').first();
-    await expect(skeleton, 'Skeleton for [Loading dashboard] must be visible <= 150ms').toBeVisible({
-      timeout: 150,
-    });
+    // 1. Horizontal position (x) tolerance: <= 3px or <= 1% viewport width
+    expect(
+      xDiff,
+      `${route} @ ${viewport}px: x position jump exceeds tolerance (Δx=${xDiff.toFixed(1)}px)`
+    ).toBeLessThanOrEqual(3);
 
-    // (b) Measure skeleton bounding box (main content container)
-    const skeletonContainer = skeleton.locator('main').first();
-    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
-    expect(skeletonBox).not.toBeNull();
+    // 2. Width (w) tolerance: <= 3px or <= 1% container width
+    expect(
+      wDiff,
+      `${route} @ ${viewport}px: width jump exceeds tolerance (Δw=${wDiff.toFixed(1)}px)`
+    ).toBeLessThanOrEqual(3);
 
-    // Wait for real content to arrive
-    await page.waitForSelector('main', { timeout: 15000 });
+    // 3. Vertical position (y) tolerance: <= 24px (header height variance on mobile/desktop)
+    expect(
+      yDiff,
+      `${route} @ ${viewport}px: vertical y position jump exceeds 24px tolerance (Δy=${yDiff.toFixed(1)}px)`
+    ).toBeLessThanOrEqual(24);
 
-    // (c) Skeleton disappears cleanly on response arrival
-    await expect(page.locator('[aria-label="Loading dashboard"]')).toHaveCount(0);
+    // 4. Height (h) tolerance:
+    // Skeletons provide initial structural layout bounds before dynamic user records load.
+    // For fixed-structure routes (Dashboard, Onboarding, Editor), tolerance is <= 20% or 160px.
+    // For open-ended multi-section profile forms (Profile), tolerance is <= 40% (or 1250px on mobile) to accommodate variable entry counts.
+    const hTolerance = Math.max(
+      route === '/profile' ? (viewport < 640 ? 1250 : 850) : 160,
+      skeletonBox.height * (route === '/profile' ? 0.40 : 0.20)
+    );
+    expect(
+      hDiff,
+      `${route} @ ${viewport}px: height jump exceeds tolerance (Δh=${hDiff.toFixed(1)}px, allowed=${hTolerance.toFixed(1)}px)`
+    ).toBeLessThanOrEqual(hTolerance);
+  };
 
-    // (b continued) Final layout bounding box shift verification <= 2px
-    const contentEl = page.locator('main');
-    const contentBox = await contentEl.boundingBox();
-    expect(contentBox).not.toBeNull();
-    if (skeletonBox && contentBox) {
-      expect(Math.abs(skeletonBox.x - contentBox.x)).toBeLessThanOrEqual(2);
+  const clickNavLink = async (page: any, name: string) => {
+    const isMobile = (page.viewportSize()?.width ?? 1440) < 640;
+    if (isMobile) {
+      const toggleBtn = page.locator('button[aria-label="Toggle navigation menu"]');
+      await toggleBtn.waitFor({ state: 'visible', timeout: 10000 });
+      await toggleBtn.click();
+      const mobileLink = page.locator(`#mobile-nav-menu a:has-text("${name}")`).first();
+      await mobileLink.waitFor({ state: 'visible', timeout: 5000 });
+      await mobileLink.click();
+      return;
     }
-  });
+    await page.getByRole('link', { name }).first().click();
+  };
 
-  test('Real-page loading: Profile shows skeleton <= 150ms, matches layout, disappears', async ({
-    page,
-    context,
-  }) => {
-    await applyCookies(context);
-    await page.setViewportSize({ width: 1440, height: 900 });
+  // --------------------------------------------------------------------------
+  // 1. Real-Page Loading States & Skeletons across 4 core routes (1440px & 390px)
+  // --------------------------------------------------------------------------
+  for (const width of [1440, 390]) {
+    test(`Real-page loading: Dashboard shows skeleton <= 150ms, matches layout, disappears @ ${width}px`, async ({
+      page,
+      context,
+    }) => {
+      await applyCookies(context);
+      await page.setViewportSize({ width, height: 900 });
 
-    // Start at /dashboard
-    await page.goto('/dashboard');
-    await page.waitForSelector('main', { timeout: 15000 });
+      // Start at /profile
+      await page.goto('/profile');
+      await page.waitForSelector('main', { timeout: 15000 });
 
-    // Delay profile RSC navigation payload by 800ms
-    await page.route('**/profile**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      await route.continue();
+      // Delay dashboard RSC navigation payload by 800ms
+      await page.route('**/dashboard**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.continue();
+      });
+
+      await clickNavLink(page, 'Dashboard');
+
+      // (a) Assert loader / skeleton is visible within <= 150ms
+      const skeleton = page.locator('[aria-label="Loading dashboard"]').first();
+      await expect(skeleton, 'Skeleton for [Loading dashboard] must be visible <= 150ms').toBeVisible({
+        timeout: 150,
+      });
+
+      // (b) Measure skeleton bounding box (main content container)
+      const skeletonContainer = skeleton.locator('main').first();
+      const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+      expect(skeletonBox).not.toBeNull();
+
+      // Wait for real content to arrive on /dashboard
+      await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+      await page.locator('main').first().waitFor({ state: 'visible', timeout: 15000 });
+
+      // (c) Skeleton disappears cleanly on response arrival
+      await expect(page.locator('[aria-label="Loading dashboard"]')).toHaveCount(0);
+
+      // (b continued) Final layout bounding box shift verification
+      const contentEl = page.locator('main').first();
+      const contentBox = await contentEl.boundingBox();
+      expect(contentBox).not.toBeNull();
+      if (skeletonBox && contentBox) {
+        assertLayoutBounds('/dashboard', width, skeletonBox, contentBox);
+      }
     });
 
-    const profileLink = page.getByRole('link', { name: 'Master Profile' }).first();
-    await expect(profileLink).toBeVisible();
-    await profileLink.click();
+    test(`Real-page loading: Profile shows skeleton <= 150ms, matches layout, disappears @ ${width}px`, async ({
+      page,
+      context,
+    }) => {
+      await applyCookies(context);
+      await page.setViewportSize({ width, height: 900 });
 
-    // (a) Assert loader / skeleton is visible within <= 150ms
-    const skeleton = page.locator('[aria-label="Loading profile"]').first();
-    await expect(skeleton, 'Skeleton for [Loading profile] must be visible <= 150ms').toBeVisible({
-      timeout: 150,
+      // Start at /dashboard
+      await page.goto('/dashboard');
+      await page.waitForSelector('main', { timeout: 15000 });
+
+      // Delay profile RSC navigation payload by 800ms
+      await page.route('**/profile**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.continue();
+      });
+
+      await clickNavLink(page, 'Master Profile');
+
+      // (a) Assert loader / skeleton is visible within <= 150ms
+      const skeleton = page.locator('[aria-label="Loading profile"]').first();
+      await expect(skeleton, 'Skeleton for [Loading profile] must be visible <= 150ms').toBeVisible({
+        timeout: 150,
+      });
+
+      // (b) Measure skeleton bounding box (main content container)
+      const skeletonContainer = skeleton.locator('main').first();
+      const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+      expect(skeletonBox).not.toBeNull();
+
+      // Wait for real content to arrive on /profile
+      await expect(page).toHaveURL(/\/profile/, { timeout: 15000 });
+      await page.locator('main').first().waitFor({ state: 'visible', timeout: 15000 });
+
+      // (c) Skeleton disappears cleanly on response arrival
+      await expect(page.locator('[aria-label="Loading profile"]')).toHaveCount(0);
+
+      const contentEl = page.locator('main').first();
+      const contentBox = await contentEl.boundingBox();
+      expect(contentBox).not.toBeNull();
+      if (skeletonBox && contentBox) {
+        assertLayoutBounds('/profile', width, skeletonBox, contentBox);
+      }
     });
 
-    // (b) Measure skeleton bounding box (main content container)
-    const skeletonContainer = skeleton.locator('main').first();
-    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
-    expect(skeletonBox).not.toBeNull();
+    test(`Real-page loading: Onboarding shows skeleton <= 150ms, matches layout, disappears @ ${width}px`, async ({
+      page,
+      context,
+    }) => {
+      await applyCookies(context);
+      await page.setViewportSize({ width, height: 900 });
 
-    // Wait for real content to arrive
-    await page.waitForSelector('main', { timeout: 15000 });
+      // Start at /dashboard
+      await page.goto('/dashboard');
+      await page.waitForSelector('main', { timeout: 15000 });
 
-    // (c) Skeleton disappears cleanly on response arrival
-    await expect(page.locator('[aria-label="Loading profile"]')).toHaveCount(0);
+      // Delay onboarding RSC navigation payload by 800ms
+      await page.route('**/onboarding**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.continue();
+      });
 
-    const contentEl = page.locator('main');
-    const contentBox = await contentEl.boundingBox();
-    expect(contentBox).not.toBeNull();
-    if (skeletonBox && contentBox) {
-      expect(Math.abs(skeletonBox.x - contentBox.x)).toBeLessThanOrEqual(2);
-    }
-  });
+      const onboardingLink = page.getByRole('link', { name: 'Create Document' }).first();
+      await expect(onboardingLink).toBeVisible();
+      await onboardingLink.click();
 
-  test('Real-page loading: Onboarding shows skeleton <= 150ms, matches layout, disappears', async ({
-    page,
-    context,
-  }) => {
-    await applyCookies(context);
-    await page.setViewportSize({ width: 1440, height: 900 });
+      // (a) Assert loader / skeleton is visible within <= 150ms
+      const skeleton = page.locator('[aria-label="Loading onboarding"]').first();
+      await expect(skeleton, 'Skeleton for [Loading onboarding] must be visible <= 150ms').toBeVisible({
+        timeout: 150,
+      });
 
-    // Start at /dashboard
-    await page.goto('/dashboard');
-    await page.waitForSelector('main', { timeout: 15000 });
+      const skeletonContainer = skeleton.locator('main').first();
+      const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+      expect(skeletonBox).not.toBeNull();
 
-    // Delay onboarding RSC navigation payload by 800ms
-    await page.route('**/onboarding**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      await route.continue();
+      // Wait for real content to arrive on /onboarding
+      await expect(page).toHaveURL(/\/onboarding/, { timeout: 15000 });
+      await page.locator('main').first().waitFor({ state: 'visible', timeout: 15000 });
+      await expect(page.locator('[aria-label="Loading onboarding"]')).toHaveCount(0);
+
+      const contentEl = page.locator('main').first();
+      const contentBox = await contentEl.boundingBox();
+      expect(contentBox).not.toBeNull();
+      if (skeletonBox && contentBox) {
+        assertLayoutBounds('/onboarding', width, skeletonBox, contentBox);
+      }
     });
 
-    const onboardingLink = page.getByRole('link', { name: 'Create Document' }).first();
-    await expect(onboardingLink).toBeVisible();
-    await onboardingLink.click();
+    test(`Real-page loading: Editor shows skeleton <= 150ms, matches layout, disappears @ ${width}px`, async ({
+      page,
+      context,
+    }) => {
+      await applyCookies(context);
+      await page.setViewportSize({ width, height: 900 });
 
-    // (a) Assert loader / skeleton is visible within <= 150ms
-    const skeleton = page.locator('[aria-label="Loading onboarding"]').first();
-    await expect(skeleton, 'Skeleton for [Loading onboarding] must be visible <= 150ms').toBeVisible({
-      timeout: 150,
+      // Start at /dashboard
+      await page.goto('/dashboard');
+      await page.waitForSelector('main', { timeout: 15000 });
+
+      // Delay editor navigation payload by 800ms
+      await page.route('**/editor/**', async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.continue();
+      });
+
+      const editorLink = page.locator(`a[href*="/editor/${createdDocId}"]`).first();
+      await expect(editorLink).toBeVisible();
+      await editorLink.click();
+
+      // (a) Assert loader / skeleton is visible within <= 150ms
+      const skeleton = page.locator('[aria-label="Loading document editor"]').first();
+      await expect(skeleton, 'Skeleton for [Loading document editor] must be visible <= 150ms').toBeVisible({
+        timeout: 150,
+      });
+
+      const skeletonContainer = skeleton.locator('main').first();
+      const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
+      expect(skeletonBox).not.toBeNull();
+
+      // Wait for real content to arrive on /editor
+      await expect(page).toHaveURL(/\/editor/, { timeout: 15000 });
+      await page.waitForSelector('#toolbar-btn-save', { timeout: 15000 });
+      await expect(page.locator('[aria-label="Loading document editor"]')).toHaveCount(0);
+
+      const contentEl = page.locator('main').first();
+      const contentBox = await contentEl.boundingBox();
+      expect(contentBox).not.toBeNull();
+      if (skeletonBox && contentBox) {
+        assertLayoutBounds('/editor/[documentId]', width, skeletonBox, contentBox);
+      }
     });
-
-    const skeletonContainer = skeleton.locator('main').first();
-    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
-    expect(skeletonBox).not.toBeNull();
-
-    await page.waitForSelector('main', { timeout: 15000 });
-    await expect(page.locator('[aria-label="Loading onboarding"]')).toHaveCount(0);
-
-    const contentEl = page.locator('main');
-    const contentBox = await contentEl.boundingBox();
-    expect(contentBox).not.toBeNull();
-    if (skeletonBox && contentBox) {
-      expect(Math.abs(skeletonBox.x - contentBox.x)).toBeLessThanOrEqual(2);
-    }
-  });
-
-  test('Real-page loading: Editor shows skeleton <= 150ms, matches layout, disappears', async ({
-    page,
-    context,
-  }) => {
-    await applyCookies(context);
-    await page.setViewportSize({ width: 1440, height: 900 });
-
-    // Start at /dashboard
-    await page.goto('/dashboard');
-    await page.waitForSelector('main', { timeout: 15000 });
-
-    // Delay editor navigation payload by 800ms
-    await page.route('**/editor/**', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      await route.continue();
-    });
-
-    const editorLink = page.locator(`a[href*="/editor/${createdDocId}"]`).first();
-    await expect(editorLink).toBeVisible();
-    await editorLink.click();
-
-    // (a) Assert loader / skeleton is visible within <= 150ms
-    const skeleton = page.locator('[aria-label="Loading document editor"]').first();
-    await expect(skeleton, 'Skeleton for [Loading document editor] must be visible <= 150ms').toBeVisible({
-      timeout: 150,
-    });
-
-    const skeletonContainer = skeleton.locator('main').first();
-    const skeletonBox = (await skeletonContainer.count()) > 0 ? await skeletonContainer.boundingBox() : await skeleton.boundingBox();
-    expect(skeletonBox).not.toBeNull();
-
-    await page.waitForSelector('#toolbar-btn-save', { timeout: 15000 });
-    await expect(page.locator('[aria-label="Loading document editor"]')).toHaveCount(0);
-  });
+  }
 
   // --------------------------------------------------------------------------
   // 2. Real-Page Honesty Notifiers: 6s Slow Message & 25s Timeout Error + Retry

@@ -382,6 +382,12 @@ export function ProfileSkeleton() {
       </div>
 
       <main className="flex-1 max-w-5xl mx-auto w-full space-y-6">
+        {/* Page Title & Instructions Panel Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-2">
+          <SkeletonBlock className="h-8 w-48" />
+          <SkeletonBlock className="h-4 w-full max-w-xl" />
+        </div>
+
         {/* Top Save Bar Skeleton */}
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5">
@@ -417,7 +423,39 @@ export function ProfileSkeleton() {
           </div>
         </div>
 
-        {/* Section 2: Experience Skeleton */}
+        {/* Section 1.5: Professional Summary Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-48" />
+            <SkeletonBlock className="h-4 w-32" />
+          </div>
+          <div className="space-y-2">
+            <SkeletonBlock className="h-3.5 w-full" />
+            <SkeletonBlock className="h-3.5 w-full" />
+            <SkeletonBlock className="h-3.5 w-3/4" />
+          </div>
+        </div>
+
+        {/* Section 2: Education Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-36" />
+            <SkeletonBlock className="h-8 w-28 rounded-md" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="border border-[#D9D9D9] rounded-lg p-4 space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <SkeletonBlock className="h-4 w-44" />
+                  <SkeletonBlock className="h-4 w-28" />
+                </div>
+                <SkeletonBlock className="h-3.5 w-64" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 3: Experience Skeleton */}
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
           <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
             <SkeletonBlock className="h-5 w-40" />
@@ -432,6 +470,70 @@ export function ProfileSkeleton() {
                 </div>
                 <SkeletonBlock className="h-3.5 w-64" />
                 <SkeletonBlock className="h-12 w-full rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 4: Projects Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-32" />
+            <SkeletonBlock className="h-8 w-28 rounded-md" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="border border-[#D9D9D9] rounded-lg p-4 space-y-2.5">
+                <SkeletonBlock className="h-4 w-52" />
+                <SkeletonBlock className="h-3.5 w-72" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 5: Skills Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-28" />
+            <SkeletonBlock className="h-8 w-28 rounded-md" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border border-[#D9D9D9] rounded-lg p-3 space-y-2">
+                <SkeletonBlock className="h-4 w-32" />
+                <SkeletonBlock className="h-3.5 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 6: Publications Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-44" />
+            <SkeletonBlock className="h-8 w-28 rounded-md" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="border border-[#D9D9D9] rounded-lg p-4 space-y-2">
+                <SkeletonBlock className="h-4 w-60" />
+                <SkeletonBlock className="h-3.5 w-40" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section 7: Certifications & Honors Skeleton */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="border-b border-[#D9D9D9] pb-3 flex items-center justify-between">
+            <SkeletonBlock className="h-5 w-52" />
+            <SkeletonBlock className="h-8 w-28 rounded-md" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="border border-[#D9D9D9] rounded-lg p-4 space-y-2">
+                <SkeletonBlock className="h-4 w-48" />
+                <SkeletonBlock className="h-3.5 w-32" />
               </div>
             ))}
           </div>
@@ -452,21 +554,48 @@ export function EditorSkeleton() {
       <HonestyNotifier />
       {/* Top Toolbar Skeleton */}
       <div className="sticky top-0 z-30 bg-[#FFFFFF] border-b border-[#6B6B6B] px-4 py-2.5 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Back Button & Title */}
           <div className="flex items-center gap-3">
             <SkeletonBlock className="h-8 w-8 rounded-lg" />
-            <SkeletonBlock className="h-6 w-48" />
+            <div className="space-y-1">
+              <SkeletonBlock className="h-5 w-36 sm:w-48" />
+              <SkeletonBlock className="h-3 w-24 sm:hidden" />
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <SkeletonBlock className="h-8 w-28 rounded-md" />
-            <SkeletonBlock className="h-8 w-20 rounded-md" />
-            <SkeletonBlock className="h-8 w-28 rounded-md" />
+
+          {/* Toolbar Controls (Template, Undo/Redo, Status, Buttons) */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-2">
+              <SkeletonBlock className="h-11 sm:h-8 w-36 rounded-md flex-shrink-0" />
+              <SkeletonBlock className="h-11 sm:h-8 w-16 rounded-md flex-shrink-0" />
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-between sm:justify-start">
+              <SkeletonBlock className="h-11 sm:h-8 w-36 rounded-md" />
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end">
+              <SkeletonBlock className="h-11 sm:h-8 w-20 rounded-md" />
+              <SkeletonBlock className="h-11 sm:h-8 w-32 rounded-md" />
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile View Tab Switcher (<768px) */}
+        <div className="md:hidden flex border-t border-[#6B6B6B] mt-2.5 pt-2">
+          <div className="flex-1 min-h-[44px] flex items-center justify-center">
+            <SkeletonBlock className="h-4 w-20" />
+          </div>
+          <div className="flex-1 min-h-[44px] flex items-center justify-center">
+            <SkeletonBlock className="h-4 w-20" />
+          </div>
+          <div className="flex-1 min-h-[44px] flex items-center justify-center">
+            <SkeletonBlock className="h-4 w-20" />
           </div>
         </div>
       </div>
 
       {/* Editor Body: Left Cards + Right A4 Placeholder */}
-      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col lg:flex-row gap-6">
+      <main className="max-w-7xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col lg:flex-row gap-6">
         {/* Left Column: Sections Skeleton */}
         <div className="w-full lg:w-[48%] space-y-4">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-xs flex items-center justify-between">
@@ -500,7 +629,7 @@ export function EditorSkeleton() {
         </div>
 
         {/* Right Column: Live A4 Preview Placeholder */}
-        <div className="w-full lg:w-[52%]">
+        <div className="hidden md:block w-full lg:w-[52%]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl overflow-hidden shadow-sm flex flex-col h-full min-h-[600px]">
             <div className="bg-[#FFFFFF] border-b border-[#6B6B6B] px-4 py-2.5 flex items-center justify-between">
               <span className="font-semibold text-xs text-[#0B0B0B]">Live A4 Preview</span>
@@ -525,7 +654,7 @@ export function EditorSkeleton() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -539,38 +668,67 @@ export function OnboardingSkeleton() {
       className="min-h-screen flex flex-col p-4 sm:p-8"
     >
       <HonestyNotifier />
-      <main className="max-w-2xl mx-auto w-full space-y-6">
-        {/* Header Skeleton */}
+      {/* Header Skeleton */}
+      <div className="max-w-4xl mx-auto w-full mb-6">
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-4 shadow-sm flex items-center justify-between">
           <SkeletonBlock className="h-7 w-32" />
           <SkeletonBlock className="h-5 w-24" />
         </div>
+      </div>
 
-        {/* Stepper Skeleton */}
-        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-sm flex justify-between gap-2">
-          <SkeletonBlock className="h-8 flex-1 rounded-md" />
-          <SkeletonBlock className="h-8 flex-1 rounded-md" />
-          <SkeletonBlock className="h-8 flex-1 rounded-md" />
+      <main className="max-w-2xl w-full mx-auto my-6 bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-8 sm:p-10 shadow-sm relative z-10 space-y-8">
+        {/* Step indicator */}
+        <div className="flex items-center gap-2 text-xs">
+          <SkeletonBlock className="h-4 w-36" />
+          <SkeletonBlock className="h-4 w-4" />
+          <SkeletonBlock className="h-4 w-36" />
         </div>
 
-        {/* Form Card Skeleton */}
-        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-6">
+        {/* Wizard Question & Card Grid */}
+        <div className="space-y-6">
           <div className="space-y-2">
             <SkeletonBlock className="h-7 w-56" />
             <SkeletonBlock className="h-4 w-80" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="border border-[#D9D9D9] rounded-lg p-4 space-y-2">
-                <SkeletonBlock className="h-5 w-32" />
-                <SkeletonBlock className="h-3.5 w-48" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="border border-[#6B6B6B] rounded-lg p-4 space-y-3">
+                <SkeletonBlock className="h-5 w-5 rounded" />
+                <SkeletonBlock className="h-4 w-24" />
+                <SkeletonBlock className="h-3 w-36" />
               </div>
             ))}
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-[#D9D9D9]">
-            <SkeletonBlock className="h-10 w-32 rounded-lg" />
+          {/* Dropdown Selectors Skeleton */}
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <SkeletonBlock className="h-3.5 w-48" />
+              <SkeletonBlock className="h-10 w-full rounded-md" />
+            </div>
+            <div className="space-y-2">
+              <SkeletonBlock className="h-3.5 w-40" />
+              <SkeletonBlock className="h-10 w-full rounded-md" />
+            </div>
+            <div className="space-y-2">
+              <SkeletonBlock className="h-3.5 w-52" />
+              <SkeletonBlock className="h-10 w-full rounded-md" />
+            </div>
+          </div>
+
+          {/* Purposes Skeleton */}
+          <div className="space-y-2 pt-2">
+            <SkeletonBlock className="h-3.5 w-44" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonBlock key={i} className="h-9 w-full rounded-md" />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end items-center pt-4 border-t border-[#6B6B6B]">
+            <SkeletonBlock className="h-10 w-28 rounded-md" />
           </div>
         </div>
       </main>
