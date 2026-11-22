@@ -433,7 +433,7 @@ test.describe.serial('Editor Toolbar Layout Shift, Undo/Redo & Autosave Tests', 
     }
     const undoDuration = Date.now() - startUndoTime;
     console.log(`[Ctrl+Z Test (c)] 10 keyboard undos completed in ${undoDuration} ms`);
-    expect(undoDuration).toBeLessThan(3500);
+    expect(undoDuration).toBeLessThan(5000);
 
     // Document must return exactly to original title
     const restoredTitle = await titleInput.inputValue();

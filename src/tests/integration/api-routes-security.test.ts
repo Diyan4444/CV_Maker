@@ -237,4 +237,105 @@ describe.skipIf(!hasCredentials)('API Routes Security & Verification (Real HTTP 
     const data = await oversizedSaveRes.json();
     expect(data.error).toContain('exceeds the 64KB database limit');
   });
+
+  // Group 5: POST /api/documents/create-copy
+  it('12. POST /api/documents/create-copy without auth returns 401', async () => {
+    const res = await fetch(`${BASE_URL}/api/documents/create-copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Unauthorized Copy',
+        type: 'resume',
+        sections: [],
+      }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('13. POST /api/documents/create-copy with invalid section content returns 400', async () => {
+    const res = await fetch(`${BASE_URL}/api/documents/create-copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userACookies },
+      body: JSON.stringify({
+        title: 'Invalid Copy',
+        type: 'resume',
+        sections: [
+          {
+            sectionType: 'header',
+            title: 'Header',
+            content: { fullName: '' }, // empty full name fails min(1) validation
+          },
+        ],
+      }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('Validation error');
+  });
+
+  it('14. POST /api/documents/create-copy creates independent document without touching original', async () => {
+    const copyRes = await fetch(`${BASE_URL}/api/documents/create-copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: userACookies },
+      body: JSON.stringify({
+        title: 'User A Recovered Copy',
+        type: 'resume',
+        templateId: 'modern_professional',
+        accentColor: '#800021',
+        sections: [
+          {
+            sectionType: 'header',
+            title: 'Contact Details',
+            orderIndex: 0,
+            isVisible: true,
+            content: {
+              schema_version: '1.0.0',
+              fullName: 'Alex Example',
+              email: 'alex@example.com',
+              phone: '+1 555-0100',
+              city: 'Metropolis',
+              country: 'United States',
+              headline: 'Principal Systems Architect',
+            },
+          },
+          {
+            sectionType: 'summary',
+            title: 'Executive Summary',
+            orderIndex: 1,
+            isVisible: true,
+            content: {
+              schema_version: '1.0.0',
+              text: 'Seasoned engineer specializing in distributed consensus and fault-tolerant cloud architecture.',
+            },
+          },
+        ],
+      }),
+    });
+
+    expect(copyRes.status).toBe(200);
+    const copyData = await copyRes.json();
+    expect(copyData.success).toBe(true);
+    expect(copyData.documentId).toBeTruthy();
+    expect(copyData.documentId).not.toBe(docAId);
+
+    // Verify original docAId is still intact and unchanged
+    const originalDocRes = await fetch(`${BASE_URL}/api/documents/${docAId}`, {
+      headers: { Cookie: userACookies },
+    });
+    expect(originalDocRes.status).toBe(200);
+    const originalDoc = await originalDocRes.json();
+    expect(originalDoc.meta.id).toBe(docAId);
+    expect(originalDoc.meta.version).toBe(1);
+
+    // Verify new document exists and has version: 1
+    const newDocRes = await fetch(`${BASE_URL}/api/documents/${copyData.documentId}`, {
+      headers: { Cookie: userACookies },
+    });
+    expect(newDocRes.status).toBe(200);
+    const newDoc = await newDocRes.json();
+    expect(newDoc.meta.id).toBe(copyData.documentId);
+    expect(newDoc.meta.version).toBe(1);
+    expect(newDoc.meta.title).toBe('User A Recovered Copy');
+    expect(newDoc.sections.length).toBe(2);
+  });
 });

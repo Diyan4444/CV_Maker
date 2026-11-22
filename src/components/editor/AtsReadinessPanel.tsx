@@ -60,11 +60,11 @@ export function AtsReadinessPanel({
     >
       {/* Panel Header */}
       <div className="border-b border-[#6B6B6B] pb-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h3 className="font-display text-base font-bold text-[#0B0B0B]">
             {report.title}
           </h3>
-          <div className="flex items-center gap-2 text-xs font-semibold">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
             <span className="text-[#235347]">{report.summary.passCount} Passed</span>
             <span>&bull;</span>
             <span className="text-[#800021]">{report.summary.needsAttentionCount} Attention</span>
@@ -100,10 +100,11 @@ export function AtsReadinessPanel({
               <button
                 type="button"
                 onClick={() => onJumpToSection(check.sectionId, check.fieldId)}
-                className="self-start text-[11px] font-semibold text-[#800021] hover:underline inline-flex items-center gap-1 focus:outline-none focus:ring-1 focus:ring-[#800021] rounded"
+                aria-label={`Go to section for ${check.name}`}
+                className="self-start text-[11px] font-semibold text-[#800021] hover:underline inline-flex items-center gap-1.5 py-2 px-2.5 sm:py-0.5 sm:px-1 min-h-[44px] sm:min-h-0 focus:outline-none focus:ring-1 focus:ring-[#800021] rounded"
               >
                 Go to section
-                <ExternalLink className="w-2.5 h-2.5" />
+                <ExternalLink className="w-3.5 h-3.5 sm:w-2.5 sm:h-2.5" />
               </button>
             )}
           </div>

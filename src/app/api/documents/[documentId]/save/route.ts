@@ -34,7 +34,15 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     // 1. Validate section content payloads first (pure schema validation)
     for (const sec of body.sections || []) {
-      if (sec.sectionType === 'certifications' && sec.content && typeof sec.content === 'object') {
+      if (sec.sectionType === 'experience' && sec.content && typeof sec.content === 'object') {
+        const c = sec.content as Record<string, unknown>;
+        if (Array.isArray(c.entries)) {
+          c.entries = c.entries.map((entry: Record<string, unknown>) => ({
+            ...entry,
+            type: entry.type || 'work',
+          }));
+        }
+      } else if (sec.sectionType === 'certifications' && sec.content && typeof sec.content === 'object') {
         const c = sec.content as Record<string, unknown>;
         if (Array.isArray(c.entries)) {
           c.entries = c.entries.map((entry: Record<string, unknown>) => ({
@@ -95,8 +103,29 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
             'This document was modified in another session. Please choose whether to reload the server copy or keep your version.',
           serverVersion: currentDoc.version,
           serverDoc: {
-            meta: currentDoc,
-            sections: serverSections || [],
+            meta: {
+              id: currentDoc.id,
+              userId: currentDoc.user_id,
+              title: currentDoc.title,
+              type: currentDoc.type,
+              templateId: currentDoc.template_id || 'ats_single_column',
+              accentColor: currentDoc.accent_color || '#0B0B0B',
+              targetRole: currentDoc.target_role,
+              version: currentDoc.version,
+              createdAt: currentDoc.created_at,
+              updatedAt: currentDoc.updated_at,
+            },
+            sections: (serverSections || []).map((s) => ({
+              id: s.id,
+              documentId: s.document_id,
+              sectionType: s.section_type,
+              title: s.title,
+              orderIndex: s.order_index,
+              isVisible: s.is_visible,
+              content: s.content,
+              createdAt: s.created_at,
+              updatedAt: s.updated_at,
+            })),
           },
         },
         { status: 409 }

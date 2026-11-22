@@ -60,20 +60,53 @@ const ALLOWED_ACCENTS = [
   { hex: '#5D6B6B', label: 'Slate Mist' },
 ];
 
+function normalizeMeta(m: any): DocumentMeta {
+  if (!m) return {} as DocumentMeta;
+  return {
+    ...m,
+    id: m.id,
+    userId: m.userId || m.user_id,
+    title: m.title || '',
+    type: m.type || 'resume',
+    templateId: m.templateId || m.template_id || 'ats_single_column',
+    accentColor: m.accentColor || m.accent_color || '#0B0B0B',
+    targetRole: m.targetRole ?? m.target_role ?? null,
+    targetCompany: m.targetCompany ?? m.target_company ?? null,
+    version: Number(m.version) || 1,
+    schemaVersion: m.schemaVersion || m.schema_version || '1.0.0',
+    createdAt: m.createdAt || m.created_at,
+    updatedAt: m.updatedAt || m.updated_at,
+  };
+}
 
+function normalizeSections(secs: any[]): DocumentSection[] {
+  return (secs || []).map((s, idx) => ({
+    id: s.id,
+    documentId: s.documentId || s.document_id,
+    sectionType: s.sectionType || s.section_type,
+    title: s.title || '',
+    orderIndex: typeof s.orderIndex === 'number' ? s.orderIndex : (typeof s.order_index === 'number' ? s.order_index : idx),
+    isVisible: s.isVisible !== undefined ? Boolean(s.isVisible) : (s.is_visible !== undefined ? Boolean(s.is_visible) : true),
+    content: s.content,
+    createdAt: s.createdAt || s.created_at,
+    updatedAt: s.updatedAt || s.updated_at,
+  }));
+}
 
 export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   const router = useRouter();
 
   // Document state
-  const [meta, setMeta] = useState<DocumentMeta>(initialDocument.meta);
-  const [sections, setSections] = useState<DocumentSection[]>(initialDocument.sections);
+  const [meta, setMeta] = useState<DocumentMeta>(normalizeMeta(initialDocument.meta));
+  const [sections, setSections] = useState<DocumentSection[]>(normalizeSections(initialDocument.sections));
+  const [editorRevision, setEditorRevision] = useState<number>(0);
 
   // Mutable refs to track latest editor state across async network boundaries
-  const metaRef = useRef<DocumentMeta>(initialDocument.meta);
-  const sectionsRef = useRef<DocumentSection[]>(initialDocument.sections);
+  const metaRef = useRef<DocumentMeta>(meta);
+  const sectionsRef = useRef<DocumentSection[]>(sections);
   const isSavingRef = useRef<boolean>(false);
-  const handleSaveRef = useRef<((overrideMeta?: DocumentMeta, overrideSections?: DocumentSection[]) => Promise<void>) | null>(null);
+  const queuedSaveRef = useRef<boolean>(false);
+  const handleSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     metaRef.current = meta;
@@ -85,8 +118,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     meta: DocumentMeta;
     sections: DocumentSection[];
   }>({
-    meta: initialDocument.meta,
-    sections: initialDocument.sections,
+    meta: meta,
+    sections: sections,
   });
 
   // Debounced autosave coalescing timer
@@ -94,7 +127,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   // Undo / Redo history stack (up to 50 snapshots)
   const historyRef = useRef<Array<{ meta: DocumentMeta; sections: DocumentSection[] }>>([
-    { meta: initialDocument.meta, sections: initialDocument.sections },
+    { meta: meta, sections: sections },
   ]);
   const historyIndexRef = useRef<number>(0);
   const [canUndo, setCanUndo] = useState(false);
@@ -109,7 +142,137 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     serverVersion: number;
     serverDoc: { meta: DocumentMeta; sections: DocumentSection[] };
   } | null>(null);
+  const [isCreatingCopy, setIsCreatingCopy] = useState<boolean>(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [copySuccessToast, setCopySuccessToast] = useState<string | null>(null);
 
+  // Field validation errors & session expiration state
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Refs for conflict modal keyboard trapping
+  const conflictReloadBtnRef = useRef<HTMLButtonElement | null>(null);
+  const conflictKeepCopyBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (conflictData) {
+      setTimeout(() => {
+        conflictReloadBtnRef.current?.focus();
+      }, 50);
+    }
+  }, [conflictData]);
+
+  const handleConflictModalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.key === 'Tab') {
+      const focusables = [conflictReloadBtnRef.current, conflictKeepCopyBtnRef.current].filter(Boolean) as HTMLElement[];
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+  };
+
+  // Reload server copy handler
+  const handleConflictReload = useCallback(() => {
+    if (!conflictData) return;
+    const serverMeta = normalizeMeta(conflictData.serverDoc.meta);
+    const serverSections = normalizeSections(conflictData.serverDoc.sections);
+
+    metaRef.current = serverMeta;
+    sectionsRef.current = serverSections;
+    lastSavedSnapshotRef.current = {
+      meta: serverMeta,
+      sections: JSON.parse(JSON.stringify(serverSections)),
+    };
+
+    historyRef.current = [{ meta: serverMeta, sections: serverSections }];
+    historyIndexRef.current = 0;
+    setCanUndo(false);
+    setCanRedo(false);
+
+    try {
+      localStorage.removeItem(`cv_maker_draft_${serverMeta.id}`);
+    } catch {}
+
+    setMeta(serverMeta);
+    setSections(serverSections);
+    setEditorRevision((prev) => prev + 1);
+    setConflictData(null);
+    setSaveStatus('saved');
+    setSaveError(null);
+    setFieldErrors({});
+  }, [conflictData]);
+
+  // Keep my version as new copy handler
+  const handleConflictKeepCopy = useCallback(async () => {
+    setIsCreatingCopy(true);
+    setCopyError(null);
+
+    try {
+      const currentMeta = metaRef.current;
+      const currentSections = sectionsRef.current;
+
+      const res = await fetch('/api/documents/create-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: currentMeta.type,
+          templateId: currentMeta.templateId,
+          title: `${currentMeta.title} (Recovered Copy)`,
+          accentColor: currentMeta.accentColor,
+          targetRole: currentMeta.targetRole,
+          sections: currentSections.map((s, idx) => ({
+            id: s.id,
+            sectionType: s.sectionType,
+            title: s.title,
+            orderIndex: idx,
+            isVisible: s.isVisible,
+            content: s.content,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCopyError(data.error || 'Failed to create copy.');
+        setIsCreatingCopy(false);
+        return;
+      }
+
+      if (data.documentId) {
+        try {
+          localStorage.removeItem(`cv_maker_draft_${currentMeta.id}`);
+        } catch {}
+
+        setCopySuccessToast('Copy created successfully! Redirecting...');
+        setConflictData(null);
+        setIsCreatingCopy(false);
+        router.push(`/editor/${data.documentId}`);
+      } else {
+        setCopyError('Server did not return a valid document ID.');
+        setIsCreatingCopy(false);
+      }
+    } catch (err) {
+      setCopyError(err instanceof Error ? err.message : 'Network error creating copy.');
+      setIsCreatingCopy(false);
+    }
+  }, [router]);
   // Download PDF state
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -128,10 +291,6 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   const [draftPrompt, setDraftPrompt] = useState<{
     draft: { meta: DocumentMeta; sections: DocumentSection[] };
   } | null>(null);
-
-  // Field validation errors & session expiration state
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [sessionExpired, setSessionExpired] = useState(false);
 
   // Expose status setter for automated E2E layout tests in browser
   useEffect(() => {
@@ -166,7 +325,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   // Save document to server
   const handleSave = useCallback(
     async (overrideMeta?: DocumentMeta, overrideSections?: DocumentSection[]) => {
-      if (isSavingRef.current) return;
+      if (isSavingRef.current) {
+        queuedSaveRef.current = true;
+        return;
+      }
 
       const sentMeta = overrideMeta || metaRef.current;
       const sentSections = overrideSections || sectionsRef.current;
@@ -194,7 +356,18 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             },
             sections: sentSections.map((s, idx) => {
               let contentPayload: SectionContent = s.content;
-              if (s.sectionType === 'certifications' && contentPayload && typeof contentPayload === 'object') {
+              if (s.sectionType === 'experience' && contentPayload && typeof contentPayload === 'object') {
+                const c = contentPayload as unknown as Record<string, unknown>;
+                if (Array.isArray(c.entries)) {
+                  contentPayload = {
+                    ...c,
+                    entries: c.entries.map((entry: Record<string, unknown>) => ({
+                      ...entry,
+                      type: entry.type || 'work',
+                    })),
+                  } as unknown as SectionContent;
+                }
+              } else if (s.sectionType === 'certifications' && contentPayload && typeof contentPayload === 'object') {
                 const c = contentPayload as unknown as Record<string, unknown>;
                 if (Array.isArray(c.entries)) {
                   contentPayload = {
@@ -252,7 +425,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           setSaveStatus('conflict');
           setConflictData({
             serverVersion: resData.serverVersion,
-            serverDoc: resData.serverDoc,
+            serverDoc: {
+              meta: normalizeMeta(resData.serverDoc?.meta),
+              sections: normalizeSections(resData.serverDoc?.sections),
+            },
           });
           return;
         }
@@ -381,9 +557,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         }
       } finally {
         isSavingRef.current = false;
+        if (queuedSaveRef.current) {
+          queuedSaveRef.current = false;
+          handleSaveRef.current?.();
+        }
       }
     },
-    []
+    [setFieldErrors]
   );
 
   useEffect(() => {
@@ -429,7 +609,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       } else {
         setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
-          handleSave(newMeta, newSections);
+          handleSaveRef.current?.();
         }, 1500);
 
         // Sync to local draft
@@ -441,7 +621,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         } catch {}
       }
     },
-    [handleSave]
+    []
   );
 
   // Check for local draft on initial load
@@ -469,9 +649,14 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   const handleRestoreDraft = () => {
     if (draftPrompt) {
-      setMeta(draftPrompt.draft.meta);
+      const restoredMeta = {
+        ...draftPrompt.draft.meta,
+        version: metaRef.current.version,
+        updatedAt: metaRef.current.updatedAt,
+      };
+      setMeta(restoredMeta);
       setSections(draftPrompt.draft.sections);
-      pushHistory(draftPrompt.draft.meta, draftPrompt.draft.sections);
+      pushHistory(restoredMeta, draftPrompt.draft.sections);
       setDraftPrompt(null);
     }
   };
@@ -523,7 +708,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       } else {
         setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
-          handleSave(restoredMeta, snap.sections);
+          handleSaveRef.current?.();
         }, 1500);
 
         try {
@@ -534,7 +719,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         } catch {}
       }
     }
-  }, [handleSave]);
+  }, []);
 
   // Redo action
   const handleRedo = useCallback(() => {
@@ -576,7 +761,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       } else {
         setSaveStatus((prev) => (prev === 'error' ? 'error' : 'unsaved'));
         saveTimerRef.current = setTimeout(() => {
-          handleSave(restoredMeta, snap.sections);
+          handleSaveRef.current?.();
         }, 1500);
 
         try {
@@ -587,7 +772,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         } catch {}
       }
     }
-  }, [handleSave]);
+  }, []);
 
   // Autosave timer cleanup on unmount
   useEffect(() => {
@@ -800,19 +985,20 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         </div>
       )}
       {/* Top Application Bar */}
-      <header className="bg-[#FFFFFF] border-b border-[#6B6B6B] px-3 sm:px-4 py-2.5 shadow-xs sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 flex-nowrap overflow-x-auto">
-          {/* Back & Document Title */}
-          <div className="flex items-center gap-2 flex-shrink min-w-0">
+      <header className="bg-[#FFFFFF] border-b border-[#6B6B6B] px-3 sm:px-4 py-2 sm:py-2.5 shadow-xs sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-2">
+          {/* Back & Document Title (Row 1 on mobile) */}
+          <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
             <Link
               href="/dashboard"
-              className="p-1.5 rounded-md border border-[#6B6B6B] hover:bg-[#F1F7F7] text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
+              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-8 sm:h-8 p-2.5 sm:p-1.5 rounded-md border border-[#6B6B6B] hover:bg-[#F1F7F7] text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] flex items-center justify-center flex-shrink-0"
               title="Return to Dashboard"
+              aria-label="Return to Dashboard"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
 
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0 flex-1 sm:flex-initial">
               <div className="flex items-center gap-1.5">
                 <input
                   type="text"
@@ -823,7 +1009,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     setMeta(updated);
                     pushHistory(updated, sections);
                   }}
-                  className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-1.5 py-0.5 w-32 sm:w-44 lg:w-56 truncate transition-colors"
+                  className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-1.5 py-1 sm:py-0.5 w-full sm:w-44 lg:w-56 truncate transition-colors"
                   placeholder="Document Title"
                 />
                 <span className="hidden xl:inline text-[11px] text-[#333333] whitespace-nowrap">
@@ -845,19 +1031,20 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </div>
           </div>
 
-          {/* Template, Accents, Undo/Redo, Status, Actions (One row, flex-nowrap) */}
-          <div className="flex items-center gap-2 flex-shrink-0 flex-nowrap">
+          {/* Template, Accents, Undo/Redo, Status, Actions (Row 2 on mobile, wraps cleanly) */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {/* Template Selector */}
             <div className="flex items-center gap-1 text-xs font-semibold flex-shrink-0">
               <select
                 id="template-picker"
+                aria-label="Select Template"
                 value={meta.templateId}
                 onChange={(e) => {
                   const updated = { ...meta, templateId: e.target.value as TemplateId };
                   setMeta(updated);
                   pushHistory(updated, sections);
                 }}
-                className="px-2 py-1 h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs focus:border-[#800021] focus:ring-1 focus:ring-[#800021]"
+                className="px-2 py-1 min-h-[44px] sm:min-h-0 sm:h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs focus:border-[#800021] focus:ring-1 focus:ring-[#800021]"
               >
                 <option value="ats_single_column">ATS Single Column</option>
                 <option value="modern_professional">Modern Professional</option>
@@ -865,7 +1052,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               </select>
             </div>
 
-            {/* Accent Color Picker */}
+            {/* Accent Color Picker (desktop only) */}
             <div id="accent-color-picker" className="hidden sm:flex items-center gap-1 flex-shrink-0">
               {ALLOWED_ACCENTS.map((acc) => (
                 <button
@@ -876,6 +1063,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     setMeta(updated);
                     pushHistory(updated, sections);
                   }}
+                  aria-label={`Select accent color ${acc.label}`}
                   title={acc.label}
                   className={`w-4 h-4 rounded-full border transition-transform ${
                     (meta.accentColor || meta.accent_color || '#0B0B0B').toUpperCase() === acc.hex.toUpperCase()
@@ -888,37 +1076,37 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </div>
 
             {/* Undo / Redo */}
-            <div className="flex items-center border border-[#6B6B6B] rounded-md overflow-hidden bg-[#FFFFFF] flex-shrink-0 h-8">
+            <div className="flex items-center border border-[#6B6B6B] rounded-md overflow-hidden bg-[#FFFFFF] flex-shrink-0 min-h-[44px] sm:min-h-0 sm:h-8">
               <button
                 type="button"
                 id="toolbar-btn-undo"
                 onClick={handleUndo}
                 disabled={!canUndo}
                 aria-label="Undo"
-                className="p-1.5 w-7 h-8 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
+                className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-8 p-2 sm:p-1.5 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
                 title="Undo (Ctrl+Z)"
               >
-                <Undo2 className="w-3.5 h-3.5" />
+                <Undo2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </button>
-              <div className="w-[1px] h-4 bg-[#6B6B6B]" />
+              <div className="w-[1px] h-6 sm:h-4 bg-[#6B6B6B]" />
               <button
                 type="button"
                 id="toolbar-btn-redo"
                 onClick={handleRedo}
                 disabled={!canRedo}
                 aria-label="Redo"
-                className="p-1.5 w-7 h-8 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
+                className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-8 p-2 sm:p-1.5 flex items-center justify-center hover:bg-[#F1F7F7] disabled:opacity-30 text-[#0B0B0B] transition-colors"
                 title="Redo (Ctrl+Y)"
               >
-                <Redo2 className="w-3.5 h-3.5" />
+                <Redo2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </button>
             </div>
 
-            {/* Save Status Slot (Fixed-width slot: 145px, flex-shrink-0, h-8, no layout shift) */}
+            {/* Save Status Slot */}
             <div
               id="save-status-slot"
               aria-live="polite"
-              className="w-[145px] flex-shrink-0 h-8 inline-flex items-center gap-1.5 px-2 rounded-md bg-[#FFFFFF] border border-transparent text-xs font-semibold overflow-hidden whitespace-nowrap"
+              className="w-[145px] flex-shrink-0 min-h-[44px] sm:min-h-0 sm:h-8 inline-flex items-center gap-1.5 px-2 rounded-md bg-[#FFFFFF] border border-transparent text-xs font-semibold overflow-hidden whitespace-nowrap"
             >
               {saveStatus === 'saved' && (
                 <span className="text-emerald-700 flex items-center gap-1.5 truncate">
@@ -957,7 +1145,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     type="button"
                     id="toolbar-btn-retry"
                     onClick={() => handleSave()}
-                    className="ml-1 px-1.5 py-0.5 text-[10px] font-bold text-[#800021] bg-[#FFE4D8] hover:bg-[#FCD8C8] rounded border border-[#800021] transition-colors focus:outline-none focus:ring-1 focus:ring-[#800021] flex-shrink-0"
+                    aria-label="Retry Save"
+                    className="ml-1 px-1.5 py-0.5 h-6 text-[10px] font-bold text-[#800021] bg-[#FFE4D8] hover:bg-[#FCD8C8] rounded border border-[#800021] transition-colors focus:outline-none focus:ring-1 focus:ring-[#800021] flex-shrink-0 flex items-center justify-center"
                     title="Retry Save"
                   >
                     Retry
@@ -974,7 +1163,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     type="button"
                     id="toolbar-btn-retry"
                     onClick={() => handleSave()}
-                    className="ml-1 px-1.5 py-0.5 text-[10px] font-bold text-[#800021] bg-[#FFE4D8] hover:bg-[#FCD8C8] rounded border border-[#800021] transition-colors focus:outline-none focus:ring-1 focus:ring-[#800021] flex-shrink-0"
+                    aria-label="Retry Save"
+                    className="ml-1 px-1.5 py-0.5 h-6 text-[10px] font-bold text-[#800021] bg-[#FFE4D8] hover:bg-[#FCD8C8] rounded border border-[#800021] transition-colors focus:outline-none focus:ring-1 focus:ring-[#800021] flex-shrink-0 flex items-center justify-center"
                     title="Retry Save"
                   >
                     Retry
@@ -990,9 +1180,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 id="toolbar-btn-save"
                 onClick={() => handleSave()}
                 disabled={saveStatus === 'saving'}
-                className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
+                aria-label="Save"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-3 min-h-[44px] sm:min-h-0 sm:h-8 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
               >
-                <Save className="w-3.5 h-3.5 flex-shrink-0" /> <span>Save</span>
+                <Save className="w-4 h-4 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> <span>Save</span>
               </button>
 
               {/* Download PDF Button */}
@@ -1003,16 +1194,16 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 disabled={isDownloading}
                 aria-label="Download PDF"
                 aria-busy={isDownloading}
-                className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-3 min-h-[44px] sm:min-h-0 sm:h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
               >
                 {isDownloading ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#800021] flex-shrink-0" />
+                    <Loader2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin text-[#800021] flex-shrink-0" />
                     <span>Preparing...</span>
                   </>
                 ) : (
                   <>
-                    <Download className="w-3.5 h-3.5 text-[#800021] flex-shrink-0" />
+                    <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
                     <span>Download PDF</span>
                   </>
                 )}
@@ -1042,7 +1233,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           <button
             type="button"
             onClick={() => setMobileTab('edit')}
-            className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+            aria-label="Edit Sections Tab"
+            className={`flex-1 min-h-[44px] py-2 px-1 text-xs font-semibold text-center border-b-2 transition-colors flex items-center justify-center ${
               mobileTab === 'edit'
                 ? 'border-[#800021] text-[#800021]'
                 : 'border-transparent text-[#333333]'
@@ -1053,7 +1245,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           <button
             type="button"
             onClick={() => setMobileTab('preview')}
-            className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+            aria-label="Live A4 Preview Tab"
+            className={`flex-1 min-h-[44px] py-2 px-1 text-xs font-semibold text-center border-b-2 transition-colors flex items-center justify-center ${
               mobileTab === 'preview'
                 ? 'border-[#800021] text-[#800021]'
                 : 'border-transparent text-[#333333]'
@@ -1065,7 +1258,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             type="button"
             id="mobile-ats-tab-btn"
             onClick={() => setMobileTab('ats')}
-            className={`flex-1 py-1.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+            aria-label="ATS Readiness Tab"
+            className={`flex-1 min-h-[44px] py-2 px-1 text-xs font-semibold text-center border-b-2 transition-colors flex items-center justify-center ${
               mobileTab === 'ats'
                 ? 'border-[#800021] text-[#800021]'
                 : 'border-transparent text-[#333333]'
@@ -1080,12 +1274,13 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* Left Column: Sections & Entry Editing (7 cols on desktop) */}
         <div
+          key={`editor-revision-${editorRevision}`}
           className={`space-y-4 md:col-span-7 ${
             mobileTab === 'preview' ? 'hidden md:block' : 'block'
           }`}
         >
           {/* Master Profile Copy Meta Card */}
-          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-xs flex items-center justify-between text-xs">
+          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
               <span className="font-semibold text-[#0B0B0B]">
                 Independent Document Copy
@@ -1097,9 +1292,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             <button
               type="button"
               onClick={addCustomSection}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-xs font-medium text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
+              aria-label="Add Custom Section"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-0 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-xs font-medium text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0 self-start sm:self-auto"
             >
-              <Plus className="w-3.5 h-3.5" /> Add Custom Section
+              <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Add Custom Section
             </button>
           </div>
 
@@ -1134,68 +1330,69 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             >
               {/* Section Header Controls */}
               <div
-                className={`p-3.5 sm:px-5 border-b border-[#6B6B6B] flex items-center justify-between gap-3 ${
+                className={`p-3.5 sm:px-5 border-b border-[#6B6B6B] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 ${
                   sec.isVisible ? 'bg-[#FFFFFF]' : 'bg-[#F1F7F7]'
                 }`}
               >
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-xs font-mono font-bold text-[#333333] w-5">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-xs font-mono font-bold text-[#333333] w-5 flex-shrink-0">
                     {idx + 1}.
                   </span>
                   <input
                     type="text"
+                    aria-label={`Section Title for ${sec.title || sec.sectionType}`}
                     value={sec.title}
                     onChange={(e) =>
                       updateSection(sec.id, (s) => ({ ...s, title: e.target.value }))
                     }
-                    className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-2 py-0.5 flex-1 transition-colors"
+                    className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-2 py-1 sm:py-0.5 flex-1 min-w-0 transition-colors"
                   />
-                  <span className="text-[10px] uppercase font-semibold text-[#5D6B6B] px-1.5 py-0.5 rounded border border-[#6B6B6B]">
+                  <span className="text-[10px] uppercase font-semibold text-[#5D6B6B] px-1.5 py-0.5 rounded border border-[#6B6B6B] flex-shrink-0">
                     {sec.sectionType}
                   </span>
                   {!sec.isVisible && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#800021] bg-[#FFE4D8] border border-[#800021]/30 px-2 py-0.5 rounded-md">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#800021] bg-[#FFE4D8] border border-[#800021]/30 px-2 py-0.5 rounded-md flex-shrink-0">
                       <EyeOff className="w-3 h-3" /> Hidden from PDF
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 sm:gap-1 flex-wrap self-end sm:self-auto">
                   {/* Reorder Up / Down */}
                   <button
                     type="button"
                     onClick={() => moveSection(idx, 'up')}
                     disabled={idx === 0}
-                    aria-label={`Move ${sec.title} Up`}
-                    className="p-1 rounded border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] disabled:opacity-20 text-[#0B0B0B] transition-colors"
+                    aria-label={`Move ${sec.title || sec.sectionType} Up`}
+                    className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] disabled:opacity-20 text-[#0B0B0B] transition-colors"
                   >
-                    <ChevronUp className="w-3.5 h-3.5" />
+                    <ChevronUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => moveSection(idx, 'down')}
                     disabled={idx === sections.length - 1}
-                    aria-label={`Move ${sec.title} Down`}
-                    className="p-1 rounded border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] disabled:opacity-20 text-[#0B0B0B] transition-colors"
+                    aria-label={`Move ${sec.title || sec.sectionType} Down`}
+                    className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] disabled:opacity-20 text-[#0B0B0B] transition-colors"
                   >
-                    <ChevronDown className="w-3.5 h-3.5" />
+                    <ChevronDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
 
                   {/* Hide / Show Toggle */}
                   <button
                     type="button"
                     onClick={() => toggleSectionVisibility(sec.id)}
-                    aria-label={sec.isVisible ? `Hide ${sec.title}` : `Show ${sec.title}`}
-                    className={`p-1 rounded border border-[#6B6B6B] transition-colors ${
+                    aria-label={sec.isVisible ? `Hide ${sec.title || sec.sectionType}` : `Show ${sec.title || sec.sectionType}`}
+                    className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] transition-colors ${
                       sec.isVisible
                         ? 'bg-[#FFFFFF] text-[#0B0B0B] hover:bg-[#F1F7F7]'
                         : 'bg-[#FFE4D8] text-[#800021]'
                     }`}
                   >
                     {sec.isVisible ? (
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     ) : (
-                      <EyeOff className="w-3.5 h-3.5" />
+                      <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     )}
                   </button>
 
@@ -1204,10 +1401,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     <button
                       type="button"
                       onClick={() => removeSection(sec.id)}
-                      aria-label={`Delete ${sec.title}`}
-                      className="p-1 rounded border border-[#6B6B6B] text-red-700 hover:bg-red-50 transition-colors"
+                      aria-label={`Delete ${sec.title || sec.sectionType}`}
+                      className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] text-red-700 hover:bg-red-50 transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     </button>
                   )}
                 </div>
@@ -1393,6 +1590,9 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </label>
                       <input
                         type="text"
+                        name="headline"
+                        id="contact-headline"
+                        aria-label="Professional Headline"
                         maxLength={300}
                         aria-invalid={Boolean(fieldErrors['headline'])}
                         aria-describedby={fieldErrors['headline'] ? 'error-headline' : undefined}
@@ -1475,7 +1675,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                         key={entry.id}
                         className="p-3.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] space-y-2.5 text-xs shadow-xs"
                       >
-                        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#6B6B6B] pb-2">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-[#0B0B0B]">
                               Entry #{eIdx + 1}
@@ -1486,7 +1686,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5 sm:gap-1 flex-wrap self-end sm:self-auto">
                             {/* Move Up */}
                             <button
                               type="button"
@@ -1502,10 +1702,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                   content: { ...s.content, entries: currentEntries } as any,
                                 }));
                               }}
-                              className="p-1 rounded text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-30 disabled:hover:bg-transparent"
+                              aria-label={`Move Entry ${eIdx + 1} Up`}
+                              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] sm:border-transparent text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-30 disabled:hover:bg-transparent"
                               title="Move entry up"
                             >
-                              <ChevronUp className="w-3.5 h-3.5" />
+                              <ChevronUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                             </button>
                             {/* Move Down */}
                             <button
@@ -1522,10 +1723,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                   content: { ...s.content, entries: currentEntries } as any,
                                 }));
                               }}
-                              className="p-1 rounded text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-30 disabled:hover:bg-transparent"
+                              aria-label={`Move Entry ${eIdx + 1} Down`}
+                              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] sm:border-transparent text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-30 disabled:hover:bg-transparent"
                               title="Move entry down"
                             >
-                              <ChevronDown className="w-3.5 h-3.5" />
+                              <ChevronDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                             </button>
                             {/* Toggle Entry Visibility */}
                             <button
@@ -1541,13 +1743,14 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                   content: { ...s.content, entries: currentEntries } as any,
                                 }));
                               }}
-                              className="p-1 rounded text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7]"
+                              aria-label={entry.isVisible === false ? `Show Entry ${eIdx + 1}` : `Hide Entry ${eIdx + 1}`}
+                              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] sm:border-transparent text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7]"
                               title={entry.isVisible === false ? 'Show entry in PDF' : 'Hide entry from PDF'}
                             >
                               {entry.isVisible === false ? (
-                                <EyeOff className="w-3.5 h-3.5 text-[#800021]" />
+                                <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-[#800021]" />
                               ) : (
-                                <Eye className="w-3.5 h-3.5" />
+                                <Eye className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                               )}
                             </button>
                             {/* Remove Entry */}
@@ -1566,10 +1769,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                                   } as any,
                                 }));
                               }}
-                              className="p-1 rounded text-red-700 hover:text-red-900 hover:bg-[#F1F7F7] transition-colors ml-1"
+                              aria-label={`Delete Entry ${eIdx + 1}`}
+                              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] sm:border-transparent text-red-700 hover:text-red-900 hover:bg-[#FFE4D8] transition-colors"
                               title="Remove entry"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                             </button>
                           </div>
                         </div>
@@ -1841,6 +2045,65 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                           </div>
                         )}
 
+                        {/* Skills entry fields */}
+                        {sec.sectionType === 'skills' && (
+                          <div className="space-y-2.5">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                Category Name (e.g. Languages, Frameworks)
+                              </label>
+                              <input
+                                type="text"
+                                maxLength={100}
+                                aria-label={`Category Name for Entry ${eIdx + 1}`}
+                                value={(entry.category as string) || (entry.title as string) || ''}
+                                onChange={(e) => {
+                                  const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                  entries[eIdx] = {
+                                    ...entries[eIdx],
+                                    category: e.target.value.slice(0, 100),
+                                    title: e.target.value.slice(0, 100),
+                                  };
+                                  updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                }}
+                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                placeholder="e.g. Programming Languages"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-[#0B0B0B]">
+                                Skills (comma-separated)
+                              </label>
+                              <input
+                                type="text"
+                                aria-label={`Skills List for Entry ${eIdx + 1}`}
+                                value={
+                                  Array.isArray(entry.items)
+                                    ? entry.items.map((it: any) => (typeof it === 'string' ? it : it.name || '')).filter(Boolean).join(', ')
+                                    : (entry.subtitle as string) || ''
+                                }
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  const items = raw
+                                    .split(',')
+                                    .map((s) => s.trim())
+                                    .filter(Boolean)
+                                    .map((name) => ({ name: name.slice(0, 100) }));
+                                  const entries = [...(((sec.content as any).entries as any[]) || [])];
+                                  entries[eIdx] = {
+                                    ...entries[eIdx],
+                                    items,
+                                    subtitle: raw,
+                                  };
+                                  updateSection(sec.id, (s) => ({ ...s, content: { ...s.content, entries } as any }));
+                                }}
+                                className="w-full px-2.5 py-1 rounded border border-[#6B6B6B]"
+                                placeholder="e.g. React, TypeScript, Tailwind CSS, Next.js"
+                              />
+                            </div>
+                          </div>
+                        )}
+
                         {/* Project / Publication / Custom fields */}
                         {(sec.sectionType === 'projects' ||
                           sec.sectionType === 'publications' ||
@@ -1852,6 +2115,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                             <input
                               type="text"
                               maxLength={300}
+                              aria-label={`Title or Name for Entry ${eIdx + 1}`}
                               value={
                                 (entry.title as string) ||
                                 (entry.name as string) ||
@@ -1879,6 +2143,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                             </label>
                             <textarea
                               rows={3}
+                              aria-label={`Bullet Points for Entry ${eIdx + 1}`}
                               value={(entry.bullets as string[]).join('\n')}
                               onChange={(e) => {
                                 const lines = e.target.value
@@ -1927,9 +2192,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                           },
                         }));
                       }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-xs font-semibold text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                      aria-label={`Add Entry to ${sec.title || sec.sectionType}`}
+                      className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-0 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-xs font-semibold text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Entry
+                      <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Add Entry
                     </button>
                   </div>
                 )}
@@ -2023,53 +2289,74 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
       {/* Save Conflict Modal */}
       {conflictData && (
-        <div className="fixed inset-0 z-50 bg-[#0B0B0B]/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="save-conflict-title"
+          aria-describedby="save-conflict-desc"
+          onKeyDown={handleConflictModalKeyDown}
+          className="fixed inset-0 z-50 bg-[#0B0B0B]/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-xl space-y-4">
             <div className="flex items-center gap-2.5 text-[#800021] font-bold text-base">
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              <span>Save Conflict (Version {conflictData.serverVersion})</span>
+              <span id="save-conflict-title">Save Conflict (Version {conflictData.serverVersion})</span>
             </div>
-            <p className="text-xs text-[#333333] leading-relaxed">
-              This document was updated in another session or tab while you were editing. Would you like to reload the latest server copy or keep your version as a separate new copy?
+            <p id="save-conflict-desc" className="text-xs text-[#333333] leading-relaxed">
+              This document was updated in another session or tab while you were editing. <strong>Reload Server Copy</strong> discards the edits you made in this tab and updates both the editor and the preview with the latest server copy. <strong>Keep My Version as New Copy</strong> preserves all your edits by creating a separate new document in your dashboard without overwriting the server copy.
             </p>
-            <div className="flex items-center justify-end gap-3 pt-2">
+
+            {copyError && (
+              <div role="alert" className="p-2.5 rounded-lg bg-[#FFE4D8] border border-[#800021] text-xs font-semibold text-[#800021] flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{copyError}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
               <button
+                ref={conflictReloadBtnRef}
                 type="button"
-                onClick={() => {
-                  setMeta(conflictData.serverDoc.meta);
-                  setSections(conflictData.serverDoc.sections);
-                  setConflictData(null);
-                  setSaveStatus('saved');
-                }}
-                className="px-4 py-2 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-xs font-semibold text-[#0B0B0B] hover:bg-[#F1F7F7] transition-colors"
+                id="conflict-btn-reload"
+                disabled={isCreatingCopy}
+                onClick={handleConflictReload}
+                aria-label="Reload Server Copy"
+                className="min-h-[44px] px-4 py-2.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-xs font-semibold text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-40 transition-colors flex items-center justify-center text-center"
               >
                 Reload Server Copy
               </button>
               <button
+                ref={conflictKeepCopyBtnRef}
                 type="button"
-                onClick={async () => {
-                  // Duplicate user's local version as new document
-                  const res = await fetch('/api/documents/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      type: meta.type,
-                      templateId: meta.templateId,
-                      title: `${meta.title} (Recovered Copy)`,
-                      accentColor: meta.accentColor,
-                    }),
-                  });
-                  const data = await res.json();
-                  if (data.documentId) {
-                    router.push(`/editor/${data.documentId}`);
-                  }
-                }}
-                className="px-4 py-2 rounded-md bg-[#800021] text-xs font-semibold text-[#FFFFFF] hover:bg-[#881144] transition-colors"
+                id="conflict-btn-keep-copy"
+                disabled={isCreatingCopy}
+                onClick={handleConflictKeepCopy}
+                aria-label="Keep My Version as New Copy"
+                className="min-h-[44px] px-4 py-2.5 rounded-md bg-[#800021] text-xs font-semibold text-[#FFFFFF] hover:bg-[#881144] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-center"
               >
-                Keep My Version as New Copy
+                {isCreatingCopy ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                    <span>Creating copy...</span>
+                  </>
+                ) : (
+                  <span>Keep My Version as New Copy</span>
+                )}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Copy Success Toast */}
+      {copySuccessToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 bg-[#235347] text-[#FFFFFF] px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300"
+        >
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <span>{copySuccessToast}</span>
         </div>
       )}
 
