@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AtsReadinessReport, AtsCheckStatus } from '@/lib/ats/types';
-import { CheckCircle2, AlertCircle, Info, ExternalLink } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, ExternalLink, Loader2 } from 'lucide-react';
 
 interface AtsReadinessPanelProps {
   report: AtsReadinessReport | null;
@@ -17,9 +17,19 @@ export function AtsReadinessPanel({
 }: AtsReadinessPanelProps) {
   if (isLoading || !report) {
     return (
-      <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 text-center shadow-xs">
-        <div className="w-5 h-5 border-2 border-[#800021] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-        <p className="text-xs text-[#333333]">Analyzing PDF text stream and layout structure...</p>
+      <div
+        id="ats-running-checks"
+        role="status"
+        aria-label="Running ATS checks"
+        className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 text-center shadow-xs space-y-3"
+      >
+        <div className="w-8 h-8 rounded-full bg-[#FFE4D8] border border-[#800021] flex items-center justify-center mx-auto text-[#800021]">
+          <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-serif text-sm font-bold text-[#1A1A1A]">Running checks...</p>
+          <p className="text-xs text-[#333333]">Analyzing PDF text stream and layout structure...</p>
+        </div>
       </div>
     );
   }

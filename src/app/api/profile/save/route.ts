@@ -36,8 +36,15 @@ interface SaveProfileRequestBody {
 }
 
 export async function POST(request: Request) {
+  const totalStart = performance.now();
+  let authDur = '0.0';
+  let dbStart = 0;
+
   try {
+    const authStart = performance.now();
     const user = await requireAuthUser();
+    authDur = (performance.now() - authStart).toFixed(1);
+
     const body: SaveProfileRequestBody = await request.json();
 
     const {
@@ -51,6 +58,8 @@ export async function POST(request: Request) {
       certifications: certs = [],
       customSections: customs = [],
     } = body;
+
+    dbStart = performance.now();
 
     // 1. Verify Master Profile ownership
     const existing = await db
@@ -382,22 +391,42 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({
-      success: true,
-      version: newVersion,
-      updatedAt: newUpdatedAt.toISOString(),
-    });
+    const dbDurFinal = (performance.now() - dbStart).toFixed(1);
+    const totalDurFinal = (performance.now() - totalStart).toFixed(1);
+    const serverTiming = `total;dur=${totalDurFinal}, auth;dur=${authDur}, db;dur=${dbDurFinal}`;
+
+    return NextResponse.json(
+      {
+        success: true,
+        version: newVersion,
+        updatedAt: newUpdatedAt.toISOString(),
+      },
+      {
+        headers: {
+          'Server-Timing': serverTiming,
+        },
+      }
+    );
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
     if (err instanceof Error && err.message === 'STALE_SAVE_CONFLICT') {
+      const dbDurFinal = (performance.now() - dbStart).toFixed(1);
+      const totalDurFinal = (performance.now() - totalStart).toFixed(1);
+      const serverTiming = `total;dur=${totalDurFinal}, auth;dur=${authDur}, db;dur=${dbDurFinal}`;
+
       return NextResponse.json(
         {
           error: 'STALE_SAVE_CONFLICT',
           message: 'Your profile was modified in another session. Please refresh to load the latest data before saving.',
         },
-        { status: 409 }
+        {
+          status: 409,
+          headers: {
+            'Server-Timing': serverTiming,
+          },
+        }
       );
     }
     const message = err instanceof Error ? err.message : 'Failed to save profile';

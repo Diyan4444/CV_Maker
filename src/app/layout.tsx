@@ -1,7 +1,9 @@
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { fraunces, dmSans } from '@/config/fonts';
 import { PRODUCT_NAME } from '@/config/app';
 import { ColorField } from '@/components/canvas/ColorField';
+import { NavigationProgressBar } from '@/components/navigation/NavigationProgressBar';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -17,6 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <body className="antialiased min-h-screen relative">
+        {/* Navigation Top Progress Bar */}
+        <Suspense fallback={null}>
+          <NavigationProgressBar />
+        </Suspense>
         {/* Persistent Procedural ColorField Background */}
         <ColorField />
         {children}

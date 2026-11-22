@@ -27,8 +27,15 @@ interface SaveDocumentPayload {
 }
 
 export async function PUT(req: NextRequest, { params }: RouteContext) {
+  const totalStart = performance.now();
+  let authDur = '0.0';
+  let dbStart = 0;
+
   try {
+    const authStart = performance.now();
     const user = await requireAuthUser();
+    authDur = (performance.now() - authStart).toFixed(1);
+
     const { documentId } = await params;
     const body: SaveDocumentPayload = await req.json();
 
@@ -74,6 +81,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     const supabase = await createClient();
+    dbStart = performance.now();
 
     // 2. Fetch current document and verify ownership via Supabase HTTPS client
     const { data: currentDoc, error: fetchErr } = await supabase
@@ -128,7 +136,12 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
             })),
           },
         },
-        { status: 409 }
+        {
+          status: 409,
+          headers: {
+            'Server-Timing': `total;dur=${(performance.now() - totalStart).toFixed(1)}, auth;dur=${authDur}, db;dur=${(performance.now() - dbStart).toFixed(1)}`,
+          },
+        }
       );
     }
 
@@ -205,16 +218,27 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      newVersion: nextVersion,
-      updatedAt: now.toISOString(),
-    });
+    const dbDurFinal = (performance.now() - dbStart).toFixed(1);
+    const totalDurFinal = (performance.now() - totalStart).toFixed(1);
+    const serverTiming = `total;dur=${totalDurFinal}, auth;dur=${authDur}, db;dur=${dbDurFinal}`;
+
+    return NextResponse.json(
+      {
+        success: true,
+        newVersion: nextVersion,
+        updatedAt: now.toISOString(),
+      },
+      {
+        headers: {
+          'Server-Timing': serverTiming,
+        },
+      }
+    );
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     }
-    console.error('[DOCUMENT_SAVE_ERROR] Failed to save document');
+    console.error('[DOCUMENT_SAVE_ERROR] Failed to save document', err);
     const message = err instanceof Error ? err.message : 'Failed to save document.';
     return NextResponse.json({ error: message }, { status: 500 });
   }

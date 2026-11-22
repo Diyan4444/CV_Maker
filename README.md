@@ -134,6 +134,27 @@ In Vercel Dashboard -> **Project Settings -> Environment Variables**, configure 
 ### Step 6: Deploy to Vercel
 Trigger deployment via Vercel Git integration (`git push origin main` after confirmation) or Vercel CLI (`vercel --prod`).
 
+### Step 7: Comparing Vercel Function Region with Supabase Database Region
+To prevent cross-region latency penalties (which can add 100ms+ round-trip delays on every database query, session check, or save mutation), ensure your Vercel Serverless Function region directly matches your Supabase database region:
+
+1. **Locate Supabase Database Region**:
+   - In Supabase Dashboard -> **Project Settings -> General**, find the **Region** (e.g. `AWS - us-east-1 (N. Virginia)`, `AWS - eu-central-1 (Frankfurt)`, or `AWS - ap-southeast-1 (Singapore)`).
+   - The direct connection host reflects this: e.g. `aws-0-us-east-1.pooler.supabase.com`.
+
+2. **Locate & Configure Vercel Serverless Function Region**:
+   - In Vercel Dashboard -> **Project Settings -> Functions -> Function Region**, select the region code matching your Supabase region:
+     - `us-east-1` (N. Virginia) $\rightarrow$ `iad1` (Washington, D.C., USA)
+     - `us-west-1` (N. California) $\rightarrow$ `sfo1` (San Francisco, USA)
+     - `eu-central-1` (Frankfurt) $\rightarrow$ `fra1` (Frankfurt, Germany)
+     - `eu-west-1` (Ireland) $\rightarrow$ `dub1` (Dublin, Ireland)
+     - `ap-southeast-1` (Singapore) $\rightarrow$ `sin1` (Singapore)
+   - Alternatively, configure `"regions": ["iad1"]` in `vercel.json`.
+
+3. **Verify Latency via Server-Timing**:
+   - Open browser DevTools Network tab on `/dashboard` or `/profile` and inspect the `Server-Timing` HTTP response header:
+     - **Co-located**: `db;dur=8..25ms`
+     - **Cross-region mismatch**: `db;dur=120..280ms` (indicates functions and database are in different geographic regions).
+
 ---
 
 ## Testing Architecture & Isolated Port Strategy

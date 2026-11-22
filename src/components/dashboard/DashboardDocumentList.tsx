@@ -64,6 +64,8 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
   const [newTitle, setNewTitle] = useState('');
   const [newTargetRole, setNewTargetRole] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const totalDocs = docs.length;
@@ -117,11 +119,13 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
   };
 
   const handleDuplicate = async (docId: string) => {
+    if (duplicatingId || isSubmitting) return;
     if (isCapReached) {
       alert('You have reached the limit of 20 documents. Delete an existing document first.');
       return;
     }
 
+    setDuplicatingId(docId);
     try {
       const res = await fetch(`/api/documents/${docId}/duplicate`, {
         method: 'POST',
@@ -138,11 +142,13 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error duplicating';
       alert(message);
+      setDuplicatingId(null);
     }
   };
 
   const handleDeleteConfirm = async () => {
-    if (!docToDelete) return;
+    if (!docToDelete || isDeleting) return;
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/documents/${docToDelete.id}`, {
         method: 'DELETE',
@@ -156,6 +162,8 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error deleting';
       alert(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -269,20 +277,30 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
                   <button
                     type="button"
                     onClick={() => handleDuplicate(doc.id)}
-                    className="p-1.5 rounded-md border border-[#6B6B6B] text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
+                    disabled={duplicatingId === doc.id}
+                    aria-busy={duplicatingId === doc.id}
+                    className="p-1.5 rounded-md border border-[#6B6B6B] text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors disabled:opacity-50 inline-flex items-center gap-1 min-h-[32px]"
                     title="Duplicate into independent copy"
-                    aria-label="Duplicate document"
+                    aria-label={duplicatingId === doc.id ? 'Duplicating document...' : 'Duplicate document'}
                   >
-                    <Copy className="w-3.5 h-3.5" />
+                    {duplicatingId === doc.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#800021]" aria-hidden="true" />
+                        <span className="text-[11px] font-medium text-[#800021]">Duplicating...</span>
+                      </>
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setDocToDelete(doc)}
-                    className="p-1.5 rounded-md border border-[#6B6B6B] text-[#800021] hover:bg-[#FFE4D8] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
+                    disabled={duplicatingId === doc.id}
+                    className="p-1.5 rounded-md border border-[#6B6B6B] text-[#800021] hover:bg-[#FFE4D8] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors disabled:opacity-50 min-h-[32px] inline-flex items-center justify-center"
                     title="Delete document"
                     aria-label="Delete document"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -449,17 +467,18 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors disabled:opacity-50"
+                  aria-busy={isSubmitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors disabled:opacity-50 min-h-[38px]"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Creating Document...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                      <span>Creating Document...</span>
                     </>
                   ) : (
                     <>
-                      <Plus className="w-3.5 h-3.5" />
-                      Create &amp; Open
+                      <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Create &amp; Open</span>
                     </>
                   )}
                 </button>
@@ -489,17 +508,29 @@ export function DashboardDocumentList({ initialDocuments }: DashboardDocumentLis
               <button
                 type="button"
                 onClick={() => setDocToDelete(null)}
-                className="px-4 py-2 rounded-lg border border-[#6B6B6B] text-xs font-semibold text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg border border-[#6B6B6B] text-xs font-semibold text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021] disabled:opacity-50 min-h-[38px]"
               >
                 Keep Document
               </button>
               <button
                 type="button"
                 onClick={handleDeleteConfirm}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
+                disabled={isDeleting}
+                aria-busy={isDeleting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors disabled:opacity-50 min-h-[38px]"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                Yes, Delete
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Yes, Delete</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

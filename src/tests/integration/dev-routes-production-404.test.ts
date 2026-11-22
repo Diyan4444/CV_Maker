@@ -12,4 +12,9 @@ describe('Dev Routes Production 404 Guard', () => {
     const res = await fetch(`${BASE_URL}/dev/backgrounds`);
     expect(res.status).toBe(404);
   });
+
+  it('returns 404 Not Found for /dev/loading in production', async () => {
+    const res = await fetch(`${BASE_URL}/dev/loading`);
+    expect(res.status).toBe(404);
+  });
 });

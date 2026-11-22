@@ -5,6 +5,7 @@ import { pdf } from '@react-pdf/renderer';
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 import { DocumentPdfRenderer } from '@/components/pdf/DocumentPdfRenderer';
 import { ZoomIn, ZoomOut, AlertCircle, RefreshCw } from 'lucide-react';
+import { QuillfolioWordmark, SkeletonBlock } from '@/components/ui/LoadingSystem';
 
 interface LivePdfPreviewProps {
   meta: DocumentMeta;
@@ -22,6 +23,7 @@ export function LivePdfPreview({
   const [numPages, setNumPages] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
+  const [hasRenderedOnce, setHasRenderedOnce] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
@@ -143,6 +145,7 @@ export function LivePdfPreview({
           );
         }
 
+        setHasRenderedOnce(true);
         setIsCompiling(false);
       } catch {
         if (!isCancelled) {
@@ -230,12 +233,29 @@ export function LivePdfPreview({
       <div
         ref={scrollContainerRef}
         id="pdf-preview-scroll-container"
-        className="flex-1 overflow-y-auto p-6 bg-[#F1F7F7] flex justify-center"
+        className="flex-1 overflow-y-auto p-6 bg-[#F1F7F7] flex flex-col items-center justify-start"
       >
+        {!hasRenderedOnce && (
+          <div
+            id="preview-preparing-placeholder"
+            className="w-full max-w-[500px] aspect-[1/1.4142] bg-[#FFFFFF] border border-[#6B6B6B] rounded shadow-md p-8 flex flex-col items-center justify-center space-y-4 text-center my-auto"
+          >
+            <QuillfolioWordmark size="sm" />
+            <p className="font-sans text-xs text-[#333333] font-medium" role="status">
+              Preparing preview...
+            </p>
+            <div className="w-3/4 space-y-2 pt-2" aria-hidden="true">
+              <SkeletonBlock className="h-3.5 w-full" />
+              <SkeletonBlock className="h-3 w-5/6 mx-auto" />
+              <SkeletonBlock className="h-3 w-2/3 mx-auto" />
+            </div>
+          </div>
+        )}
+
         <div
           ref={canvasContainerRef}
           id="pdf-preview-canvas-container"
-          className="w-full max-w-[620px] transition-all"
+          className={`w-full max-w-[620px] transition-all ${!hasRenderedOnce ? 'hidden' : 'block'}`}
         />
       </div>
     </div>

@@ -20,6 +20,7 @@ import {
   User,
   CheckCircle2,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 
 interface MasterProfileEditorProps {
@@ -84,6 +85,7 @@ export function MasterProfileEditor({
   };
 
   const handleSaveAll = async () => {
+    if (saving) return;
     setSaving(true);
     setSaveStatus(null);
 
@@ -205,10 +207,20 @@ export function MasterProfileEditor({
           type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50 w-full sm:w-auto"
+          aria-busy={saving}
+          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50 w-full sm:w-auto min-h-[44px]"
         >
-          <Save className="w-4 h-4" />
-          {saving ? 'Saving...' : 'Save All Facts'}
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none flex-shrink-0" aria-hidden="true" />
+              <span>Saving Profile...</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              <span>Save All Facts</span>
+            </>
+          )}
         </button>
       </div>
 
@@ -1016,10 +1028,20 @@ export function MasterProfileEditor({
           type="button"
           onClick={handleSaveAll}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50"
+          aria-busy={saving}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50 min-h-[44px]"
         >
-          <Save className="w-4 h-4" />
-          {saving ? 'Saving...' : 'Save All Facts'}
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none flex-shrink-0" aria-hidden="true" />
+              <span>Saving Profile...</span>
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              <span>Save All Facts</span>
+            </>
+          )}
         </button>
       </div>
     </div>

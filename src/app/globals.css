@@ -42,11 +42,39 @@ input::placeholder, textarea::placeholder {
   outline-offset: 2px;
 }
 
+/* Quillfolio Brand Animated Ink-Line Loader */
+@keyframes inkLineSweep {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  50% {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  50.1% {
+    transform: scaleX(1);
+    transform-origin: right;
+  }
+  100% {
+    transform: scaleX(0);
+    transform-origin: right;
+  }
+}
+
+.animate-ink-line {
+  animation: inkLineSweep 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .animate-ink-line {
+    animation: none !important;
+    transform: scaleX(1) !important;
   }
 }

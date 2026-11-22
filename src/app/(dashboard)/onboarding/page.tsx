@@ -18,6 +18,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Check,
+  Loader2,
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -62,6 +63,7 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = async () => {
+    if (loading) return;
     setLoading(true);
     setErrorMsg(null);
 
@@ -356,9 +358,17 @@ export default function OnboardingPage() {
                     type="button"
                     onClick={handleFinish}
                     disabled={loading}
-                    className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-medium text-xs transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
+                    aria-busy={loading}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-medium text-xs transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 min-h-[36px]"
                   >
-                    {loading ? 'Saving...' : 'Finish & Open Document'}
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                        <span>Saving Onboarding...</span>
+                      </>
+                    ) : (
+                      <span>Finish &amp; Open Document</span>
+                    )}
                   </button>
                 )}
               </div>

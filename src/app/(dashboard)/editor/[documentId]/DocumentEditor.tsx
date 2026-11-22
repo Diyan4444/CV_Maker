@@ -143,6 +143,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     serverDoc: { meta: DocumentMeta; sections: DocumentSection[] };
   } | null>(null);
   const [isCreatingCopy, setIsCreatingCopy] = useState<boolean>(false);
+  const [isReloadingServer, setIsReloadingServer] = useState<boolean>(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [copySuccessToast, setCopySuccessToast] = useState<string | null>(null);
 
@@ -189,7 +190,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   // Reload server copy handler
   const handleConflictReload = useCallback(() => {
-    if (!conflictData) return;
+    if (!conflictData || isReloadingServer || isCreatingCopy) return;
+    setIsReloadingServer(true);
     const serverMeta = normalizeMeta(conflictData.serverDoc.meta);
     const serverSections = normalizeSections(conflictData.serverDoc.sections);
 
@@ -216,10 +218,12 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     setSaveStatus('saved');
     setSaveError(null);
     setFieldErrors({});
-  }, [conflictData]);
+    setIsReloadingServer(false);
+  }, [conflictData, isReloadingServer, isCreatingCopy]);
 
   // Keep my version as new copy handler
   const handleConflictKeepCopy = useCallback(async () => {
+    if (isCreatingCopy || isReloadingServer) return;
     setIsCreatingCopy(true);
     setCopyError(null);
 
@@ -272,7 +276,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
       setCopyError(err instanceof Error ? err.message : 'Network error creating copy.');
       setIsCreatingCopy(false);
     }
-  }, [router]);
+  }, [router, isCreatingCopy, isReloadingServer]);
   // Download PDF state
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -1180,10 +1184,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 id="toolbar-btn-save"
                 onClick={() => handleSave()}
                 disabled={saveStatus === 'saving'}
+                aria-busy={saveStatus === 'saving'}
                 aria-label="Save"
                 className="inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-3 min-h-[44px] sm:min-h-0 sm:h-8 rounded-md bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] flex-shrink-0"
               >
-                <Save className="w-4 h-4 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> <span>Save</span>
+                <Save className="w-4 h-4 sm:w-3.5 sm:h-3.5 flex-shrink-0" aria-hidden="true" /> <span>Save</span>
               </button>
 
               {/* Download PDF Button */}
@@ -2318,25 +2323,34 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 ref={conflictReloadBtnRef}
                 type="button"
                 id="conflict-btn-reload"
-                disabled={isCreatingCopy}
+                disabled={isCreatingCopy || isReloadingServer}
+                aria-busy={isReloadingServer}
                 onClick={handleConflictReload}
                 aria-label="Reload Server Copy"
-                className="min-h-[44px] px-4 py-2.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-xs font-semibold text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-40 transition-colors flex items-center justify-center text-center"
+                className="min-h-[44px] px-4 py-2.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-xs font-semibold text-[#0B0B0B] hover:bg-[#F1F7F7] disabled:opacity-40 transition-colors flex items-center justify-center gap-2 text-center"
               >
-                Reload Server Copy
+                {isReloadingServer ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" aria-hidden="true" />
+                    <span>Reloading...</span>
+                  </>
+                ) : (
+                  <span>Reload Server Copy</span>
+                )}
               </button>
               <button
                 ref={conflictKeepCopyBtnRef}
                 type="button"
                 id="conflict-btn-keep-copy"
-                disabled={isCreatingCopy}
+                disabled={isCreatingCopy || isReloadingServer}
+                aria-busy={isCreatingCopy}
                 onClick={handleConflictKeepCopy}
                 aria-label="Keep My Version as New Copy"
                 className="min-h-[44px] px-4 py-2.5 rounded-md bg-[#800021] text-xs font-semibold text-[#FFFFFF] hover:bg-[#881144] disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-center"
               >
                 {isCreatingCopy ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" aria-hidden="true" />
                     <span>Creating copy...</span>
                   </>
                 ) : (

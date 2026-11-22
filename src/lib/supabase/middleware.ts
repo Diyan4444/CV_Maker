@@ -34,9 +34,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  const totalStart = performance.now();
+  const authStart = performance.now();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const authDur = (performance.now() - authStart).toFixed(1);
 
   // Protected paths
   const protectedPaths = ['/dashboard', '/onboarding', '/profile', '/editor', '/website'];
@@ -47,6 +50,24 @@ export async function updateSession(request: NextRequest) {
     url.pathname = '/login';
     url.searchParams.set('redirectTo', request.nextUrl.pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Server-Timing headers for page requests (/dashboard, /profile, /editor/[id])
+  const path = request.nextUrl.pathname;
+  const isMonitoredPage =
+    path === '/dashboard' || path === '/profile' || path.startsWith('/editor/');
+
+  let dbDur = '0.0';
+  if (user && isMonitoredPage) {
+    const dbStart = performance.now();
+    await supabase.from('master_profiles').select('id').eq('user_id', user.id).limit(1);
+    dbDur = (performance.now() - dbStart).toFixed(1);
+  }
+
+  const totalDur = (performance.now() - totalStart).toFixed(1);
+  if (isMonitoredPage) {
+    const serverTiming = `total;dur=${totalDur}, auth;dur=${authDur}, db;dur=${dbDur}`;
+    supabaseResponse.headers.set('Server-Timing', serverTiming);
   }
 
   return supabaseResponse;
