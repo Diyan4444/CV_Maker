@@ -280,6 +280,79 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await expect(page.getByText('Unsaved Draft Found')).not.toBeVisible();
   });
 
+  test('7. Simulated access token expiration while editor is open: proxy refreshes session and autosave succeeds', async ({
+    page,
+    context,
+  }) => {
+    if (!createdDocId) test.skip();
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`);
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByLabel('Document Title')).toBeVisible({ timeout: 15000 });
+
+    // 1. Inspect existing session cookies
+    const currentCookies = await context.cookies();
+    const authCookie = currentCookies.find((c) => c.name.includes('-auth-token'));
+    expect(authCookie, 'Supabase auth cookie must exist').toBeDefined();
+
+    // 2. Decode the session cookie payload
+    let sessionPayload: any;
+    const isBase64 = authCookie!.value.startsWith('base64-');
+    if (isBase64) {
+      sessionPayload = JSON.parse(Buffer.from(authCookie!.value.replace('base64-', ''), 'base64').toString());
+    } else {
+      sessionPayload = JSON.parse(decodeURIComponent(authCookie!.value));
+    }
+
+    expect(sessionPayload.access_token).toBeDefined();
+    expect(sessionPayload.refresh_token).toBeDefined();
+
+    // 3. Simulate access token expiration while preserving valid refresh token:
+    // Set expires_at in the past and expire the access_token JWT payload
+    sessionPayload.expires_at = Math.floor(Date.now() / 1000) - 3600;
+    try {
+      const parts = sessionPayload.access_token.split('.');
+      const claims = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      claims.exp = Math.floor(Date.now() / 1000) - 3600;
+      sessionPayload.access_token = `${parts[0]}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.${parts[2]}`;
+    } catch {}
+
+    const expiredCookieValue = isBase64
+      ? 'base64-' + Buffer.from(JSON.stringify(sessionPayload)).toString('base64')
+      : encodeURIComponent(JSON.stringify(sessionPayload));
+
+    await context.addCookies([
+      {
+        name: authCookie!.name,
+        value: expiredCookieValue,
+        domain: authCookie!.domain,
+        path: authCookie!.path,
+        httpOnly: authCookie!.httpOnly,
+        secure: authCookie!.secure,
+        sameSite: authCookie!.sameSite,
+      },
+    ]);
+
+    // 4. Trigger an edit while editor is open with expired access token
+    const titleInput = page.getByLabel('Document Title');
+    await titleInput.click();
+    await titleInput.fill(`Token Refresh Test ${Date.now()}`);
+
+    // Track autosave HTTP response
+    const savePromise = page.waitForResponse(
+      (resp) => resp.url().includes(`/api/documents/${createdDocId}/save`) && resp.request().method() === 'PUT',
+      { timeout: 15000 }
+    );
+
+    // Wait for debounced autosave to trigger and complete
+    const saveResponse = await savePromise;
+    expect(saveResponse.status(), 'Autosave must succeed after proxy refreshes expired access token').toBe(200);
+
+    // Verify UI reflects Saved state
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 5000 });
+  });
+
   test('8. Section title renaming and target role editing', async ({ page }) => {
     if (!createdDocId) test.skip();
 

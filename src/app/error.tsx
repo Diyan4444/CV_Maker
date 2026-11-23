@@ -18,6 +18,7 @@ export default function RootError({
 
   return (
     <div
+      id="root-error-container"
       role="alert"
       className="min-h-screen flex items-center justify-center p-4 bg-[#F7F7F8]"
     >

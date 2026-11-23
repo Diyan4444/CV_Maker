@@ -3,15 +3,24 @@
 /**
  * NavigationProgressBar.tsx
  *
- * Implements a thin top progress bar for pending client navigations in Next.js 16.
+ * Implements a thin top progress bar and instant skeleton transition system
+ * for pending client navigations in Next.js 16.
  *
  * Grounded in official Next.js documentation:
  * - node_modules/next/dist/docs/01-app/01-getting-started/04-linking-and-navigating.md (Lines 230–267)
  * - node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-link-status.md (Lines 12–75)
  * - node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/loading.md (Lines 6–77)
+ *
+ * Invariant: The transition overlay NEVER stays up and NEVER blocks clicks.
+ * It automatically self-dismisses on:
+ * - Navigation completion (pathname change)
+ * - Browser back/forward (popstate)
+ * - Navigation failure or offline/online transition
+ * - Window errors / unhandled rejections / error.tsx mount ([role="alert"])
+ * - 30s maximum safety timer
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useLinkStatus } from 'next/link';
@@ -30,13 +39,17 @@ export function NavigationProgressBar() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const safetyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const dismissOverlay = useCallback(() => {
+    setIsNavigating(false);
+    setTargetHref(null);
+    if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+  }, []);
+
   // Complete navigation when route changes
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      setIsNavigating(false);
-      setTargetHref(null);
+      dismissOverlay();
       setProgress(100);
-      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     });
 
     const doneTimer = setTimeout(() => {
@@ -47,10 +60,19 @@ export function NavigationProgressBar() {
       cancelAnimationFrame(frame);
       clearTimeout(doneTimer);
     };
-  }, [pathname]);
+  }, [pathname, dismissOverlay]);
 
   // Intercept link clicks to show immediate progress feedback and instant skeleton
   useEffect(() => {
+    const normalizePath = (p: string) => {
+      try {
+        const url = new URL(p, window.location.origin);
+        return url.pathname.replace(/\/+$/, '') || '/';
+      } catch {
+        return p.split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
+      }
+    };
+
     const handleDocumentClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement)?.closest('a');
       if (!target || !(target instanceof HTMLAnchorElement)) return;
@@ -58,13 +80,16 @@ export function NavigationProgressBar() {
       const href = target.getAttribute('href');
       if (!href) return;
 
-      // Ignore external links, downloads, hash links, or modified clicks (new tab)
+      // Ignore external links, downloads, blob URLs, data URLs, hash links, mailto, tel
       if (
         href.startsWith('http://') ||
         href.startsWith('https://') ||
+        href.startsWith('blob:') ||
+        href.startsWith('data:') ||
         href.startsWith('#') ||
         href.startsWith('mailto:') ||
         href.startsWith('tel:') ||
+        href.startsWith('javascript:') ||
         target.target === '_blank' ||
         target.hasAttribute('download') ||
         e.ctrlKey ||
@@ -75,9 +100,12 @@ export function NavigationProgressBar() {
         return;
       }
 
-      // Check if it's the exact same pathname
-      const currentUrl = window.location.pathname + window.location.search;
-      if (href === currentUrl) return;
+      // Check if it's the exact same pathname (current route)
+      const currentPath = normalizePath(window.location.pathname);
+      const targetPath = normalizePath(href);
+      if (targetPath === currentPath) {
+        return;
+      }
 
       // Start progress bar animation
       setProgress(25);
@@ -95,8 +123,8 @@ export function NavigationProgressBar() {
         // Auto-dismiss skeleton after 30s safety window
         if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
         safetyTimerRef.current = setTimeout(() => {
-          setIsNavigating(false);
-          setTargetHref(null);
+          dismissOverlay();
+          setProgress(0);
         }, 30000);
       }
 
@@ -112,14 +140,50 @@ export function NavigationProgressBar() {
       }, 150);
     };
 
+    // Auto-dismiss on browser back/forward popstate
+    const handlePopState = () => {
+      dismissOverlay();
+      setProgress(100);
+      setTimeout(() => setProgress(0), 150);
+    };
+
+    // Auto-dismiss on offline or network transitions
+    const handleNetworkChange = () => {
+      dismissOverlay();
+      setProgress(0);
+    };
+
+    // Auto-dismiss if error.tsx mounts
+    const mutationObserver = new MutationObserver(() => {
+      if (document.querySelector('#root-error-container, [data-quillfolio-error]')) {
+        dismissOverlay();
+        setProgress(0);
+      }
+    });
+
+    try {
+      mutationObserver.observe(document.body, { childList: true, subtree: true });
+    } catch {}
+
     document.addEventListener('click', handleDocumentClick, { capture: true });
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('offline', handleNetworkChange);
+    window.addEventListener('online', handleNetworkChange);
+    window.addEventListener('error', handleNetworkChange);
+    window.addEventListener('unhandledrejection', handleNetworkChange);
 
     return () => {
       document.removeEventListener('click', handleDocumentClick, { capture: true });
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('offline', handleNetworkChange);
+      window.removeEventListener('online', handleNetworkChange);
+      window.removeEventListener('error', handleNetworkChange);
+      window.removeEventListener('unhandledrejection', handleNetworkChange);
+      mutationObserver.disconnect();
       if (timerRef.current) clearInterval(timerRef.current);
       if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     };
-  }, []);
+  }, [dismissOverlay]);
 
   if (progress === 0 && !isNavigating) return null;
 
@@ -144,7 +208,10 @@ export function NavigationProgressBar() {
       </div>
 
       {isNavigating && targetHref && (
-        <div className="fixed inset-0 z-40 bg-[#FFFFFF] overflow-y-auto animate-in fade-in duration-100">
+        <div
+          id="instant-navigation-overlay"
+          className="fixed inset-0 z-40 bg-[#FFFFFF] overflow-y-auto animate-in fade-in duration-100"
+        >
           {targetHref.startsWith('/dashboard') ? (
             <DashboardSkeleton />
           ) : targetHref.startsWith('/profile') ? (

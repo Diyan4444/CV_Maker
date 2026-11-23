@@ -173,6 +173,7 @@ Cross-region latency is the single largest contributor to slow TTFB on server-re
 > [!IMPORTANT]
 > **Production Deployment Region Note**:
 > Production Supabase is in Tokyo (`ap-northeast-1`), so the Vercel function region must match Tokyo (`hnd1`) rather than Mumbai or US-East. Note that the Supabase database region cannot be changed in place without migrating the database to a new project.
+> Furthermore, if the Vercel function region cannot be changed on your plan, recommend measuring `/login` (static/edge) vs `/dashboard` (authenticated serverless + database) TTFB in Chrome DevTools Network timing before undertaking the operational effort of moving or re-provisioning the database.
 
 ### 3. Reading `Server-Timing` Headers
 Quillfolio instruments its API and database routes with W3C `Server-Timing` response headers. In Chrome DevTools Network tab, inspect the response headers under **Server-Timing**:
