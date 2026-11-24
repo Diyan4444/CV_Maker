@@ -134,6 +134,15 @@ In Vercel Dashboard -> **Project Settings -> Environment Variables**, configure 
 ### Step 6: Deploy to Vercel
 Trigger deployment via Vercel Git integration (`git push origin main` after confirmation) or Vercel CLI (`vercel --prod`).
 
+### Step 7: Landing Page Specimens Regeneration
+The landing page displays real rendered specimen images of the three supported templates (`public/landing/ats_single_column.png`, `modern_professional.png`, and `academic_cv.png`), generated directly from production `@react-pdf/renderer` templates and `pdf.js`.
+
+To regenerate the landing page specimens at any time:
+```bash
+npx tsx scripts/generate-landing-specimens.ts
+```
+This script renders page 1 of each template using the fictional candidate fixture ("Alex Example"), verifies that each generated PNG asset is strictly under the 150 KB budget, and writes them to `public/landing/`. Specimen sizes and layout integrity are validated automatically in `src/tests/landing-copy-and-specimens.test.ts`.
+
 ---
 
 ## Measuring the Deployed Site (Production Performance Baseline)

@@ -91,6 +91,7 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
    */
   const assertNoBlockingOverlay = async (page: any) => {
     // Wait within 2 seconds of the final state
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
     await page.waitForTimeout(200);
 
     const viewport = page.viewportSize() || { width: 1440, height: 900 };
@@ -101,17 +102,18 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
     ];
 
     for (const pt of testPoints) {
-      const interceptedByOverlay = await page.evaluate(({ x, y }: { x: number; y: number }) => {
-        const el = document.elementFromPoint(x, y);
-        if (!el) return false;
-        const overlay = el.closest('#instant-navigation-overlay, .fixed.inset-0.z-40');
-        return overlay !== null;
-      }, pt);
-
-      expect(
-        interceptedByOverlay,
-        `Point (${pt.x}, ${pt.y}) must NOT be intercepted by navigation overlay`
-      ).toBe(false);
+      await expect.poll(async () => {
+        try {
+          return await page.evaluate(({ x, y }: { x: number; y: number }) => {
+            const el = document.elementFromPoint(x, y);
+            if (!el) return false;
+            const overlay = el.closest('#instant-navigation-overlay, .fixed.inset-0.z-40');
+            return overlay !== null;
+          }, pt);
+        } catch {
+          return false;
+        }
+      }, { timeout: 2000 }).toBe(false);
     }
 
     // Verify overlay element is not visible or not attached

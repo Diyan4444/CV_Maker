@@ -238,6 +238,8 @@ async function main() {
     ];
 
     const routes = [
+      { path: '/', isAuth: false },
+      { path: '/privacy', isAuth: false },
       { path: '/login', isAuth: false },
       { path: '/dashboard', isAuth: true },
       { path: '/profile', isAuth: true },
