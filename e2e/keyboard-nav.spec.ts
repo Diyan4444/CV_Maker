@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Keyboard Navigation Accessibility Audit', () => {
-  const publicPages = ['/', '/login', '/onboarding'];
+  const publicPages = ['/', '/login', '/onboarding', '/privacy', '/goodbye'];
 
   for (const pagePath of publicPages) {
     test(`Tabs through controls on ${pagePath} and asserts visible active focus state`, async ({ page }) => {

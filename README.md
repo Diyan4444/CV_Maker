@@ -229,3 +229,59 @@ Quillfolio enforces strict isolation between test suites, active development ser
    - Any script or test utilizing `SUPABASE_SERVICE_ROLE_KEY` to create, modify, or delete test users enforces `assertTestProjectRefAllowed()`, checking the Supabase project reference in `NEXT_PUBLIC_SUPABASE_URL` against a local, git-ignored `.test-projects` allowlist file.
    - If the project ref is not present in `.test-projects`, execution aborts immediately with a fatal security error.
 
+---
+
+## Account Management, Data Portability & Privacy (Phase 6A)
+
+Quillfolio provides transparent, self-service account management, end-to-end data export, permanent account erasure with database cascade, and a public privacy notice.
+
+### 1. Legal Configuration & Pre-Push Audit (`check:legal`)
+Operator legal constants are centralized in `src/config/legal.ts`:
+- `OPERATOR_NAME`: The legal entity or operator name.
+- `CONTACT_EMAIL`: The designated privacy and contact email address.
+- `DATABASE_REGION_LABEL`: Human-readable database location (`"Tokyo, Japan"`).
+- `EFFECTIVE_DATE`: Effective date of the current policy.
+- `PRIVACY_VERSION`: Semantic version string of the privacy policy.
+
+> [!IMPORTANT]
+> **Run `npm run check:legal` before deploying or pushing to main**:
+> The repository provides a validation script `scripts/check-legal.ts` run via `npm run check:legal`. This script verifies that `OPERATOR_NAME` and `CONTACT_EMAIL` do not contain the unconfigured placeholder `"REPLACE_ME"`. The build does not fail automatically, but operators must run this check to ensure legal terms are populated before going live.
+
+### 2. Data Portability & Export Format (`GET /api/account/export`)
+Authenticated users can download their complete record at `/settings` or directly via `GET /api/account/export`:
+- **Headers**: `Content-Disposition: attachment; filename="quillfolio-export-YYYY-MM-DD.json"`, `Cache-Control: no-store`.
+- **Coverage**: Extracts 100% of user-owned rows across all 14 database tables (`profiles`, `master_profiles`, `education`, `experiences`, `projects`, `skills`, `publications`, `achievements`, `certifications`, `custom_sections`, `documents`, `document_sections`, `websites`, `ai_usage_logs`).
+- **Validation**: Enforced via Zod schema (`AccountExportDataSchema` in `src/lib/account/export-schema.ts`).
+- **Security Exclusions**: Columns containing password hashes, encrypted credentials, internal tokens, or secrets are explicitly excluded (`EXCLUDED_COLUMNS`).
+
+### 3. Account Deletion & Database Cascades (`POST /api/account/delete`)
+Users can permanently destroy their account and all associated records from `/settings`:
+- **Authentication & Origin Check**: Requires authenticated user session; rejects mismatched `Origin` headers (CSRF defense).
+- **Email Confirmation**: Requires typing the exact account email (case-insensitive, whitespace-trimmed) before submission.
+- **Re-Authentication Window (`ACCOUNT_REAUTH_WINDOW_SECONDS`)**:
+  - Default: `900` seconds (15 minutes). Configurable in seconds via environment variable `ACCOUNT_REAUTH_WINDOW_SECONDS` (bounded between 1 and 3600 seconds).
+  - If the user's `last_sign_in_at` timestamp is older than the configured window, the API immediately halts with HTTP 403 `{"error": "...", "code": "REAUTH_REQUIRED"}`.
+  - The UI presents a friendly explanation and a 1-click re-authentication link preserving return navigation via `safeNextPath('/settings', '/dashboard')`.
+- **Cascading Database Erasure**:
+  - The server invokes `supabase.auth.admin.deleteUser(user.id)`.
+  - Migration `0009_profiles_auth_cascade.sql` links `public.profiles(id)` to `auth.users(id)` with `ON DELETE CASCADE`.
+  - Postgres foreign keys cascade immediately down to `master_profiles`, `documents`, `document_sections`, `websites`, `ai_usage_logs`, and all child profile tables (`education`, `experiences`, `projects`, `skills`, `publications`, `achievements`, `certifications`, `custom_sections`).
+  - All child rows are deleted in a single transactional cascade. Subsequent export or login returns 401 Unauthorized.
+- **Local Storage & Session Cleared**:
+  - On successful deletion, the client script sweeps `localStorage`, purging any draft CVs (`cv_maker_draft_*`), temporary app keys (`quillfolio_*`), and cached Supabase session data (`sb-*`).
+  - All auth session cookies are cleared, and the user is redirected to the public confirmation route `/goodbye`.
+
+### 4. Public Privacy Notice (`/privacy`)
+The public route `/privacy` describes the system's exact operational architecture:
+- Hosted database: Supabase PostgreSQL in Tokyo, Japan (`ap-northeast-1`).
+- Application host: Vercel serverless platform.
+- Cookies: Strictly necessary HTTP-only authentication session cookies (`sb-*-auth-token`).
+- Tracking: Zero third-party tracking scripts, zero advertising beacons, zero sale of personal data.
+
+### 5. LEGAL REVIEW NEEDED
+The following legal and compliance questions should be reviewed by legal counsel prior to commercial launch:
+1. **Database Backups Retention**: When an account is permanently deleted via the API, transactional database rows are erased immediately. However, point-in-time recovery (PITR) physical database backups retained by the cloud infrastructure provider (Supabase AWS) persist for up to 7–30 days before natural rotation. Counsel should review standard contractual backup retention clauses.
+2. **Age Verification & Minors (COPPA / GDPR-K)**: The service does not intentionally collect information from individuals under 13 (or under 16 in the EU/UK). An explicit age threshold affirmation or parent consent workflow should be reviewed if targeted at secondary education students.
+3. **Governing Law & Jurisdiction**: The operator must specify the governing state/country law and chosen dispute arbitration/court forum in `src/config/legal.ts` and `/privacy`.
+4. **Sub-Processor Data Processing Agreements (DPA)**: The operator must execute standard Data Processing Agreements with sub-processors: Supabase Inc. (database infrastructure in Tokyo) and Vercel Inc. (serverless edge execution).
+

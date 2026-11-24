@@ -537,6 +537,21 @@ test.describe.serial('Bug 2: Mobile Controls Clipping & Touch Targets', () => {
     });
   }
 
+  for (const width of [320, 360, 390, 1440]) {
+    test(`Settings Page clipping and touch targets audit at ${width}px`, async ({ page, context }) => {
+      await applyAuthCookies(context);
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/settings');
+      await page.waitForSelector('h1');
+
+      const violations = await checkClippingAndTouchTargets(page, width);
+      expect(
+        violations,
+        `Settings page violations at ${width}px:\n${violations.map((v: any) => `${v.label} (${v.selector}): ${v.reason}`).join('\n')}`
+      ).toHaveLength(0);
+    });
+  }
+
   test('Capture screenshots at 320px and 390px', async ({ page, context }) => {
     await applyAuthCookies(context);
     const artifactDir =

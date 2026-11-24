@@ -182,14 +182,20 @@ export default async function DashboardPage() {
       </main>
 
       {/* Footer Panel */}
-      <footer className="max-w-6xl mx-auto w-full mt-6 bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#333333]">
+      <footer className="max-w-6xl mx-auto w-full mt-6 bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-4 sm:px-6 py-3 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#333333] text-center sm:text-left">
         <div>{PRODUCT_NAME} &bull; Privacy-first Profile &amp; Document Engine</div>
-        <div className="flex items-center gap-4">
-          <Link href="/api/user/export" className="hover:underline hover:text-[#0B0B0B]">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/api/account/export"
+            className="hover:underline hover:text-[#0B0B0B] min-h-[44px] inline-flex items-center px-1"
+          >
             Export all data (JSON)
           </Link>
-          <span>&bull;</span>
-          <Link href="/privacy" className="hover:underline hover:text-[#0B0B0B]">
+          <span aria-hidden="true">&bull;</span>
+          <Link
+            href="/privacy"
+            className="hover:underline hover:text-[#0B0B0B] min-h-[44px] inline-flex items-center px-1"
+          >
             Privacy &amp; Data Rights
           </Link>
         </div>

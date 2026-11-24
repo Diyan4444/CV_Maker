@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PRODUCT_NAME } from '@/config/app';
-import { Menu, X, LogOut, LayoutDashboard, User, Globe } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, User, Globe, Settings } from 'lucide-react';
 
 interface AppHeaderProps {
   currentPath?: string;
@@ -18,6 +18,7 @@ export function AppHeader({ currentPath }: AppHeaderProps) {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/profile', label: 'Master Profile', icon: User },
     { href: '/website', label: 'Public Site', icon: Globe },
+    { href: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -27,7 +28,7 @@ export function AppHeader({ currentPath }: AppHeaderProps) {
         <div className="flex items-center gap-6">
           <Link
             href="/dashboard"
-            className="font-display text-xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 rounded"
+            className="font-display text-xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 rounded min-h-[44px] inline-flex items-center"
           >
             {PRODUCT_NAME}
           </Link>
@@ -73,9 +74,9 @@ export function AppHeader({ currentPath }: AppHeaderProps) {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-nav-menu"
             aria-label="Toggle navigation menu"
-            className="sm:hidden p-2 rounded-md border border-[#6B6B6B] text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
+            className="sm:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md border border-[#6B6B6B] text-[#0B0B0B] hover:bg-[#F1F7F7] focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
           >
-            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>

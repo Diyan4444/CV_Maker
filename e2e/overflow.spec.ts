@@ -26,7 +26,7 @@ const viewports = [
   { name: '1440px', width: 1440, height: 900 },
 ];
 
-const pages = ['/', '/login', '/onboarding', '/dashboard', '/profile'] as const;
+const pages = ['/', '/login', '/onboarding', '/dashboard', '/profile', '/settings', '/privacy', '/goodbye'] as const;
 
 test.describe.serial('Horizontal Overflow Audit across Viewports', () => {
   let adminClient: ReturnType<typeof createClient>;

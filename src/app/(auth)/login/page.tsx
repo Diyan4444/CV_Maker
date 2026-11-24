@@ -1,17 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { PRODUCT_NAME } from '@/config/app';
+import { safeNextPath } from '@/lib/navigation/safe-redirect';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawNext = searchParams.get('next') ?? searchParams.get('redirectTo') ?? searchParams.get('returnTo');
+  const safeNext = safeNextPath(rawNext, '/dashboard');
+
   const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        router.replace('/dashboard');
+      }
+    });
+  }, [supabase, router]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,10 +34,12 @@ export default function LoginPage() {
     setLoading(true);
     setMessage(null);
 
+    const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl,
       },
     });
 
@@ -40,10 +57,11 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     if (loading) return;
     setLoading(true);
+    const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl,
       },
     });
     if (error) {
@@ -186,5 +204,13 @@ export default function LoginPage() {
         {PRODUCT_NAME} &bull; Editorial Profile &amp; Document Engine
       </footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F1F7F7]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

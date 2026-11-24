@@ -17,7 +17,12 @@ export async function setup() {
   server = spawn('npx', ['next', 'start', '-p', String(PORT)], {
     shell: true,
     stdio: 'pipe',
-    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'production' },
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      NODE_ENV: 'production',
+      ACCOUNT_REAUTH_WINDOW_SECONDS: process.env.ACCOUNT_REAUTH_WINDOW_SECONDS || '1',
+    },
   });
 
   // Wait for server to become responsive

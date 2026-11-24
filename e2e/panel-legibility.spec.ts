@@ -12,7 +12,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const pagesToTest = ['/', '/login', '/onboarding', '/dashboard', '/profile'] as const;
+const pagesToTest = ['/', '/login', '/onboarding', '/dashboard', '/profile', '/settings', '/privacy', '/goodbye'] as const;
 
 test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
   let adminClient: ReturnType<typeof createClient>;

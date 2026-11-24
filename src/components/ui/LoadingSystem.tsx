@@ -262,6 +262,67 @@ export function SkeletonBlock({
   );
 }
 
+/** Settings Skeleton matching SettingsPage layout */
+export function SettingsSkeleton() {
+  return (
+    <div
+      role="region"
+      aria-label="Loading settings"
+      className="min-h-screen flex flex-col p-4 sm:p-8"
+    >
+      <HonestyNotifier />
+      {/* AppHeader Skeleton */}
+      <div className="max-w-6xl mx-auto w-full mb-6">
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl shadow-sm px-6 py-3.5 flex items-center justify-between">
+          <SkeletonBlock className="h-6 w-32" />
+          <div className="flex items-center gap-3">
+            <SkeletonBlock className="h-5 w-20 hidden sm:block" />
+            <SkeletonBlock className="h-8 w-24 rounded-lg" />
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 max-w-4xl mx-auto w-full space-y-6">
+        {/* Title Header Panel */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-8 shadow-sm space-y-2">
+          <SkeletonBlock className="h-7 w-48 max-w-full" />
+          <SkeletonBlock className="h-4 w-full max-w-xs" />
+        </div>
+
+        {/* Section 1: Account */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-8 shadow-sm space-y-4">
+          <SkeletonBlock className="h-5 w-36 max-w-full" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SkeletonBlock className="h-10 w-full rounded-lg" />
+            <SkeletonBlock className="h-10 w-full rounded-lg" />
+          </div>
+        </div>
+
+        {/* Section 2: Your Data */}
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-8 shadow-sm space-y-4">
+          <SkeletonBlock className="h-5 w-32 max-w-full" />
+          <SkeletonBlock className="h-4 w-full max-w-md" />
+          <SkeletonBlock className="h-10 w-48 max-w-full rounded-lg" />
+        </div>
+
+        {/* Section 3: Danger Zone */}
+        <div className="bg-[#FFFFFF] border border-[#800021] rounded-xl p-4 sm:p-8 shadow-sm space-y-4">
+          <SkeletonBlock className="h-5 w-32 max-w-full" />
+          <SkeletonBlock className="h-4 w-full max-w-sm" />
+          <SkeletonBlock className="h-10 w-44 max-w-full rounded-lg" />
+        </div>
+      </main>
+
+      <div className="max-w-4xl mx-auto w-full mt-6">
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-4 shadow-sm flex items-center justify-between">
+          <SkeletonBlock className="h-4 w-48" />
+          <SkeletonBlock className="h-4 w-32" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Dashboard Skeleton matching DashboardPage layout */
 export function DashboardSkeleton() {
   return (
