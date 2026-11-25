@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { PRODUCT_NAME } from '@/config/app';
+import { PublicHeader } from '@/components/public/PublicHeader';
+import { PublicFooter } from '@/components/public/PublicFooter';
 import { CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const metadata = {
@@ -10,20 +12,14 @@ export const metadata = {
 
 export default function GoodbyePage() {
   return (
-    <div className="min-h-screen bg-[#F1F7F7] flex flex-col justify-between p-4 sm:p-8 text-[#0B0B0B]">
-      {/* Top Header Panel (Public only - no private navigation) */}
-      <header className="max-w-xl mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 shadow-sm flex items-center justify-between">
-        <Link
-          href="/"
-          className="font-display text-xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
-        >
-          {PRODUCT_NAME}
-        </Link>
-        <span className="text-xs font-semibold text-[#333333]">Account Closed</span>
-      </header>
+    <div className="min-h-screen flex flex-col justify-between text-[#0B0B0B]">
+      {/* Shared Public Header */}
+      <div className="pt-4 sm:pt-8">
+        <PublicHeader />
+      </div>
 
       {/* Main Confirmation Panel */}
-      <main className="max-w-xl w-full mx-auto my-auto bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-md text-center space-y-6">
+      <main className="max-w-xl w-full mx-auto px-4 sm:px-0 my-8 bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-md text-center space-y-6">
         <div className="w-12 h-12 rounded-full bg-[#DAF1DE] border border-[#235347] flex items-center justify-center mx-auto text-[#051F20]">
           <CheckCircle2 className="w-6 h-6" aria-hidden="true" />
         </div>
@@ -63,10 +59,8 @@ export default function GoodbyePage() {
         </div>
       </main>
 
-      {/* Footer Panel */}
-      <footer className="max-w-xl mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 text-center text-xs text-[#333333] shadow-sm">
-        <div>{PRODUCT_NAME} &bull; Editorial Profile &amp; Document Engine</div>
-      </footer>
+      {/* Shared Public Footer */}
+      <PublicFooter />
     </div>
   );
 }

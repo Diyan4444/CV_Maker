@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const { origin, searchParams } = new URL(request.url);
   const rawNext = searchParams.get('next') ?? searchParams.get('redirectTo');
   const target = safeNextPath(rawNext, '/login');
-  return NextResponse.redirect(new URL(target, origin));
+  return NextResponse.redirect(new URL(target, origin), { status: 303 });
 }
 
 export async function GET(request: Request) {

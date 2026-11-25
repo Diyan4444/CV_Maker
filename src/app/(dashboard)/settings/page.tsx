@@ -22,7 +22,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F7F7] flex flex-col justify-between p-4 sm:p-8 text-[#0B0B0B] overflow-x-hidden">
+    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 text-[#0B0B0B] overflow-x-hidden">
       <div>
         <AppHeader />
         <main className="max-w-4xl mx-auto w-full min-w-0">

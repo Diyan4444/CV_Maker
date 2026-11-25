@@ -4,6 +4,7 @@ import { fraunces, dmSans } from '@/config/fonts';
 import { PRODUCT_NAME } from '@/config/app';
 import { ColorField } from '@/components/canvas/ColorField';
 import { NavigationProgressBar } from '@/components/navigation/NavigationProgressBar';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function RootLayout({
         </Suspense>
         {/* Persistent Procedural ColorField Background */}
         <ColorField />
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

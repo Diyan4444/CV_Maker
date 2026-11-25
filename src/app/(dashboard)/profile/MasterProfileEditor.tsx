@@ -1,9 +1,10 @@
  
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 import { DISCOVERY_PROMPTS, ExperienceDiscoveryPrompt } from '@/config/experience-prompts';
+import { useToast } from '@/components/ui/ToastProvider';
 import {
   Plus,
   Trash2,
@@ -47,6 +48,8 @@ export function MasterProfileEditor({
   initialCustomSections,
 }: MasterProfileEditorProps) {
   // State for all profile modules
+  const toast = useToast();
+  const promptCounterRef = useRef(0);
   const [profile, setProfile] = useState(initialProfile || {});
   const [educations, setEducations] = useState(initialEducation || []);
   const [experiences, setExperiences] = useState(initialExperiences || []);
@@ -113,31 +116,50 @@ export function MasterProfileEditor({
       const data = await res.json();
 
       if (!res.ok) {
-        if (res.status === 409) {
-          setSaveStatus('Error: Conflict detected (profile updated in another session). Please reload.');
-        } else {
-          setSaveStatus(`Error: ${data.error || 'Failed to save profile'}`);
-        }
+        const msg =
+          res.status === 409
+            ? 'Error: Conflict detected (profile updated in another session). Please reload.'
+            : `Error: ${data.error || 'Failed to save profile'}`;
+        setSaveStatus(msg);
+        toast.show({ message: msg, variant: 'error' });
       } else {
-        setSaveStatus('All facts and identity details synchronized successfully.');
+        const msg = 'All facts and identity details synchronized successfully.';
+        setSaveStatus(msg);
+        toast.show({ message: msg, variant: 'success' });
         if (data.version) {
           setProfile((prev: any) => ({ ...prev, version: data.version }));
         }
       }
     } catch {
-      setSaveStatus('Network error while saving profile.');
+      const msg = 'Network error while saving profile.';
+      setSaveStatus(msg);
+      toast.show({ message: msg, variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
+  const scrollToAndFocusEntry = (entryId: string) => {
+    const container = document.querySelector(`[data-entry-id="${entryId}"]`);
+    if (container) {
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      container.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+      const firstInput = container.querySelector('input, textarea, select') as HTMLElement | null;
+      firstInput?.focus();
+    }
+  };
+
   // Helper to add discovery prompt to state as an EMPTY draft
   const handleApplyDiscoveryPrompt = (prompt: ExperienceDiscoveryPrompt) => {
+    promptCounterRef.current += 1;
+    const newId = `temp-prompt-${promptCounterRef.current}`;
+    const cleanTitle = prompt.title.replace(/\.$/, '');
+
     if (prompt.suggestedSection === 'experiences') {
       setExperiences((prev) => [
         ...prev,
         {
-          id: `temp-${Date.now()}`,
+          id: newId,
           profileId: profile.id,
           type: prompt.suggestedType || 'volunteering',
           organization: '',
@@ -145,11 +167,22 @@ export function MasterProfileEditor({
           bullets: [''],
         },
       ]);
+      toast.show({
+        message: `Added: ${cleanTitle} - fill it in below`,
+        variant: 'success',
+        actions: [
+          { label: 'Go to it', onClick: () => scrollToAndFocusEntry(newId) },
+          {
+            label: 'Undo',
+            onClick: () => setExperiences((prev) => prev.filter((item) => item.id !== newId)),
+          },
+        ],
+      });
     } else if (prompt.suggestedSection === 'projects') {
       setProjects((prev) => [
         ...prev,
         {
-          id: `temp-${Date.now()}`,
+          id: newId,
           profileId: profile.id,
           title: '',
           role: '',
@@ -157,11 +190,22 @@ export function MasterProfileEditor({
           toolsUsed: [],
         },
       ]);
+      toast.show({
+        message: `Added: ${cleanTitle} - fill it in below`,
+        variant: 'success',
+        actions: [
+          { label: 'Go to it', onClick: () => scrollToAndFocusEntry(newId) },
+          {
+            label: 'Undo',
+            onClick: () => setProjects((prev) => prev.filter((item) => item.id !== newId)),
+          },
+        ],
+      });
     } else if (prompt.suggestedSection === 'achievements') {
       setAchievements((prev) => [
         ...prev,
         {
-          id: `temp-${Date.now()}`,
+          id: newId,
           profileId: profile.id,
           title: '',
           issuerOrOrg: '',
@@ -169,6 +213,17 @@ export function MasterProfileEditor({
           description: '',
         },
       ]);
+      toast.show({
+        message: `Added: ${cleanTitle} - fill it in below`,
+        variant: 'success',
+        actions: [
+          { label: 'Go to it', onClick: () => scrollToAndFocusEntry(newId) },
+          {
+            label: 'Undo',
+            onClick: () => setAchievements((prev) => prev.filter((item) => item.id !== newId)),
+          },
+        ],
+      });
     }
   };
 
@@ -523,7 +578,7 @@ export function MasterProfileEditor({
         ) : (
           <div className="space-y-4">
             {experiences.map((exp, idx) => (
-              <div key={exp.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
+              <div key={exp.id || idx} data-entry-id={exp.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#0B0B0B]">Role #{idx + 1}</span>
                   <button
@@ -598,7 +653,7 @@ export function MasterProfileEditor({
         ) : (
           <div className="space-y-4">
             {projects.map((proj, idx) => (
-              <div key={proj.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
+              <div key={proj.id || idx} data-entry-id={proj.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#0B0B0B]">Project #{idx + 1}</span>
                   <button
@@ -827,7 +882,7 @@ export function MasterProfileEditor({
         ) : (
           <div className="space-y-4">
             {achievements.map((ach, idx) => (
-              <div key={ach.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex flex-col sm:flex-row sm:items-center gap-3">
+              <div key={ach.id || idx} data-entry-id={ach.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex flex-col sm:flex-row sm:items-center gap-3">
                 <input
                   type="text"
                   placeholder="Achievement Title (e.g. 1st Place National Hackathon)"

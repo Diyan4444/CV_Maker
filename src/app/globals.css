@@ -11,12 +11,17 @@
   --text-muted: #333333;  /* P2: Ink #333333 (10.6:1 contrast on #FFFFFF) */
   --accent: #800021;      /* P1: Wine #800021 */
   --accent-hover: #881144;/* P1: Wine #881144 */
+  --header-h: 84px;
 
   /* Palette Ramps Reference */
   --p1-c1: #800021; --p1-c2: #881144; --p1-c3: #243A66; --p1-c4: #C24366; --p1-c5: #FF69B4; --p1-c6: #FFE4D8;
   --p2-c1: #0B0B0B; --p2-c2: #1A1A1A; --p2-c3: #333333; --p2-c4: #6B6B6B; --p2-c5: #D9D9D9; --p2-c6: #FFFFFF;
   --p3-c1: #051F20; --p3-c2: #0B2B26; --p3-c3: #163832; --p3-c4: #235347; --p3-c5: #8EB69B; --p3-c6: #DAF1DE;
   --p4-c1: #F7CBCA; --p4-c2: #DDD3D3; --p4-c3: #F1F7F7; --p4-c4: #D5E5E5; --p4-c5: #BDD7D8; --p4-c6: #5D6B6B;
+}
+
+html {
+  scroll-padding-top: calc(var(--header-h, 84px) + 16px);
 }
 
 html, body {

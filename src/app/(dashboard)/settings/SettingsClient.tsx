@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { safeNextPath } from '@/lib/navigation/safe-redirect';
+import { useToast } from '@/components/ui/ToastProvider';
 import {
   Shield,
   Download,
@@ -26,6 +27,7 @@ interface SettingsClientProps {
 }
 
 export function SettingsClient({ user }: SettingsClientProps) {
+  const toast = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -276,6 +278,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
             <a
               href="/api/account/export"
               download
+              onClick={() => toast.show({ message: 'Export started', variant: 'success' })}
               className="inline-flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] text-xs font-semibold shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors"
             >
               <Download className="w-4 h-4" aria-hidden="true" />
@@ -382,6 +385,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
               <a
                 href="/api/account/export"
                 download
+                onClick={() => toast.show({ message: 'Export started', variant: 'success' })}
                 className="font-semibold text-[#800021] hover:underline inline-flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[#800021] rounded py-1 px-2"
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />

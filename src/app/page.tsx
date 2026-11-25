@@ -4,8 +4,8 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { PRODUCT_NAME } from '@/config/app';
 import { BACKGROUND_GROUPS } from '@/config/onboarding/departments';
-import { OPERATOR_NAME, CONTACT_EMAIL, DATABASE_REGION_LABEL } from '@/config/legal';
-import { LandingHeader } from '@/components/landing/LandingHeader';
+import { PublicHeader } from '@/components/public/PublicHeader';
+import { PublicFooter } from '@/components/public/PublicFooter';
 import {
   ArrowRight,
   LogIn,
@@ -58,7 +58,7 @@ export default function LandingPage() {
       </a>
 
       {/* Editorial Sticky Header */}
-      <LandingHeader />
+      <PublicHeader />
 
       {/* Main Content Area */}
       <main id="main-content" className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 space-y-16 sm:space-y-24">
@@ -110,7 +110,7 @@ export default function LandingPage() {
         </section>
 
         {/* 2. TEMPLATE SPECIMENS */}
-        <section id="templates" aria-labelledby="templates-heading" className="space-y-6">
+        <section id="templates" aria-labelledby="templates-heading" className="space-y-6 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold uppercase tracking-wider border border-[#6B6B6B]">
               Document Formats
@@ -201,7 +201,7 @@ export default function LandingPage() {
         </section>
 
         {/* 3. HOW IT WORKS */}
-        <section id="how-it-works" aria-labelledby="how-it-works-heading" className="space-y-6">
+        <section id="how-it-works" aria-labelledby="how-it-works-heading" className="space-y-6 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold uppercase tracking-wider border border-[#6B6B6B]">
               Workflow
@@ -274,7 +274,7 @@ export default function LandingPage() {
         </section>
 
         {/* 4. BACKGROUND-AWARE STRUCTURE */}
-        <section id="backgrounds" aria-labelledby="backgrounds-heading" className="space-y-6">
+        <section id="backgrounds" aria-labelledby="backgrounds-heading" className="space-y-6 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold uppercase tracking-wider border border-[#6B6B6B]">
               Disciplinary Alignment
@@ -283,7 +283,7 @@ export default function LandingPage() {
               Background-Aware Structure
             </h2>
             <p className="text-sm sm:text-base text-[#333333]">
-              Rendered directly from application configuration. Section suggestions adapt to your domain while remaining fully customizable.
+              Pick your background and the questions adapt to it. You can add or change anything.
             </p>
           </div>
 
@@ -309,7 +309,7 @@ export default function LandingPage() {
                     </ul>
                   </div>
                   <div className="mt-4 pt-3 border-t border-[#6B6B6B] text-[11px] text-[#6B6B6B]">
-                    {group.specializations.length} configured disciplines
+                    {group.specializations.length} disciplines
                   </div>
                 </div>
               ))}
@@ -339,7 +339,7 @@ export default function LandingPage() {
                   </ul>
                 </div>
                 <div className="mt-4 pt-3 border-t border-[#800021] text-[11px] text-[#800021] font-semibold">
-                  Extensible onboarding architecture
+                  Not listed? Type your own.
                 </div>
               </div>
             </div>
@@ -347,7 +347,7 @@ export default function LandingPage() {
         </section>
 
         {/* 5. READINESS CHECKS */}
-        <section id="readiness-checks" aria-labelledby="readiness-heading" className="space-y-6">
+        <section id="readiness-checks" aria-labelledby="readiness-heading" className="space-y-6 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-sm space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold uppercase tracking-wider border border-[#6B6B6B]">
@@ -415,7 +415,7 @@ export default function LandingPage() {
         </section>
 
         {/* 6. YOUR DATA */}
-        <section id="your-data" aria-labelledby="your-data-heading" className="space-y-6">
+        <section id="your-data" aria-labelledby="your-data-heading" className="space-y-6 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-sm space-y-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#FFE4D8] text-[#800021] text-xs font-semibold uppercase tracking-wider border border-[#800021]">
@@ -427,7 +427,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-sm sm:text-base text-[#1A1A1A] leading-relaxed max-w-3xl">
-              You own all data you enter into Quillfolio. Export your complete data as machine-readable JSON at any time. If you delete your account, all profiles, documents, and database records are immediately and permanently removed via database cascade.
+              Data is never sold, shared with data brokers, or used to train third-party machine learning models.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -465,24 +465,40 @@ export default function LandingPage() {
         </section>
 
         {/* 7. COMING NEXT */}
-        <section id="coming-next" aria-labelledby="coming-next-heading" className="space-y-4">
-          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B] rounded-full">
-                coming next
-              </span>
+        <section id="coming-next" aria-labelledby="coming-next-heading" className="space-y-4 scroll-mt-[calc(var(--header-h,84px)+16px)]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B] rounded-full">
+                  Planned
+                </span>
+              </div>
+              <h2 id="coming-next-heading" className="font-display text-2xl font-bold text-[#0B0B0B]">
+                Personal website
+              </h2>
+              <p className="text-sm text-[#333333] max-w-2xl leading-relaxed">
+                Transform your master profile into a personal portfolio website with customizable templates, colors, and section visibility.
+              </p>
             </div>
-            <h2 id="coming-next-heading" className="font-display text-2xl font-bold text-[#0B0B0B]">
-              Personal Portfolio Website
-            </h2>
-            <p className="text-sm text-[#333333] max-w-2xl leading-relaxed">
-              A clean, responsive public web portfolio generated directly from your master profile. Not yet released—currently in active development.
-            </p>
+
+            <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B] rounded-full">
+                  Planned
+                </span>
+              </div>
+              <h2 className="font-display text-2xl font-bold text-[#0B0B0B]">
+                More templates
+              </h2>
+              <p className="text-sm text-[#333333] max-w-2xl leading-relaxed">
+                We aim to add a section for browsing more templates.
+              </p>
+            </div>
           </div>
         </section>
 
         {/* 8. FAQ */}
-        <section id="faq" aria-labelledby="faq-heading" className="space-y-6">
+        <section id="faq" aria-labelledby="faq-heading" className="space-y-6 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#F1F7F7] text-[#0B0B0B] text-xs font-semibold uppercase tracking-wider border border-[#6B6B6B]">
               Knowledge Base
@@ -547,7 +563,7 @@ export default function LandingPage() {
                 <span className="text-xs font-bold text-[#800021] group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div className="pt-3 text-sm text-[#1A1A1A] leading-relaxed border-t border-[#6B6B6B] mt-3">
-                Your account and document data are stored securely in a PostgreSQL database hosted in Tokyo, Japan. Data is never sold, shared with data brokers, or used to train third-party machine learning models.
+                Data is never sold, shared with data brokers, or used to train third-party machine learning models. You can export your data or delete your account at any time.
               </div>
             </details>
 
@@ -578,32 +594,7 @@ export default function LandingPage() {
       </main>
 
       {/* 9. FOOTER */}
-      <footer className="mt-16 sm:mt-24 border-t border-[#6B6B6B] bg-[#FFFFFF] py-8 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#333333]">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="font-display font-bold text-sm text-[#0B0B0B]">{PRODUCT_NAME}</span>
-            <span>&bull;</span>
-            <Link
-              href="/privacy"
-              className="text-[#1A1A1A] hover:text-[#800021] min-h-[44px] inline-flex items-center underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded-xs"
-            >
-              Privacy & Data Rights
-            </Link>
-            <span>&bull;</span>
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="text-[#1A1A1A] hover:text-[#800021] min-h-[44px] inline-flex items-center underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded-xs"
-            >
-              Contact: {CONTACT_EMAIL}
-            </a>
-          </div>
-
-          <div className="text-center sm:text-right space-y-1">
-            <p>Database Region: {DATABASE_REGION_LABEL}</p>
-            <p>&copy; 2026 {OPERATOR_NAME}. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

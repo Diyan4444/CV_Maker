@@ -8,6 +8,8 @@ import {
   PRIVACY_VERSION,
 } from '@/config/legal';
 import { PRODUCT_NAME } from '@/config/app';
+import { PublicHeader } from '@/components/public/PublicHeader';
+import { PublicFooter } from '@/components/public/PublicFooter';
 import {
   Shield,
   Server,
@@ -26,33 +28,14 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#F1F7F7] flex flex-col justify-between p-4 sm:p-8 text-[#0B0B0B]">
-      {/* Top Header Panel */}
-      <header className="max-w-4xl mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 shadow-sm flex items-center justify-between">
-        <Link
-          href="/"
-          className="font-display text-xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
-        >
-          {PRODUCT_NAME}
-        </Link>
-        <div className="flex items-center gap-3 text-xs font-semibold">
-          <Link
-            href="/settings"
-            className="text-[#333333] hover:text-[#0B0B0B] hover:bg-[#F1F7F7] px-3 py-1.5 rounded-md border border-[#6B6B6B] transition-colors"
-          >
-            Settings
-          </Link>
-          <Link
-            href="/login"
-            className="text-[#FFFFFF] bg-[#800021] hover:bg-[#881144] px-3 py-1.5 rounded-md transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col justify-between text-[#0B0B0B]">
+      {/* Shared Public Header */}
+      <div className="pt-4 sm:pt-8">
+        <PublicHeader />
+      </div>
 
       {/* Main Content Container */}
-      <main className="max-w-4xl w-full mx-auto my-8 space-y-8">
+      <main className="max-w-4xl w-full mx-auto px-4 sm:px-8 my-8 space-y-8">
         {/* Title Panel */}
         <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3">
           <div className="flex items-center gap-2.5">
@@ -102,7 +85,7 @@ export default function PrivacyPage() {
         </nav>
 
         {/* Section 1 */}
-        <section id="section-1" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-1" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B]">
             1. Operator &amp; Scope
           </h2>
@@ -112,7 +95,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 2 */}
-        <section id="section-2" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-4 scroll-mt-6">
+        <section id="section-2" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-4 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B]">
             2. Information We Collect
           </h2>
@@ -130,7 +113,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 3 */}
-        <section id="section-3" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-3" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B] flex items-center gap-2">
             <Server className="w-5 h-5 text-[#800021]" aria-hidden="true" />
             <span>3. Processing Locations &amp; Infrastructure</span>
@@ -145,7 +128,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 4 */}
-        <section id="section-4" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-4" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B] flex items-center gap-2">
             <Lock className="w-5 h-5 text-[#800021]" aria-hidden="true" />
             <span>4. Authentication &amp; Sign-In Methods</span>
@@ -155,43 +138,34 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-[#333333] leading-relaxed pl-2">
             <li><strong>Email Magic Link (Passwordless):</strong> A cryptographic one-time sign-in link delivered to your verified email address. No passwords are created or stored on our servers.</li>
-            <li><strong>Google OAuth:</strong> Federated authentication via Google sign-in. We receive only your email address and basic profile identifier.</li>
+            <li>
+              <strong>Google Sign-In (OAuth):</strong> We offer sign-in with Google via Supabase Auth. Google sends your email address, full name, and avatar URL to Supabase Auth. Our application stores your email address and user ID in your account profile and your full name in your master profile if provided; we do not store or display your Google avatar. See{' '}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#800021] underline hover:text-[#881144]"
+              >
+                Google&apos;s Privacy Policy
+              </a>
+              .
+            </li>
           </ul>
         </section>
 
         {/* Section 5 */}
-        <section id="section-5" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-4 scroll-mt-6">
+        <section id="section-5" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B] flex items-center gap-2">
             <Cookie className="w-5 h-5 text-[#800021]" aria-hidden="true" />
             <span>5. Cookies &amp; Local Storage</span>
           </h2>
           <p className="text-xs sm:text-sm text-[#333333] leading-relaxed">
-            {PRODUCT_NAME} uses only strictly necessary first-party browser storage for authentication and draft crash-resilience.
+            This site uses only essential cookies to keep you signed in and browser storage to keep unsaved drafts, and there are no advertising or analytics cookies.
           </p>
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#0B0B0B]">First-Party Cookies Set on Sign-In:</p>
-            <div className="bg-[#F1F7F7] border border-[#6B6B6B] rounded-lg p-3 text-xs font-mono text-[#0B0B0B] space-y-1">
-              <div>sb-&lt;project-ref&gt;-auth-token</div>
-              <div>sb-&lt;project-ref&gt;-auth-token.0 (chunked token storage)</div>
-              <div>sb-&lt;project-ref&gt;-auth-token.1 (chunked token storage)</div>
-            </div>
-            <p className="text-[11px] text-[#333333]">
-              These cookies maintain your encrypted session token and are cleared immediately upon sign-out or account deletion.
-            </p>
-          </div>
-          <div className="space-y-2 pt-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#0B0B0B]">Local Storage Keys:</p>
-            <div className="bg-[#F1F7F7] border border-[#6B6B6B] rounded-lg p-3 text-xs font-mono text-[#0B0B0B] space-y-1">
-              <div>cv_maker_draft_&lt;documentId&gt;</div>
-            </div>
-            <p className="text-[11px] text-[#333333]">
-              Used solely to buffer unsaved document edits in your local browser so work is not lost during transient network interruptions. These keys are purged automatically upon account deletion.
-            </p>
-          </div>
         </section>
 
         {/* Section 6 */}
-        <section id="section-6" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-6" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B]">
             6. Third-Party Scripts &amp; Analytics
           </h2>
@@ -204,7 +178,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 7 */}
-        <section id="section-7" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-7" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B]">
             7. No Commercial Sale of Data
           </h2>
@@ -214,7 +188,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 8 */}
-        <section id="section-8" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-8" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B] flex items-center gap-2">
             <Trash2 className="w-5 h-5 text-[#800021]" aria-hidden="true" />
             <span>8. Data Retention &amp; Permanent Deletion</span>
@@ -231,7 +205,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 9 */}
-        <section id="section-9" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-4 scroll-mt-6">
+        <section id="section-9" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-4 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B] flex items-center gap-2">
             <Download className="w-5 h-5 text-[#800021]" aria-hidden="true" />
             <span>9. Your Rights: Export &amp; Erasure</span>
@@ -259,7 +233,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 10 */}
-        <section id="section-10" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-10" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B] flex items-center gap-2">
             <Mail className="w-5 h-5 text-[#800021]" aria-hidden="true" />
             <span>10. Contact Information</span>
@@ -274,7 +248,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Section 11 */}
-        <section id="section-11" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-6">
+        <section id="section-11" className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3 scroll-mt-[calc(var(--header-h,84px)+16px)]">
           <h2 className="font-display text-lg font-bold text-[#0B0B0B]">
             11. Changes &amp; Amendments
           </h2>
@@ -284,10 +258,8 @@ export default function PrivacyPage() {
         </section>
       </main>
 
-      {/* Footer Panel */}
-      <footer className="max-w-4xl mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-4 text-center text-xs text-[#333333] shadow-sm">
-        <div>{PRODUCT_NAME} &bull; Editorial Profile &amp; Document Engine</div>
-      </footer>
+      {/* Shared Public Footer */}
+      <PublicFooter />
     </div>
   );
 }

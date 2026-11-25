@@ -57,7 +57,7 @@ test.describe('Phase 6B: Editorial Landing Page Verification & Screenshots', () 
       await expect(target, `Target section #${id} must exist`).toBeVisible();
 
       // Click nav anchor
-      const link = page.locator(`header a[href="#${id}"]`).first();
+      const link = page.locator(`header a[href="/#${id}"]`).first();
       await link.click();
       await page.waitForTimeout(100);
 
@@ -122,7 +122,7 @@ test.describe('Phase 6B: Editorial Landing Page Verification & Screenshots', () 
     }
 
     // Click an anchor link and verify menu closes
-    await mobileMenu.locator('a[href="#faq"]').click();
+    await mobileMenu.locator('a[href="/#faq"]').click();
     await page.waitForTimeout(100);
     await expect(mobileMenu).not.toBeVisible();
   });

@@ -1,22 +1,31 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { PRODUCT_NAME } from '@/config/app';
 import { safeNextPath } from '@/lib/navigation/safe-redirect';
+import { mapLoginError } from '@/lib/auth/login-error-map';
+import { PublicHeader } from '@/components/public/PublicHeader';
+import { PublicFooter } from '@/components/public/PublicFooter';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
 
 function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
-
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get('next') ?? searchParams.get('redirectTo') ?? searchParams.get('returnTo');
   const safeNext = safeNextPath(rawNext, '/dashboard');
+
+  const initialMappedError = mapLoginError({
+    error: searchParams.get('error'),
+    errorCode: searchParams.get('error_code'),
+    errorDescription: searchParams.get('error_description'),
+  });
+
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(
+    initialMappedError ? { text: initialMappedError, error: true } : null
+  );
 
   const supabase = createClient();
 
@@ -27,6 +36,45 @@ function LoginForm() {
       }
     });
   }, [supabase, router]);
+
+  useEffect(() => {
+    const hashParams = new URLSearchParams(
+      typeof window !== 'undefined' && window.location.hash.startsWith('#')
+        ? window.location.hash.slice(1)
+        : ''
+    );
+    const hashErr = hashParams.get('error');
+    const hashErrCode = hashParams.get('error_code');
+    const hashErrDesc = hashParams.get('error_description');
+
+    const mappedHash = mapLoginError({
+      error: hashErr,
+      errorCode: hashErrCode,
+      errorDescription: hashErrDesc,
+    });
+
+    if (mappedHash) {
+      queueMicrotask(() => setMessage({ text: mappedHash, error: true }));
+    }
+
+    // Scrub sensitive or noisy error/token parameters from the URL
+    if (
+      typeof window !== 'undefined' &&
+      (searchParams.has('error') ||
+        searchParams.has('error_code') ||
+        searchParams.has('error_description') ||
+        searchParams.has('code') ||
+        window.location.hash.includes('access_token') ||
+        window.location.hash.includes('error'))
+    ) {
+      const cleanParams = new URLSearchParams();
+      if (rawNext) {
+        cleanParams.set('next', safeNext);
+      }
+      const query = cleanParams.toString();
+      window.history.replaceState(null, '', `/login${query ? `?${query}` : ''}`);
+    }
+  }, [searchParams, rawNext, safeNext]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +92,12 @@ function LoginForm() {
     });
 
     if (error) {
-      setMessage({ text: error.message, error: true });
+      const mapped = mapLoginError({
+        error: error.code,
+        errorCode: error.code,
+        errorDescription: error.message,
+      });
+      setMessage({ text: mapped || 'Sign-in could not be completed. Please try again.', error: true });
     } else {
       setMessage({
         text: 'A secure sign-in link has been sent to your email address.',
@@ -65,26 +118,26 @@ function LoginForm() {
       },
     });
     if (error) {
-      setMessage({ text: error.message, error: true });
+      const mapped = mapLoginError({
+        error: error.code,
+        errorCode: error.code,
+        errorDescription: error.message,
+      });
+      setMessage({ text: mapped || 'Sign-in could not be completed. Please try again.', error: true });
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-4 sm:p-8 relative text-[#0B0B0B]">
-      {/* Top Header Panel */}
-      <header className="max-w-md mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3.5 shadow-sm flex items-center justify-between">
-        <Link
-          href="/"
-          className="font-display text-xl font-bold tracking-tight text-[#0B0B0B] hover:text-[#800021] focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
-        >
-          {PRODUCT_NAME}
-        </Link>
-        <span className="text-xs font-semibold text-[#333333]">Sign in</span>
-      </header>
+    <div className="min-h-screen flex flex-col justify-between relative text-[#0B0B0B]">
+      {/* Shared Public Header */}
+      <div className="pt-4 sm:pt-8">
+        <PublicHeader />
+      </div>
 
       {/* Main Authentication Card Panel */}
-      <main className="max-w-md w-full mx-auto my-auto bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-md">
+      <main className="max-w-md w-full mx-auto px-4 sm:px-0 my-auto py-8">
+        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-md">
         <div className="mb-6">
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0B] tracking-tight">
             Sign in
@@ -96,6 +149,7 @@ function LoginForm() {
 
         {message && (
           <div
+            role="alert"
             className={`p-3.5 rounded-lg mb-6 text-xs font-semibold border ${
               message.error
                 ? 'bg-[#FFE4D8] text-[#800021] border-[#800021]'
@@ -197,19 +251,18 @@ function LoginForm() {
         <p className="mt-6 text-[11px] text-center text-[#333333] leading-relaxed">
           By signing in, you agree to store your career and academic facts securely. We never use your profile data to train public models.
         </p>
+        </div>
       </main>
 
-      {/* Footer Panel */}
-      <footer className="max-w-md mx-auto w-full bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-3 text-center text-xs text-[#333333] shadow-sm">
-        {PRODUCT_NAME} &bull; Editorial Profile &amp; Document Engine
-      </footer>
+      {/* Shared Public Footer */}
+      <PublicFooter />
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F1F7F7]" />}>
+    <Suspense fallback={<div className="min-h-screen" />}>
       <LoginForm />
     </Suspense>
   );
