@@ -40,7 +40,7 @@ export function validatePdfTextField(text: string): { valid: boolean; warning?: 
     return {
       valid: false,
       warning:
-        'Non-Latin script (such as Hindi or Marathi Devanagari) detected. Due to PDF font shaping limitations, non-Latin text cannot be cleanly rendered in PDF resumes or CVs and will be omitted from the exported document. Your public website (HTML) displays it accurately.',
+        'Non-Latin script (such as Hindi or Marathi Devanagari) detected. Due to PDF font shaping limitations, non-Latin text cannot be cleanly rendered in PDF resumes or CVs and will be omitted from the exported document.',
     };
   }
   return { valid: true };

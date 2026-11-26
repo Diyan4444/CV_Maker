@@ -161,7 +161,7 @@ test.describe.serial('Phase 6A: Account Settings, Export, Deletion, Privacy & Sc
 
     const parsed = AccountExportDataSchema.parse(json);
     expect(parsed.account.email).toBe(testEmail);
-    expect(parsed.exportVersion).toBe('1.0.0');
+    expect(parsed.exportVersion).toBe('2');
   });
 
   /* --------------------------------------------------------------------------

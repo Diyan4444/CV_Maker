@@ -69,10 +69,10 @@ describe('Landing Page Copy & Specimen Invariants', () => {
     expect(match).toBeNull();
   });
 
-  it('verifies personal website is presented strictly as "Planned"', () => {
+  it('verifies planned section shows More templates without Personal website', () => {
     expect(fullSource).toContain('Planned');
-    expect(fullSource).toContain('Personal website');
     expect(fullSource).toContain('More templates');
+    expect(fullSource).not.toContain('Personal website');
   });
 
   it('verifies all 3 template specimen images exist and are under 150 KB', () => {

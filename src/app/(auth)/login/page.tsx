@@ -143,7 +143,7 @@ function LoginForm() {
             Sign in
           </h1>
           <p className="text-xs sm:text-sm text-[#333333] mt-1.5 leading-relaxed">
-            One master profile for your Resume, Academic CV, and public site.
+            One master profile for your Resume and Academic CV.
           </p>
         </div>
 

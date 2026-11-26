@@ -29,7 +29,7 @@ export default function GoodbyePage() {
             Account Permanently Deleted
           </h1>
           <p className="text-xs sm:text-sm text-[#333333] leading-relaxed max-w-md mx-auto">
-            Your account credentials, master profile, resume and CV documents, website settings, and telemetry logs have been completely and permanently removed.
+            Your account credentials, master profile, resume and CV documents, and telemetry logs have been completely and permanently removed.
           </p>
         </div>
 

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PRODUCT_NAME } from '@/config/app';
-import { Menu, X, LogOut, LayoutDashboard, User, Globe, Settings } from 'lucide-react';
+import { Menu, X, LogOut, LayoutDashboard, User, Settings } from 'lucide-react';
 
 interface AppHeaderProps {
   currentPath?: string;
@@ -17,7 +17,6 @@ export function AppHeader({ currentPath }: AppHeaderProps) {
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/profile', label: 'Master Profile', icon: User },
-    { href: '/website', label: 'Public Site', icon: Globe },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
 

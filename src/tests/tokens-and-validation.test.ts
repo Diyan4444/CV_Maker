@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { getContrastRatio, isAACompliant } from '../config/contrast';
-import { isValidUsername } from '../config/app';
 import { wcagContrast } from 'culori';
 
 describe('Design System Contrast & Palette Verification (Part B & Step 0)', () => {
@@ -127,29 +126,5 @@ describe('Design System Contrast & Palette Verification (Part B & Step 0)', () =
     const lowContrastRatio = assertWithCulori('#D9D9D9', '#FFFFFF', '#D9D9D9 on #FFFFFF');
     console.log(`[WCAG Contrast] Low-contrast pair #D9D9D9 on #FFFFFF: ${lowContrastRatio}:1 (Fails UI: < 3.0)`);
     expect(lowContrastRatio).toBeLessThan(3.0);
-  });
-});
-
-describe('Username Validation & Security Rules', () => {
-  it('accepts valid alphanumeric usernames with hyphens', () => {
-    expect(isValidUsername('johndoe').valid).toBe(true);
-    expect(isValidUsername('john-doe').valid).toBe(true);
-    expect(isValidUsername('user123').valid).toBe(true);
-  });
-
-  it('rejects reserved system usernames', () => {
-    expect(isValidUsername('admin').valid).toBe(false);
-    expect(isValidUsername('api').valid).toBe(false);
-    expect(isValidUsername('login').valid).toBe(false);
-    expect(isValidUsername('dashboard').valid).toBe(false);
-    expect(isValidUsername('u').valid).toBe(false);
-  });
-
-  it('rejects invalid length or malformed usernames', () => {
-    expect(isValidUsername('ab').valid).toBe(false); // too short
-    expect(isValidUsername('-leadinghyphen').valid).toBe(false);
-    expect(isValidUsername('trailinghyphen-').valid).toBe(false);
-    expect(isValidUsername('john_doe').valid).toBe(false); // underscore disallowed
-    expect(isValidUsername('john doe').valid).toBe(false); // space disallowed
   });
 });

@@ -90,7 +90,7 @@ export default function PrivacyPage() {
             1. Operator &amp; Scope
           </h2>
           <p className="text-xs sm:text-sm text-[#333333] leading-relaxed">
-            {PRODUCT_NAME} is an editorial portfolio and document engine operated by <strong>{OPERATOR_NAME}</strong> (&quot;we&quot;, &quot;us&quot;, or &quot;the operator&quot;). This document describes our technical practices for data storage, processing, export, and account deletion across all application endpoints.
+            {PRODUCT_NAME} is an editorial resume and CV document engine operated by <strong>{OPERATOR_NAME}</strong> (&quot;we&quot;, &quot;us&quot;, or &quot;the operator&quot;). This document describes our technical practices for data storage, processing, export, and account deletion across all application endpoints.
           </p>
         </section>
 
@@ -100,14 +100,13 @@ export default function PrivacyPage() {
             2. Information We Collect
           </h2>
           <p className="text-xs sm:text-sm text-[#333333] leading-relaxed">
-            We store only the facts and materials that you deliberately submit when building your master profile, curriculum vitae, resume, and public site:
+            We store only the facts and materials that you deliberately submit when building your master profile, curriculum vitae, and resume:
           </p>
           <ul className="list-disc list-inside space-y-2 text-xs sm:text-sm text-[#333333] leading-relaxed pl-2">
             <li><strong>Account Identity:</strong> Primary email address, authentication user identifier (UUID), account creation timestamp, and last sign-in timestamp.</li>
             <li><strong>Master Profile Records:</strong> Full name, professional headline, biographical summary, contact information (email, phone, location, personal links), and categorization tags (field of study, career stage).</li>
             <li><strong>Academic &amp; Professional Facts:</strong> Chronological entries for education, employment history, independent projects, skill proficiencies, publications, honors and awards, professional certifications, and custom section content.</li>
             <li><strong>Documents &amp; Layouts:</strong> Resumes and Academic CVs authored by you, including customized section order, visibility flags, selected typographic templates, accent color overrides, and version counter state.</li>
-            <li><strong>Website Configuration:</strong> Optional public portfolio username, chosen color palette, field-level visibility preferences, and custom header/bio overrides.</li>
             <li><strong>Telemetry &amp; Usage Logs:</strong> Action metadata such as token counts and completion timestamps generated during profile operations.</li>
           </ul>
         </section>
@@ -139,7 +138,7 @@ export default function PrivacyPage() {
           <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-[#333333] leading-relaxed pl-2">
             <li><strong>Email Magic Link (Passwordless):</strong> A cryptographic one-time sign-in link delivered to your verified email address. No passwords are created or stored on our servers.</li>
             <li>
-              <strong>Google Sign-In (OAuth):</strong> We offer sign-in with Google via Supabase Auth. Google sends your email address, full name, and avatar URL to Supabase Auth. Our application stores your email address and user ID in your account profile and your full name in your master profile if provided; we do not store or display your Google avatar. See{' '}
+              <strong>Google Sign-In (OAuth):</strong> We offer sign-in with Google via Supabase Auth. Google sends your email address, full name, and avatar URL to Supabase Auth. On account creation, our database trigger stores your user ID, email address, full name, and avatar URL in your account profile; we do not display your Google avatar in the app. See{' '}
               <a
                 href="https://policies.google.com/privacy"
                 target="_blank"
@@ -198,7 +197,7 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-[#333333] leading-relaxed pl-2">
             <li>Your account identity is immediately destroyed in the Supabase authentication service.</li>
-            <li>All associated profile records, curriculum vitae, resumes, custom sections, website settings, and usage logs are immediately and permanently removed via relational database cascades (<code className="font-mono text-xs">ON DELETE CASCADE</code>).</li>
+            <li>All associated profile records, curriculum vitae, resumes, custom sections, and usage logs are immediately and permanently removed via relational database cascades (<code className="font-mono text-xs">ON DELETE CASCADE</code>).</li>
             <li>All active sessions are invalidated and browser cookies and local drafts are purged.</li>
             <li>Deletion is instantaneous, permanent, and irreversible.</li>
           </ul>

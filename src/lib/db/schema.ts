@@ -40,7 +40,7 @@ export const masterProfiles = pgTable('master_profiles', {
   headline: varchar('headline', { length: 300 }).default(''),
   summary: text('summary').default(''),
   
-  // Normalized contact details (can be hidden on public website individually)
+  // Normalized contact details
   contactInfo: jsonb('contact_info').$type<{
     email?: string;
     phone?: string;
@@ -247,60 +247,7 @@ export const documentSections = pgTable('document_sections', {
 });
 
 /**
- * 12. WEBSITES (Public personal website configuration)
- */
-export const websites = pgTable('websites', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => profiles.id, { onDelete: 'cascade' })
-    .unique(),
-  username: varchar('username', { length: 50 }).notNull().unique(),
-  isPublished: boolean('is_published').default(false).notNull(),
-  palette: varchar('palette', { length: 50 }).default('mist').notNull(), // 'mist' | 'wine' | 'ink' | 'forest'
-  
-  // Strict field-visibility whitelist configuration
-  // EVERYTHING is false by default.
-  fieldVisibility: jsonb('field_visibility').$type<{
-    showEmail: boolean;
-    showPhone: boolean;
-    showLocation: boolean;
-    showSocialLinks: Record<string, boolean>;
-    showEducation: boolean;
-    showExperience: boolean;
-    showProjects: boolean;
-    showSkills: boolean;
-    showAchievements: boolean;
-    showCertifications: boolean;
-    showPublications: boolean;
-    showDownloadResume: boolean;
-    visibleProjectIds?: string[];
-    visibleExperienceIds?: string[];
-  }>().default({
-    showEmail: false,
-    showPhone: false,
-    showLocation: false,
-    showSocialLinks: {},
-    showEducation: true,
-    showExperience: true,
-    showProjects: true,
-    showSkills: true,
-    showAchievements: false,
-    showCertifications: false,
-    showPublications: false,
-    showDownloadResume: false,
-  }).notNull(),
-
-  customHeadline: varchar('custom_headline', { length: 300 }),
-  customBio: text('custom_bio'),
-  schemaVersion: varchar('schema_version', { length: 20 }).default('1.0.0').notNull(),
-  version: integer('version').default(1).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
-
-/**
- * 13. AI USAGE LOGS (Per-user daily rate limiting & token audit)
+ * 12. AI USAGE LOGS (Per-user daily rate limiting & token audit)
  */
 export const aiUsageLogs = pgTable('ai_usage_logs', {
   id: uuid('id').defaultRandom().primaryKey(),

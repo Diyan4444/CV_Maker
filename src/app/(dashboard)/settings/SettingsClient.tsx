@@ -259,7 +259,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
             Your Data &amp; Portability
           </h2>
           <p className="text-xs text-[#333333] mt-0.5 leading-relaxed">
-            Download a complete, machine-readable JSON archive containing all your facts, profile records, documents, and website settings.
+            Download a complete, machine-readable JSON archive containing all your facts, profile records, and documents.
           </p>
         </div>
 
@@ -315,7 +315,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
 
         <div className="space-y-4">
           <p className="text-xs text-[#333333] leading-relaxed">
-            Permanently delete your account and remove all personal information, master profile facts, documents, website settings, and telemetry. Once deleted, this data cannot be recovered.
+            Permanently delete your account and remove all personal information, master profile facts, documents, and telemetry. Once deleted, this data cannot be recovered.
           </p>
 
           <button
@@ -374,7 +374,6 @@ export function SettingsClient({ user }: SettingsClientProps) {
                 <li>Your account credentials and authentication identity</li>
                 <li>Your master profile, career facts, and normalized timeline</li>
                 <li>All resume and CV documents and their customized sections</li>
-                <li>Your personal website configuration and published portfolio</li>
                 <li>All AI telemetry and usage logs</li>
               </ul>
             </div>

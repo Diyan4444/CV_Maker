@@ -252,7 +252,7 @@ export function MasterProfileEditor({
       <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-medium text-[#333333]">
-            Manage your normalized facts once; synchronize across resumes, CVs, and personal website anytime.
+            Manage your normalized facts once; synchronize across resumes and CVs anytime.
           </span>
           <div className="text-[11px] text-[#6B6B6B] mt-0.5">
             Database Version: <span className="font-mono font-bold text-[#0B0B0B]">{profile.version || 1}</span>

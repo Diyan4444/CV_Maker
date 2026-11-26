@@ -355,7 +355,7 @@ export function DashboardSkeleton() {
         </div>
 
         {/* Overview Metric Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <SkeletonBlock className="h-4 w-24" />
@@ -370,14 +370,6 @@ export function DashboardSkeleton() {
               <SkeletonBlock className="h-7 w-7 rounded-full" />
             </div>
             <SkeletonBlock className="h-7 w-12" />
-            <SkeletonBlock className="h-3 w-36" />
-          </div>
-          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-5 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <SkeletonBlock className="h-4 w-28" />
-              <SkeletonBlock className="h-7 w-7 rounded-full" />
-            </div>
-            <SkeletonBlock className="h-7 w-20" />
             <SkeletonBlock className="h-3 w-36" />
           </div>
         </div>

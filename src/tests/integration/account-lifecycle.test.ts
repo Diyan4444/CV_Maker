@@ -151,16 +151,6 @@ describe.skipIf(!hasCredentials)('Account Lifecycle Integration: Export, Deletio
       VALUES (${docB.id}, 'experience', 'Work History', 0, '{"text": "Data models"}'::jsonb)
     `;
 
-    // Website for User A and User B
-    await sql`
-      INSERT INTO public.websites (user_id, username, is_published, custom_headline)
-      VALUES (${userAId}, ${'lifecycle-a-' + Date.now()}, true, 'User A Site')
-    `;
-    await sql`
-      INSERT INTO public.websites (user_id, username, is_published, custom_headline)
-      VALUES (${userBId}, ${'lifecycle-b-' + Date.now()}, true, 'User B Site')
-    `;
-
     // AI Usage Logs
     await sql`
       INSERT INTO public.ai_usage_logs (user_id, action_type, prompt_tokens, completion_tokens)
@@ -219,7 +209,6 @@ describe.skipIf(!hasCredentials)('Account Lifecycle Integration: Export, Deletio
       expect(parsed.customSections.length).toBeGreaterThanOrEqual(1);
       expect(parsed.documents.length).toBeGreaterThanOrEqual(1);
       expect(parsed.documents[0].sections.length).toBeGreaterThanOrEqual(1);
-      expect(parsed.website).not.toBeNull();
       expect(parsed.aiUsageLogs.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -248,7 +237,7 @@ describe.skipIf(!hasCredentials)('Account Lifecycle Integration: Export, Deletio
       expect(rawTextB).not.toContain(emailA);
     });
 
-    it('verifies dynamic column coverage against information_schema across all 14 tables', async () => {
+    it('verifies dynamic column coverage against information_schema across all schema tables', async () => {
       const res = await fetch(`${BASE_URL}/api/account/export`, {
         headers: { Cookie: userACookies },
       });
@@ -267,7 +256,6 @@ describe.skipIf(!hasCredentials)('Account Lifecycle Integration: Export, Deletio
         custom_sections: data.customSections[0],
         documents: data.documents[0],
         document_sections: data.documents[0]?.sections[0],
-        websites: data.website,
         ai_usage_logs: data.aiUsageLogs[0],
       };
 
@@ -361,7 +349,7 @@ describe.skipIf(!hasCredentials)('Account Lifecycle Integration: Export, Deletio
       expect(data.code).toBe('REAUTH_REQUIRED');
     });
 
-    it('returns 200 OK on fresh sign-in and cascades deletion across all 14 tables', async () => {
+    it('returns 200 OK on fresh sign-in and cascades deletion across all schema tables', async () => {
       // 1. Fresh sign-in to get new last_sign_in_at timestamp within window
       const freshCookies = await getSessionCookie(emailA);
 
@@ -384,48 +372,39 @@ describe.skipIf(!hasCredentials)('Account Lifecycle Integration: Export, Deletio
       const { data: authUserRes } = await adminClient.auth.admin.getUserById(userAId);
       expect(authUserRes?.user).toBeNull();
 
-      // 4. Verify COUNT(*) is zero in EVERY table referencing User A (all 14 tables)
-      const [profilesCount] = await sql`SELECT count(*)::int as c FROM public.profiles WHERE id = ${userAId}`;
-      expect(profilesCount.c).toBe(0);
+      // 4. Derive all app tables dynamically from Drizzle schema and verify 0 rows remain for User A
+      const { getTableName, is } = await import('drizzle-orm');
+      const { PgTable } = await import('drizzle-orm/pg-core');
+      const schemaModule = await import('@/lib/db/schema');
+      const schemaTables = Object.values(schemaModule)
+        .filter((v) => is(v, PgTable))
+        .map((t) => getTableName(t as InstanceType<typeof PgTable>));
 
-      const [masterProfilesCount] = await sql`SELECT count(*)::int as c FROM public.master_profiles WHERE user_id = ${userAId}`;
-      expect(masterProfilesCount.c).toBe(0);
+      const fkLookup: Record<string, { col: string; val: string }> = {
+        profiles: { col: 'id', val: userAId },
+        master_profiles: { col: 'user_id', val: userAId },
+        education: { col: 'profile_id', val: masterProfileAId },
+        experiences: { col: 'profile_id', val: masterProfileAId },
+        projects: { col: 'profile_id', val: masterProfileAId },
+        skills: { col: 'profile_id', val: masterProfileAId },
+        publications: { col: 'profile_id', val: masterProfileAId },
+        achievements: { col: 'profile_id', val: masterProfileAId },
+        certifications: { col: 'profile_id', val: masterProfileAId },
+        custom_sections: { col: 'profile_id', val: masterProfileAId },
+        documents: { col: 'user_id', val: userAId },
+        document_sections: { col: 'document_id', val: docAId },
+        ai_usage_logs: { col: 'user_id', val: userAId },
+      };
 
-      const [eduCount] = await sql`SELECT count(*)::int as c FROM public.education WHERE profile_id = ${masterProfileAId}`;
-      expect(eduCount.c).toBe(0);
-
-      const [expCount] = await sql`SELECT count(*)::int as c FROM public.experiences WHERE profile_id = ${masterProfileAId}`;
-      expect(expCount.c).toBe(0);
-
-      const [projCount] = await sql`SELECT count(*)::int as c FROM public.projects WHERE profile_id = ${masterProfileAId}`;
-      expect(projCount.c).toBe(0);
-
-      const [skillCount] = await sql`SELECT count(*)::int as c FROM public.skills WHERE profile_id = ${masterProfileAId}`;
-      expect(skillCount.c).toBe(0);
-
-      const [pubCount] = await sql`SELECT count(*)::int as c FROM public.publications WHERE profile_id = ${masterProfileAId}`;
-      expect(pubCount.c).toBe(0);
-
-      const [achCount] = await sql`SELECT count(*)::int as c FROM public.achievements WHERE profile_id = ${masterProfileAId}`;
-      expect(achCount.c).toBe(0);
-
-      const [certCount] = await sql`SELECT count(*)::int as c FROM public.certifications WHERE profile_id = ${masterProfileAId}`;
-      expect(certCount.c).toBe(0);
-
-      const [custCount] = await sql`SELECT count(*)::int as c FROM public.custom_sections WHERE profile_id = ${masterProfileAId}`;
-      expect(custCount.c).toBe(0);
-
-      const [docCount] = await sql`SELECT count(*)::int as c FROM public.documents WHERE user_id = ${userAId}`;
-      expect(docCount.c).toBe(0);
-
-      const [docSecCount] = await sql`SELECT count(*)::int as c FROM public.document_sections WHERE document_id = ${docAId}`;
-      expect(docSecCount.c).toBe(0);
-
-      const [webCount] = await sql`SELECT count(*)::int as c FROM public.websites WHERE user_id = ${userAId}`;
-      expect(webCount.c).toBe(0);
-
-      const [aiCount] = await sql`SELECT count(*)::int as c FROM public.ai_usage_logs WHERE user_id = ${userAId}`;
-      expect(aiCount.c).toBe(0);
+      for (const tbl of schemaTables) {
+        const ref = fkLookup[tbl];
+        expect(ref, `Missing FK mapping for schema table ${tbl}`).toBeDefined();
+        const [row] = await sql.unsafe(
+          `SELECT count(*)::int as c FROM public.${tbl} WHERE ${ref.col} = $1`,
+          [ref.val]
+        );
+        expect(row.c, `Expected 0 rows in ${tbl} after account deletion`).toBe(0);
+      }
 
       // 5. Verify User B rows are completely untouched
       const [userBProfile] = await sql`SELECT count(*)::int as c FROM public.profiles WHERE id = ${userBId}`;

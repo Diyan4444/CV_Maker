@@ -123,7 +123,7 @@ test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () =>
         // Verify all 3 navigation links exist inside the dropdown
         await expect(menu.getByRole('link', { name: /dashboard/i })).toBeVisible();
         await expect(menu.getByRole('link', { name: /master profile/i })).toBeVisible();
-        await expect(menu.getByRole('link', { name: /public site/i })).toBeVisible();
+        await expect(menu.getByRole('link', { name: /settings/i })).toBeVisible();
 
         // Close menu
         await toggleBtn.click();

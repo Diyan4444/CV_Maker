@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { db } from '../lib/db';
-import { masterProfiles, documents, websites, projects } from '../lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { masterProfiles, documents, projects } from '../lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * Tenant Ownership Isolation Unit Tests
@@ -36,25 +36,5 @@ describe('Tenant Ownership & Boundary Tests', () => {
     expect(childQuery.sql).toContain('inner join "master_profiles"');
     expect(childQuery.sql).toContain('"master_profiles"."user_id" = $1');
     expect(childQuery.params).toEqual([userA_id]);
-  });
-
-  it('public website query enforces is_published=true AND whitelist DTO projection', () => {
-    // Public website query never queries raw user profile or private fields
-    const publicQuery = db
-      .select({
-        username: websites.username,
-        palette: websites.palette,
-        isPublished: websites.isPublished,
-        customHeadline: websites.customHeadline,
-        customBio: websites.customBio,
-        fieldVisibility: websites.fieldVisibility,
-      })
-      .from(websites)
-      .where(and(eq(websites.username, 'johndoe'), eq(websites.isPublished, true)))
-      .toSQL();
-
-    expect(publicQuery.sql).toContain('"websites"."username" = $1');
-    expect(publicQuery.sql).toContain('"websites"."is_published" = $2');
-    expect(publicQuery.params).toEqual(['johndoe', true]);
   });
 });

@@ -97,7 +97,7 @@ export default async function ProfilePage() {
             Master Profile
           </h1>
           <p className="text-xs sm:text-sm text-[#333333] mt-1.5 leading-relaxed">
-            Single normalized source of truth for all your career and academic facts. Changes made here can be reused across all your resumes, CVs, and website.
+            Single normalized source of truth for all your career and academic facts. Changes made here can be reused across all your resumes and CVs.
           </p>
         </div>
 

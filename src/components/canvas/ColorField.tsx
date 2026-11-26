@@ -24,7 +24,7 @@ export function ColorField({ forcedRecipeId, className = '' }: ColorFieldProps) 
     ? BACKGROUND_RECIPES[forcedRecipeId] || BACKGROUND_RECIPES.default
     : getRecipeForPathname(pathname);
 
-  // If public site (/u/[username]), no color field rendered
+  // If no recipe matches, render nothing
   if (!targetRecipe) {
     return null;
   }

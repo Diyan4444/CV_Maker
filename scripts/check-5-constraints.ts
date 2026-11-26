@@ -9,9 +9,6 @@ async function run() {
   const names = [
     'master_profiles_contact_info_len_check',
     'master_profiles_social_links_len_check',
-    'websites_custom_headline_len_check',
-    'websites_custom_bio_len_check',
-    'websites_field_visibility_len_check',
   ];
   const rows = await sql`
     SELECT c.conname, r.relname, pg_get_constraintdef(c.oid) as def

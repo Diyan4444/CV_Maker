@@ -1,6 +1,6 @@
 # Quillfolio
 
-Quillfolio is an intelligent career-profile platform that understands the individual before generating their professional identity across ATS-optimized PDF resumes, academic CVs, and published personal websites.
+Quillfolio is an intelligent career-profile platform that understands the individual before generating their professional identity across ATS-optimized PDF resumes and academic CVs.
 
 ## Getting Started
 
@@ -43,11 +43,21 @@ Quillfolio employs an atomic, checksum-verified migration runner in `scripts/app
 
 1. `0001_core_schema.sql` (Tables, Foreign Keys, Unique Constraints, Role Grants)
 2. `0002_rls_policies_only.sql` (Row-Level Security Policies & Auth Trigger)
-3. `0004_db_constraints.sql` (Regex, Length Checks, & Reserved Username Trigger)
+3. `0004_db_constraints.sql` (Regex & Length Checks)
 4. `0005_version_and_caps.sql` (Optimistic Concurrency Versions & Per-User Row Caps)
 5. `0006_missing_caps.sql` (Row Caps for Certifications, Publications, Achievements, Custom Sections)
 6. `0007_indexes.sql` (Performance Indexes, Search Paths, and Anon/Authenticated Privilege Hardening)
 7. `0008_drop_duplicate_indexes.sql` (Drop Redundant Duplicate Indexes Covered by Unique Constraints)
+8. `0009_profiles_auth_cascade.sql` (Cascade Deletion from auth.users to profiles)
+9. `0010_remove_public_side.sql` (Drop websites table, reserved-username trigger/function — apply AFTER deploying code that no longer uses `websites`)
+
+### Production Release Order
+1. Apply additive database migrations first (`npm run db:apply -- --confirm-ref <prod-ref>`).
+2. Deploy application code that no longer reads or writes dropped tables (`public.websites`).
+3. Only after the new application code is live in production, apply destructive drop migrations such as `0010_remove_public_side.sql`.
+
+### Account Export Format (`exportVersion: "2"`)
+- `/api/account/export` outputs `exportVersion: "2"`, which removes the legacy `website` key following removal of the public website feature.
 
 #### How to Deploy to an Empty Supabase Project:
 1. Create a new Supabase project in the Supabase Dashboard.
@@ -109,7 +119,7 @@ npm run db:verify
 Expected output:
 - Starts read-only transaction (`SET TRANSACTION READ ONLY`).
 - Audits and verifies:
-  - All 15 public tables exist (derived dynamically from `src/lib/db/schema.ts` + `app_migrations`): `achievements`, `ai_usage_logs`, `app_migrations`, `certifications`, `custom_sections`, `document_sections`, `documents`, `education`, `experiences`, `master_profiles`, `profiles`, `projects`, `publications`, `skills`, `websites`.
+  - All 14 public tables exist (derived dynamically from `src/lib/db/schema.ts` + `app_migrations`): `achievements`, `ai_usage_logs`, `app_migrations`, `certifications`, `custom_sections`, `document_sections`, `documents`, `education`, `experiences`, `master_profiles`, `profiles`, `projects`, `publications`, `skills`.
   - Row Level Security (RLS) is enabled on all tables.
   - Anon role has zero table privileges (15/15 completely inaccessible).
   - Authenticated role is strictly restricted to CRUD operations (and SELECT-only on `ai_usage_logs`).
@@ -259,7 +269,7 @@ Operator legal constants are centralized in `src/config/legal.ts`:
 ### 2. Data Portability & Export Format (`GET /api/account/export`)
 Authenticated users can download their complete record at `/settings` or directly via `GET /api/account/export`:
 - **Headers**: `Content-Disposition: attachment; filename="quillfolio-export-YYYY-MM-DD.json"`, `Cache-Control: no-store`.
-- **Coverage**: Extracts 100% of user-owned rows across all 14 database tables (`profiles`, `master_profiles`, `education`, `experiences`, `projects`, `skills`, `publications`, `achievements`, `certifications`, `custom_sections`, `documents`, `document_sections`, `websites`, `ai_usage_logs`).
+- **Coverage**: Extracts 100% of user-owned rows across all 13 application database tables (`profiles`, `master_profiles`, `education`, `experiences`, `projects`, `skills`, `publications`, `achievements`, `certifications`, `custom_sections`, `documents`, `document_sections`, `ai_usage_logs`).
 - **Validation**: Enforced via Zod schema (`AccountExportDataSchema` in `src/lib/account/export-schema.ts`).
 - **Security Exclusions**: Columns containing password hashes, encrypted credentials, internal tokens, or secrets are explicitly excluded (`EXCLUDED_COLUMNS`).
 
@@ -274,7 +284,7 @@ Users can permanently destroy their account and all associated records from `/se
 - **Cascading Database Erasure**:
   - The server invokes `supabase.auth.admin.deleteUser(user.id)`.
   - Migration `0009_profiles_auth_cascade.sql` links `public.profiles(id)` to `auth.users(id)` with `ON DELETE CASCADE`.
-  - Postgres foreign keys cascade immediately down to `master_profiles`, `documents`, `document_sections`, `websites`, `ai_usage_logs`, and all child profile tables (`education`, `experiences`, `projects`, `skills`, `publications`, `achievements`, `certifications`, `custom_sections`).
+  - Postgres foreign keys cascade immediately down to `master_profiles`, `documents`, `document_sections`, `ai_usage_logs`, and all child profile tables (`education`, `experiences`, `projects`, `skills`, `publications`, `achievements`, `certifications`, `custom_sections`).
   - All child rows are deleted in a single transactional cascade. Subsequent export or login returns 401 Unauthorized.
 - **Local Storage & Session Cleared**:
   - On successful deletion, the client script sweeps `localStorage`, purging any draft CVs (`cv_maker_draft_*`), temporary app keys (`quillfolio_*`), and cached Supabase session data (`sb-*`).

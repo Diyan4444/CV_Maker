@@ -85,12 +85,7 @@ export async function GET() {
       })
     );
 
-    // 4. Website settings
-    const [website] = await sql`
-      SELECT * FROM public.websites WHERE user_id = ${user.id}
-    `;
-
-    // 5. AI usage logs
+    // 4. AI usage logs
     const aiUsageLogs = await sql`
       SELECT * FROM public.ai_usage_logs WHERE user_id = ${user.id} ORDER BY created_at DESC
     `;
@@ -99,7 +94,7 @@ export async function GET() {
     const dateStr = now.toISOString().split('T')[0];
 
     const exportPayload = {
-      exportVersion: '1.0.0',
+      exportVersion: '2',
       exportedAt: now.toISOString(),
       account: {
         id: user.id,
@@ -117,7 +112,6 @@ export async function GET() {
       certifications: Array.from(certifications),
       customSections: Array.from(customSections),
       documents: documentsWithSections,
-      website: website || null,
       aiUsageLogs: Array.from(aiUsageLogs),
     };
 

@@ -84,7 +84,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
     });
     if (loginErrB) throw new Error(`Login User B failed: ${loginErrB.message}`);
 
-    // Create User A master profile, document, and website
+    // Create User A master profile and document
     const { data: pA } = await (userAClient as any)
       .from('master_profiles')
       .insert({
@@ -108,14 +108,6 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
       .select()
       .single();
     docA = dA as { id: string };
-
-    await (userAClient as any)
-      .from('websites')
-      .insert({
-        user_id: userA.id,
-        username: `user-a-${Date.now()}`,
-        is_published: false,
-      });
   }, 30000);
 
   afterAll(async () => {
@@ -210,7 +202,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
     20000
   );
 
-  it('Covers profiles, master_profiles, documents, websites, and ai_usage_logs: User B cannot read or hijack User A data', async () => {
+  it('Covers profiles, master_profiles, documents, and ai_usage_logs: User B cannot read or hijack User A data', async () => {
     // 1. User B tries to read User A's profile
     const { data: bProfile } = await (userBClient as any).from('profiles').select('*').eq('id', userA.id);
     expect(bProfile).toEqual([]);
@@ -219,15 +211,7 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
     const { data: bUpdateProf } = await (userBClient as any).from('profiles').update({ full_name: 'Hijacked' }).eq('id', userA.id).select();
     expect(bUpdateProf).toEqual([]);
 
-    // 3. User B tries to read User A's website config
-    const { data: bSite } = await (userBClient as any).from('websites').select('*').eq('user_id', userA.id);
-    expect(bSite).toEqual([]);
-
-    // 4. User B tries to hijack User A's website publish state or username
-    const { data: bUpdateSite } = await (userBClient as any).from('websites').update({ is_published: true }).eq('user_id', userA.id).select();
-    expect(bUpdateSite).toEqual([]);
-
-    // 5. Authenticated users CANNOT insert into ai_usage_logs (privilege denied at database level)
+    // 3. Authenticated users CANNOT insert into ai_usage_logs (privilege denied at database level)
     const { data: bAiInsert, error: aiErr } = await (userBClient as any).from('ai_usage_logs').insert({
       user_id: userB.id,
       action_type: 'hacked_action',
@@ -236,27 +220,8 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
     expect(aiErr?.code).toBe('42501'); // Permission denied for table ai_usage_logs
   });
 
-  it('Database Constraints: Direct client attack with reserved username or invalid format is rejected by Postgres', async () => {
-    // 1. Attack with reserved username 'admin'
-    const { error: reservedErr } = await (userAClient as any)
-      .from('websites')
-      .update({ username: 'admin' })
-      .eq('user_id', userA.id);
-
-    expect(reservedErr).toBeDefined();
-    // Check violation from trigger or check constraint (error code 23514)
-    expect(reservedErr?.code).toBe('23514');
-
-    // 2. Attack with invalid format (e.g. contains capital letters, starts with hyphen, or symbols)
-    const { error: invalidFormatErr } = await (userAClient as any)
-      .from('websites')
-      .update({ username: '-invalid-name!' })
-      .eq('user_id', userA.id);
-
-    expect(invalidFormatErr).toBeDefined();
-    expect(invalidFormatErr?.code).toBe('23514');
-
-    // 3. Attack with oversized headline (> 300 characters: triggers 22001 string_data_right_truncation or 23514 check_violation)
+  it('Database Constraints: Direct client attack with oversized values is rejected by Postgres', async () => {
+    // 1. Attack with oversized headline (> 300 characters: triggers 22001 string_data_right_truncation or 23514 check_violation)
     const oversizedHeadline = 'A'.repeat(301);
     const { error: headlineErr } = await (userAClient as any)
       .from('master_profiles')
@@ -331,33 +296,6 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
       .eq('id', masterProfileA.id);
     expect(socialLinksErr).toBeDefined();
     expect(socialLinksErr?.code).toBe('23514');
-
-    // 10. Attack with oversized websites custom_headline (> 300 chars) -> triggers 23514 check_violation
-    const oversizedWebHeadline = 'W'.repeat(301);
-    const { error: webHeadlineErr } = await (userAClient as any)
-      .from('websites')
-      .update({ custom_headline: oversizedWebHeadline })
-      .eq('user_id', userA.id);
-    expect(webHeadlineErr).toBeDefined();
-    expect(['22001', '23514']).toContain(webHeadlineErr?.code);
-
-    // 11. Attack with oversized websites custom_bio (> 4000 chars) -> triggers 23514 check_violation
-    const oversizedWebBio = 'V'.repeat(4001);
-    const { error: webBioErr } = await (userAClient as any)
-      .from('websites')
-      .update({ custom_bio: oversizedWebBio })
-      .eq('user_id', userA.id);
-    expect(webBioErr).toBeDefined();
-    expect(webBioErr?.code).toBe('23514');
-
-    // 12. Attack with oversized websites field_visibility (> 16384 octets) -> triggers 23514 check_violation
-    const oversizedVisibility = { customRules: 'U'.repeat(17000) };
-    const { error: visibilityErr } = await (userAClient as any)
-      .from('websites')
-      .update({ field_visibility: oversizedVisibility })
-      .eq('user_id', userA.id);
-    expect(visibilityErr).toBeDefined();
-    expect(visibilityErr?.code).toBe('23514');
   });
 
   it('Database Row Caps: Triggers enforce per-user document and child table row limits', async () => {
@@ -416,7 +354,6 @@ describe.skipIf(!hasCredentials)('Real Supabase RLS & Two-User Integration Tests
       'custom_sections',
       'documents',
       'document_sections',
-      'websites',
       'ai_usage_logs',
     ];
 

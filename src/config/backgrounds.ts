@@ -160,22 +160,6 @@ export const BACKGROUND_RECIPES: Record<string, BackgroundRecipe> = {
     ]),
   },
 
-  website: {
-    id: 'website',
-    name: 'Website Management',
-    description: 'P1 top-left, P2 bottom-right',
-    pathPattern: '^/website',
-    anchors: [
-      { palette: 'P1', position: [0.05, 0.05], radius: 1.1, weight: 1.0 },
-      { palette: 'P2', position: [0.95, 0.95], radius: 1.1, weight: 1.0 },
-    ],
-    motion: NORMAL_MOTION,
-    fallbackCss: generateFallbackCss([
-      { palette: 'P1', position: [0.05, 0.05], radius: 1.1, weight: 1.0 },
-      { palette: 'P2', position: [0.95, 0.95], radius: 1.1, weight: 1.0 },
-    ]),
-  },
-
   editor: {
     id: 'editor',
     name: 'Document Editor (Calm Mode)',
@@ -211,13 +195,8 @@ export const BACKGROUND_RECIPES: Record<string, BackgroundRecipe> = {
 
 /**
  * Resolves the appropriate BackgroundRecipe for a given pathname.
- * Public site (/u/[username]) is explicitly excluded (returns null).
  */
 export function getRecipeForPathname(pathname: string): BackgroundRecipe | null {
-  // Exclude public personal sites (/u/[username])
-  if (pathname.startsWith('/u/')) {
-    return null;
-  }
 
   for (const [key, recipe] of Object.entries(BACKGROUND_RECIPES)) {
     if (key === 'default') continue;

@@ -7,71 +7,121 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 interface ParsedDatabaseObjects {
-  constraints: string[];
-  triggers: string[];
+  constraintsByTable: Array<{ table: string; name: string }>;
+  droppedConstraints: string[];
+  triggers: Array<{ table: string; name: string }>;
+  droppedTriggers: string[];
   functions: string[];
-  indexes: string[];
+  droppedFunctions: string[];
+  indexes: Array<{ table: string; name: string }>;
   droppedIndexes: string[];
+  droppedTables: string[];
 }
 
 function parseSqlFile(sqlContent: string): ParsedDatabaseObjects {
-  const constraints = new Set<string>();
-  const triggers = new Set<string>();
+  const constraintsByTable: Array<{ table: string; name: string }> = [];
+  const droppedConstraints = new Set<string>();
+  const triggers: Array<{ table: string; name: string }> = [];
+  const droppedTriggers = new Set<string>();
   const functions = new Set<string>();
-  const indexes = new Set<string>();
+  const droppedFunctions = new Set<string>();
+  const indexes: Array<{ table: string; name: string }> = [];
   const droppedIndexes = new Set<string>();
+  const droppedTables = new Set<string>();
 
-  // Strip SQL comments to avoid false matches
   const cleanSql = sqlContent
     .replace(/--.*$/gm, '')
     .replace(/\/\*[\s\S]*?\*\//g, '');
 
-  // 1. Match ADD CONSTRAINT [IF NOT EXISTS] name ...
-  const conRegex = /(?:ADD\s+CONSTRAINT|CONSTRAINT)\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?\s+(?:CHECK|UNIQUE|FOREIGN\s+KEY|PRIMARY\s+KEY)/gi;
+  // Track ALTER TABLE <table> ... ADD CONSTRAINT <name>
+  const alterConRegex = /ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?\s+ADD\s+CONSTRAINT\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?\s+(?:CHECK|UNIQUE|FOREIGN\s+KEY|PRIMARY\s+KEY)/gi;
   let match: RegExpExecArray | null;
-  while ((match = conRegex.exec(cleanSql)) !== null) {
-    constraints.add(match[1].toLowerCase());
+  while ((match = alterConRegex.exec(cleanSql)) !== null) {
+    constraintsByTable.push({
+      table: match[1].toLowerCase(),
+      name: match[2].toLowerCase(),
+    });
   }
 
-  // 2. Match CREATE [OR REPLACE] TRIGGER name ...
-  const trgRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\s+["']?([a-zA-Z0-9_]+)["']?/gi;
+  // Track inline CREATE TABLE <table> (... CONSTRAINT <name> ...)
+  const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?\s*\(([\s\S]*?)\);/gi;
+  while ((match = createTableRegex.exec(cleanSql)) !== null) {
+    const tbl = match[1].toLowerCase();
+    const body = match[2];
+    const inlineConRegex = /CONSTRAINT\s+["']?([a-zA-Z0-9_]+)["']?\s+(?:CHECK|UNIQUE|FOREIGN\s+KEY|PRIMARY\s+KEY)/gi;
+    let cMatch: RegExpExecArray | null;
+    while ((cMatch = inlineConRegex.exec(body)) !== null) {
+      constraintsByTable.push({ table: tbl, name: cMatch[1].toLowerCase() });
+    }
+  }
+
+  // Track DROP CONSTRAINT [IF EXISTS] <name>
+  const dropConRegex = /DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = dropConRegex.exec(cleanSql)) !== null) {
+    droppedConstraints.add(match[1].toLowerCase());
+  }
+
+  // Track CREATE [OR REPLACE] TRIGGER <name> ... ON [public.]<table>
+  const trgRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\s+["']?([a-zA-Z0-9_]+)["']?[\s\S]*?\bON\s+(?:public\.)?["']?([a-zA-Z0-9_]+)["']?/gi;
   while ((match = trgRegex.exec(cleanSql)) !== null) {
-    triggers.add(match[1].toLowerCase());
+    triggers.push({ name: match[1].toLowerCase(), table: match[2].toLowerCase() });
   }
 
-  // 3. Match CREATE [OR REPLACE] FUNCTION [public.]name(...) ...
+  // Track DROP TRIGGER [IF EXISTS] <name>
+  const dropTrgRegex = /DROP\s+TRIGGER\s+(?:IF\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = dropTrgRegex.exec(cleanSql)) !== null) {
+    droppedTriggers.add(match[1].toLowerCase());
+  }
+
+  // Track CREATE [OR REPLACE] FUNCTION [public.]<name>(...)
   const fnRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?["']?([a-zA-Z0-9_]+)["']?\s*\(/gi;
   while ((match = fnRegex.exec(cleanSql)) !== null) {
     functions.add(match[1].toLowerCase());
   }
 
-  // 4. Match CREATE [UNIQUE] INDEX [IF NOT EXISTS] name ON ...
-  const idxRegex = /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?\s+ON/gi;
-  while ((match = idxRegex.exec(cleanSql)) !== null) {
-    indexes.add(match[1].toLowerCase());
+  // Track DROP FUNCTION [IF EXISTS] [public.]<name>
+  const dropFnRegex = /DROP\s+FUNCTION\s+(?:IF\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = dropFnRegex.exec(cleanSql)) !== null) {
+    droppedFunctions.add(match[1].toLowerCase());
   }
 
-  // 5. Match DROP INDEX [IF EXISTS] [public.]name
+  // Track CREATE [UNIQUE] INDEX [IF NOT EXISTS] <name> ON [public.]<table>
+  const idxRegex = /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?([a-zA-Z0-9_]+)["']?\s+ON\s+(?:public\.)?["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = idxRegex.exec(cleanSql)) !== null) {
+    indexes.push({ name: match[1].toLowerCase(), table: match[2].toLowerCase() });
+  }
+
+  // Track DROP INDEX [IF EXISTS] [public.]<name>
   const dropIdxRegex = /DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?/gi;
   while ((match = dropIdxRegex.exec(cleanSql)) !== null) {
     droppedIndexes.add(match[1].toLowerCase());
   }
 
+  // Track DROP TABLE [IF EXISTS] [public.]<table>
+  const dropTblRegex = /DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?["']?([a-zA-Z0-9_]+)["']?/gi;
+  while ((match = dropTblRegex.exec(cleanSql)) !== null) {
+    droppedTables.add(match[1].toLowerCase());
+  }
+
   return {
-    constraints: Array.from(constraints),
-    triggers: Array.from(triggers),
+    constraintsByTable,
+    droppedConstraints: Array.from(droppedConstraints),
+    triggers,
+    droppedTriggers: Array.from(droppedTriggers),
     functions: Array.from(functions),
-    indexes: Array.from(indexes),
+    droppedFunctions: Array.from(droppedFunctions),
+    indexes,
     droppedIndexes: Array.from(droppedIndexes),
+    droppedTables: Array.from(droppedTables),
   };
 }
 
-describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
+describe('Item 5: Migration Safety & Live Schema Synchronization (Net State)', () => {
   let sql: postgres.Sql;
-  const allConstraints = new Set<string>();
-  const allTriggers = new Set<string>();
-  const allFunctions = new Set<string>();
-  const allIndexes = new Set<string>();
+  const netConstraints = new Map<string, string>(); // name -> table
+  const netTriggers = new Map<string, string>(); // name -> table
+  const netFunctions = new Set<string>();
+  const netIndexes = new Map<string, string>(); // name -> table
   let files: string[] = [];
 
   beforeAll(async () => {
@@ -93,32 +143,79 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
       const content = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       const parsed = parseSqlFile(content);
 
-      parsed.constraints.forEach((c) => allConstraints.add(c));
-      parsed.triggers.forEach((t) => allTriggers.add(t));
-      parsed.functions.forEach((f) => allFunctions.add(f));
-      parsed.indexes.forEach((i) => allIndexes.add(i));
-      parsed.droppedIndexes.forEach((i) => allIndexes.delete(i));
+      // Apply drops first (in case same file recreates) or apply in statement order:
+      // Note: within a migration, DROP IF EXISTS followed by ADD/CREATE is common,
+      // while 0010 only drops. Applying creations then table/object drops from 0010+ handles both cleanly:
+      for (const c of parsed.constraintsByTable) {
+        netConstraints.set(c.name, c.table);
+      }
+      for (const c of parsed.droppedConstraints) {
+        // Only remove if not re-added in same file
+        if (!parsed.constraintsByTable.some((x) => x.name === c)) {
+          netConstraints.delete(c);
+        }
+      }
+
+      for (const t of parsed.triggers) {
+        netTriggers.set(t.name, t.table);
+      }
+      for (const t of parsed.droppedTriggers) {
+        if (!parsed.triggers.some((x) => x.name === t)) {
+          netTriggers.delete(t);
+        }
+      }
+
+      for (const f of parsed.functions) {
+        netFunctions.add(f);
+      }
+      for (const f of parsed.droppedFunctions) {
+        if (!parsed.functions.includes(f)) {
+          netFunctions.delete(f);
+        }
+      }
+
+      for (const i of parsed.indexes) {
+        netIndexes.set(i.name, i.table);
+      }
+      for (const i of parsed.droppedIndexes) {
+        if (!parsed.indexes.some((x) => x.name === i)) {
+          netIndexes.delete(i);
+        }
+      }
+
+      // Dropping a table cascades its constraints, triggers, and indexes
+      for (const tbl of parsed.droppedTables) {
+        for (const [cName, cTbl] of netConstraints.entries()) {
+          if (cTbl === tbl) netConstraints.delete(cName);
+        }
+        for (const [tName, tTbl] of netTriggers.entries()) {
+          if (tTbl === tbl) netTriggers.delete(tName);
+        }
+        for (const [iName, iTbl] of netIndexes.entries()) {
+          if (iTbl === tbl) netIndexes.delete(iName);
+        }
+      }
     }
 
-    console.log('\n=== MIGRATION SCHEMA AUDIT INVENTORY ===');
+    console.log('\n=== MIGRATION SCHEMA AUDIT INVENTORY (NET STATE) ===');
     console.log(`Migration files scanned: ${files.join(', ')}`);
-    console.log(`Constraints audited (${allConstraints.size}): ${Array.from(allConstraints).join(', ')}`);
-    console.log(`Triggers audited (${allTriggers.size}): ${Array.from(allTriggers).join(', ')}`);
-    console.log(`Functions audited (${allFunctions.size}): ${Array.from(allFunctions).join(', ')}`);
-    console.log(`Indexes audited (${allIndexes.size}): ${Array.from(allIndexes).join(', ')}`);
-    console.log('========================================\n');
+    console.log(`Net Constraints (${netConstraints.size}): ${Array.from(netConstraints.keys()).join(', ')}`);
+    console.log(`Net Triggers (${netTriggers.size}): ${Array.from(netTriggers.keys()).join(', ')}`);
+    console.log(`Net Functions (${netFunctions.size}): ${Array.from(netFunctions).join(', ')}`);
+    console.log(`Net Indexes (${netIndexes.size}): ${Array.from(netIndexes.keys()).join(', ')}`);
+    console.log('====================================================\n');
   });
 
   afterAll(async () => {
     if (sql) await sql.end({ timeout: 5 });
   });
 
-  it('1. asserts every parsed migration constraint exists in live database', async () => {
+  it('1. asserts every net migration constraint exists in live database', async () => {
     const liveConstraints = await sql`SELECT conname FROM pg_constraint;`;
     const liveConstraintSet = new Set(liveConstraints.map((r) => r.conname.toLowerCase()));
 
     const missingConstraints: string[] = [];
-    for (const c of allConstraints) {
+    for (const c of netConstraints.keys()) {
       if (!liveConstraintSet.has(c)) {
         missingConstraints.push(c);
       }
@@ -126,12 +223,12 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     expect(missingConstraints, `Missing live constraints: ${missingConstraints.join(', ')}`).toEqual([]);
   });
 
-  it('2. asserts every parsed migration trigger exists in live database', async () => {
+  it('2. asserts every net migration trigger exists in live database', async () => {
     const liveTriggers = await sql`SELECT tgname FROM pg_trigger;`;
     const liveTriggerSet = new Set(liveTriggers.map((r) => r.tgname.toLowerCase()));
 
     const missingTriggers: string[] = [];
-    for (const t of allTriggers) {
+    for (const t of netTriggers.keys()) {
       if (!liveTriggerSet.has(t)) {
         missingTriggers.push(t);
       }
@@ -139,12 +236,12 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     expect(missingTriggers, `Missing live triggers: ${missingTriggers.join(', ')}`).toEqual([]);
   });
 
-  it('3. asserts every parsed migration function exists in live database', async () => {
+  it('3. asserts every net migration function exists in live database', async () => {
     const liveFunctions = await sql`SELECT proname FROM pg_proc;`;
     const liveFunctionSet = new Set(liveFunctions.map((r) => r.proname.toLowerCase()));
 
     const missingFunctions: string[] = [];
-    for (const f of allFunctions) {
+    for (const f of netFunctions) {
       if (!liveFunctionSet.has(f)) {
         missingFunctions.push(f);
       }
@@ -152,15 +249,14 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     expect(missingFunctions, `Missing live functions: ${missingFunctions.join(', ')}`).toEqual([]);
   });
 
-  it('4. asserts every parsed migration index exists in live database', async () => {
-    // Must fail if zero indexes were parsed from migrations
-    expect(allIndexes.size, 'Expected migration files to contain parsed indexes').toBeGreaterThan(0);
+  it('4. asserts every net migration index exists in live database', async () => {
+    expect(netIndexes.size, 'Expected migration files to contain parsed indexes').toBeGreaterThan(0);
 
     const liveIndexes = await sql`SELECT indexname FROM pg_indexes WHERE schemaname = 'public';`;
     const liveIndexSet = new Set(liveIndexes.map((r) => r.indexname.toLowerCase()));
 
     const missingIndexes: string[] = [];
-    for (const idx of allIndexes) {
+    for (const idx of netIndexes.keys()) {
       if (!liveIndexSet.has(idx)) {
         missingIndexes.push(idx);
       }
@@ -172,15 +268,11 @@ describe('Item 5: Migration Safety & Live Schema Synchronization', () => {
     const rows = await sql`
       SELECT filename, checksum, applied_at FROM public.app_migrations ORDER BY id ASC;
     `;
-    expect(rows.length).toBeGreaterThanOrEqual(5);
+    expect(rows.length).toBeGreaterThanOrEqual(8);
     const recordedFiles = rows.map((r) => r.filename);
-    expect(recordedFiles).toContain('0001_core_schema.sql');
-    expect(recordedFiles).toContain('0002_rls_policies_only.sql');
-    expect(recordedFiles).toContain('0004_db_constraints.sql');
-    expect(recordedFiles).toContain('0005_version_and_caps.sql');
-    expect(recordedFiles).toContain('0006_missing_caps.sql');
-    expect(recordedFiles).toContain('0007_indexes.sql');
-    expect(recordedFiles).toContain('0008_drop_duplicate_indexes.sql');
+    for (const f of files) {
+      expect(recordedFiles).toContain(f);
+    }
 
     for (const row of rows) {
       expect(row.checksum).toMatch(/^[a-f0-9]{64}$/);

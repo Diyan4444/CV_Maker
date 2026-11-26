@@ -446,6 +446,8 @@ Unlike a conventional resume, an academic CV should support extensive content an
 
 ## C. Personal Website / Portfolio Builder
 
+> **Removed (owner decision, 2026-11):** The personal website / portfolio builder is no longer part of Quillfolio. Historical specification preserved below for reference.
+
 This should be treated as a first-class product, not merely an additional export format.
 
 The platform should transform the user's collected information into a professional personal website.
@@ -786,9 +788,9 @@ Potential database entities:
 - CVs.
 - ResumeVersions.
 - ResumeSections.
-- WebsiteProfiles.
-- WebsiteVersions.
-- WebsiteTemplates.
+- WebsiteProfiles. *(Removed (owner decision, 2026-11))*
+- WebsiteVersions. *(Removed (owner decision, 2026-11))*
+- WebsiteTemplates. *(Removed (owner decision, 2026-11))*
 - JobDescriptions.
 - ResumeAnalyses.
 - AIUsageLogs.

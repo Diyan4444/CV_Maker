@@ -14,7 +14,6 @@ import { GenericFormEngine } from '@/components/forms/GenericFormEngine';
 import {
   FileText,
   GraduationCap,
-  Globe,
   ArrowRight,
   ArrowLeft,
   Check,
@@ -25,7 +24,7 @@ export default function OnboardingPage() {
   const router = useRouter();
 
   // Step 1: Core Selection
-  const [outputType, setOutputType] = useState<'resume' | 'cv' | 'website'>('resume');
+  const [outputType, setOutputType] = useState<'resume' | 'cv'>('resume');
   const [backgroundGroup, setBackgroundGroup] = useState<string>('engineering_technology');
   const [specialization, setSpecialization] = useState<string>('Computer Science Engineering');
   const [customSpecialization, setCustomSpecialization] = useState<string>('');
@@ -142,7 +141,7 @@ export default function OnboardingPage() {
                 You can generate the others anytime from your single master profile.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 <button
                   type="button"
                   onClick={() => setOutputType('resume')}
@@ -172,22 +171,6 @@ export default function OnboardingPage() {
                   <div>
                     <div className="font-semibold text-sm text-[#0B0B0B]">Academic CV</div>
                     <div className="text-[11px] text-[#333333] mt-0.5">Scholarly dossier, research &amp; pubs</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOutputType('website')}
-                  className={`p-4 rounded-lg border text-left flex flex-col justify-between transition-colors ${
-                    outputType === 'website'
-                      ? 'border-[#800021] bg-[#FFE4D8] text-[#800021]'
-                      : 'border-[#6B6B6B] bg-[#FFFFFF] text-[#333333] hover:border-[#0B0B0B]'
-                  }`}
-                >
-                  <Globe className="w-5 h-5 mb-3 text-[#800021]" />
-                  <div>
-                    <div className="font-semibold text-sm text-[#0B0B0B]">Public Website</div>
-                    <div className="text-[11px] text-[#333333] mt-0.5">Clean responsive portfolio</div>
                   </div>
                 </button>
               </div>

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { AccountExportDataSchema, EXCLUDED_COLUMNS } from '../lib/account/export-schema';
 
 describe('Export Schema & Excluded Columns', () => {
-  it('defines explicit excluded columns map for all 14 core tables', () => {
+  it('defines explicit excluded columns map for all 13 core tables', () => {
     const requiredTables = [
       'profiles',
       'master_profiles',
@@ -16,7 +16,6 @@ describe('Export Schema & Excluded Columns', () => {
       'custom_sections',
       'documents',
       'document_sections',
-      'websites',
       'ai_usage_logs',
     ];
 
@@ -26,9 +25,9 @@ describe('Export Schema & Excluded Columns', () => {
     }
   });
 
-  it('validates a complete, valid export payload', () => {
+  it('validates a complete, valid v2 export payload', () => {
     const validPayload = {
-      exportVersion: '1.0.0',
+      exportVersion: '2',
       exportedAt: '2026-11-24T00:00:00.000Z',
       account: {
         id: '00000000-0000-0000-0000-000000000001',
@@ -77,12 +76,11 @@ describe('Export Schema & Excluded Columns', () => {
           ],
         },
       ],
-      website: null,
       aiUsageLogs: [],
     };
 
     const parsed = AccountExportDataSchema.parse(validPayload);
-    expect(parsed.exportVersion).toBe('1.0.0');
+    expect(parsed.exportVersion).toBe('2');
     expect(parsed.account.email).toBe('user@example.com');
     expect(parsed.documents).toHaveLength(1);
     expect(parsed.documents[0].sections).toHaveLength(1);
@@ -108,7 +106,6 @@ describe('Export Schema & Excluded Columns', () => {
       certifications: [],
       customSections: [],
       documents: [],
-      website: null,
       aiUsageLogs: [],
     };
 

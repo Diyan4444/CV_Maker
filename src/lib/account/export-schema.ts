@@ -26,7 +26,6 @@ export const EXCLUDED_COLUMNS: Record<string, ExcludedColumn[]> = {
   custom_sections: [],
   documents: [],
   document_sections: [],
-  websites: [],
   ai_usage_logs: [],
 };
 
@@ -74,7 +73,6 @@ export const AccountExportDataSchema = z.object({
   certifications: z.array(z.record(z.string(), z.unknown())),
   customSections: z.array(z.record(z.string(), z.unknown())),
   documents: z.array(DocumentExportSchema),
-  website: z.record(z.string(), z.unknown()).nullable(),
   aiUsageLogs: z.array(z.record(z.string(), z.unknown())),
 });
 

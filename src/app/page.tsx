@@ -427,7 +427,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-sm sm:text-base text-[#1A1A1A] leading-relaxed max-w-3xl">
-              Data is never sold, shared with data brokers, or used to train third-party machine learning models.
+              Export your complete data as JSON at any time. Delete your account and everything is removed immediately and permanently. Data is never sold, shared with data brokers, or used to train third-party machine learning models.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -466,34 +466,18 @@ export default function LandingPage() {
 
         {/* 7. COMING NEXT */}
         <section id="coming-next" aria-labelledby="coming-next-heading" className="space-y-4 scroll-mt-[calc(var(--header-h,84px)+16px)]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B] rounded-full">
-                  Planned
-                </span>
-              </div>
-              <h2 id="coming-next-heading" className="font-display text-2xl font-bold text-[#0B0B0B]">
-                Personal website
-              </h2>
-              <p className="text-sm text-[#333333] max-w-2xl leading-relaxed">
-                Transform your master profile into a personal portfolio website with customizable templates, colors, and section visibility.
-              </p>
+          <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B] rounded-full">
+                Planned
+              </span>
             </div>
-
-            <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-8 shadow-sm space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider px-3 py-1 bg-[#F1F7F7] text-[#0B0B0B] border border-[#6B6B6B] rounded-full">
-                  Planned
-                </span>
-              </div>
-              <h2 className="font-display text-2xl font-bold text-[#0B0B0B]">
-                More templates
-              </h2>
-              <p className="text-sm text-[#333333] max-w-2xl leading-relaxed">
-                We aim to add a section for browsing more templates.
-              </p>
-            </div>
+            <h2 id="coming-next-heading" className="font-display text-2xl font-bold text-[#0B0B0B]">
+              More templates
+            </h2>
+            <p className="text-sm text-[#333333] max-w-2xl leading-relaxed">
+              We aim to add a section for browsing more templates.
+            </p>
           </div>
         </section>
 
@@ -563,7 +547,7 @@ export default function LandingPage() {
                 <span className="text-xs font-bold text-[#800021] group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div className="pt-3 text-sm text-[#1A1A1A] leading-relaxed border-t border-[#6B6B6B] mt-3">
-                Data is never sold, shared with data brokers, or used to train third-party machine learning models. You can export your data or delete your account at any time.
+                Your profile and document records are stored solely for your own use. You can export your complete data or delete your account at any time from Settings.
               </div>
             </details>
 
