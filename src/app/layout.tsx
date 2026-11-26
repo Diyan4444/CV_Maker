@@ -5,6 +5,7 @@ import { PRODUCT_NAME } from '@/config/app';
 import { TopoBackground } from '@/components/canvas/TopoBackground';
 import { NavigationProgressBar } from '@/components/navigation/NavigationProgressBar';
 import { ToastProvider } from '@/components/ui/ToastProvider';
+import { MotionInitializer } from '@/components/ui/MotionInitializer';
 import { WARM_CSS_VARIABLES } from '@/styles/tokens';
 import './globals.css';
 
@@ -25,6 +26,7 @@ export default function RootLayout({
       style={WARM_CSS_VARIABLES as React.CSSProperties}
     >
       <body className="antialiased min-h-screen relative">
+        <MotionInitializer />
         {/* Navigation Top Progress Bar */}
         <Suspense fallback={null}>
           <NavigationProgressBar />

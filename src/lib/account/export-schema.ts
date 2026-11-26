@@ -77,3 +77,26 @@ export const AccountExportDataSchema = z.object({
 });
 
 export type AccountExportData = z.infer<typeof AccountExportDataSchema>;
+
+const EXPORT_KEY_LABELS: Record<string, string> = {
+  profile: 'Profile',
+  education: 'Education',
+  experiences: 'Experience',
+  projects: 'Projects',
+  skills: 'Skills',
+  publications: 'Publications',
+  achievements: 'Achievements',
+  certifications: 'Certifications',
+  customSections: 'Custom sections',
+  documents: 'Documents',
+};
+
+/**
+ * Friendly labels derived strictly from AccountExportDataSchema.shape keys.
+ */
+export const EXPORT_DATA_CATEGORIES = Object.keys(AccountExportDataSchema.shape)
+  .filter((key) => key in EXPORT_KEY_LABELS)
+  .map((key) => ({
+    key,
+    label: EXPORT_KEY_LABELS[key],
+  }));
