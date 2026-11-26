@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { documents, documentSections } from '@/lib/db/schema';
 import { eq, count } from 'drizzle-orm';
 import { validateSectionContent, validateDocumentSize } from '@/lib/documents/schemas';
-import { DocumentType, TemplateId, SectionContent } from '@/lib/documents/types';
+import { DocumentType, TemplateId, SectionContent, LayoutSettings } from '@/lib/documents/types';
 import { randomUUID } from 'crypto';
 
 interface CreateCopyPayload {
@@ -13,6 +13,7 @@ interface CreateCopyPayload {
   title?: string;
   accentColor?: string;
   targetRole?: string | null;
+  layoutSettings?: LayoutSettings;
   sections: Array<{
     id?: string;
     sectionType: string;
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
       accentColor,
       targetRole,
       status: 'draft',
+      layoutSettings: (body.layoutSettings || {}) as Record<string, unknown>,
       version: 1,
       createdAt: now,
       updatedAt: now,

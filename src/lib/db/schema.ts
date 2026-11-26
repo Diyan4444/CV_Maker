@@ -223,6 +223,7 @@ export const documents = pgTable('documents', {
   accentColor: varchar('accent_color', { length: 20 }).default('#1A1A1A').notNull(),
   targetRole: varchar('target_role', { length: 200 }),
   status: text('status').default('draft').notNull(), // 'draft' | 'ready'
+  layoutSettings: jsonb('layout_settings').$type<Record<string, unknown>>().default({}).notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
   schemaVersion: varchar('schema_version', { length: 20 }).default('1.0.0').notNull(),
   version: integer('version').default(1).notNull(),

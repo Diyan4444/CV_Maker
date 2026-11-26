@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthUser, createClient } from '@/lib/supabase/server';
-import { validateSectionContent, DocumentStatusSchema } from '@/lib/documents/schemas';
-import { SectionContent, DocumentStatus } from '@/lib/documents/types';
+import { validateSectionContent, DocumentStatusSchema, LayoutSettingsSchema } from '@/lib/documents/schemas';
+import { SectionContent, DocumentStatus, LayoutSettings } from '@/lib/documents/types';
 import { randomUUID } from 'crypto';
 
 interface RouteContext {
@@ -16,6 +16,7 @@ interface SaveDocumentPayload {
     accentColor?: string;
     targetRole?: string | null;
     status?: DocumentStatus;
+    layoutSettings?: LayoutSettings;
   };
   sections: Array<{
     id?: string;
@@ -120,6 +121,8 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
               templateId: currentDoc.template_id || 'ats_single_column',
               accentColor: currentDoc.accent_color || '#0B0B0B',
               targetRole: currentDoc.target_role,
+              status: currentDoc.status || 'draft',
+              layoutSettings: currentDoc.layout_settings || {},
               version: currentDoc.version,
               createdAt: currentDoc.created_at,
               updatedAt: currentDoc.updated_at,
@@ -161,6 +164,18 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       nextStatus = parsedStatus.data;
     }
 
+    let nextLayoutSettings = currentDoc.layout_settings || {};
+    if (updatedMeta.layoutSettings !== undefined) {
+      const parsedLayout = LayoutSettingsSchema.safeParse(updatedMeta.layoutSettings);
+      if (!parsedLayout.success) {
+        return NextResponse.json(
+          { error: `Invalid layoutSettings: ${parsedLayout.error.issues.map((i) => i.message).join(', ')}` },
+          { status: 400 }
+        );
+      }
+      nextLayoutSettings = parsedLayout.data;
+    }
+
     // 4. Update document metadata and increment version
     const { error: updateDocErr } = await supabase
       .from('documents')
@@ -175,6 +190,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
               : null
             : currentDoc.target_role,
         status: nextStatus,
+        layout_settings: nextLayoutSettings,
         version: nextVersion,
         updated_at: now.toISOString(),
       })

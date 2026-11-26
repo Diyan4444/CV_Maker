@@ -619,7 +619,7 @@ export function EditorSkeleton() {
     <div
       role="region"
       aria-label="Loading document editor"
-      className="min-h-screen flex flex-col bg-[#F7F7F8]"
+      className="min-h-screen flex flex-col bg-[#EFE8DE]"
     >
       <HonestyNotifier />
       {/* Top Toolbar Skeleton */}
@@ -665,7 +665,7 @@ export function EditorSkeleton() {
       </div>
 
       {/* Editor Body: Left Cards + Right A4 Placeholder */}
-      <main className="max-w-7xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col lg:flex-row gap-6">
+      <main className="max-w-[1440px] mx-auto w-full px-3 sm:px-4 lg:px-5 py-4 flex-1 flex flex-col md:flex-row gap-4 lg:gap-5">
         {/* Left Column: Sections Skeleton */}
         <div className="w-full lg:w-[48%] space-y-4">
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-xs flex items-center justify-between">

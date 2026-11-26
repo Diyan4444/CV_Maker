@@ -64,6 +64,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         accentColor: origDoc.accentColor,
         targetRole: origDoc.targetRole,
         status: 'draft',
+        layoutSettings: origDoc.layoutSettings || {},
         version: 1,
         schemaVersion: origDoc.schemaVersion,
         isArchived: false,

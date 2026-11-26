@@ -5,6 +5,42 @@ export const MAX_SECTION_PAYLOAD_BYTES = FIELD_LIMITS.sectionContentBytes; // 64
 
 export const DocumentStatusSchema = z.enum(['draft', 'ready']);
 
+const isStepMultiple = (val: number, min: number, step: number) => {
+  const ratio = (val - min) / step;
+  return Math.abs(ratio - Math.round(ratio)) < 1e-6;
+};
+
+export const LayoutSettingsSchema = z
+  .object({
+    fontFamily: z.enum(['Noto Sans', 'Noto Serif']).optional(),
+    fontSize: z
+      .number()
+      .min(8.5)
+      .max(12)
+      .refine((v) => isStepMultiple(v, 8.5, 0.5), 'fontSize must be in 0.5 pt steps')
+      .optional(),
+    lineHeight: z
+      .number()
+      .min(1.15)
+      .max(1.6)
+      .refine((v) => isStepMultiple(v, 1.15, 0.05), 'lineHeight must be in 0.05 steps')
+      .optional(),
+    pageMargin: z
+      .number()
+      .int()
+      .min(24)
+      .max(56)
+      .refine((v) => isStepMultiple(v, 24, 2), 'pageMargin must be in 2 pt steps')
+      .optional(),
+    underlineLinks: z.boolean().optional(),
+    pageNumbers: z.boolean().optional(),
+  })
+  .strict()
+  .refine(
+    (obj) => new TextEncoder().encode(JSON.stringify(obj)).length <= FIELD_LIMITS.layoutSettingsBytes,
+    'layoutSettings exceeds 2048 byte limit'
+  );
+
 export const BaseEntrySchema = z.object({
   id: z.string().uuid(),
   sourceId: z.string().uuid().nullable().optional(),

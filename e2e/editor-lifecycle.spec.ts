@@ -499,6 +499,8 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     const violations = await page.evaluate(() => {
       const allowedBackgrounds = new Set([
         'rgb(255, 255, 255)',
+        'rgb(255, 253, 249)',
+        'rgb(239, 232, 222)',
         'rgb(241, 247, 247)',
         'rgb(255, 228, 216)',
         'rgb(218, 241, 222)',
@@ -558,6 +560,8 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
       const atsViolations = await page.evaluate(() => {
         const allowedBackgrounds = new Set([
           'rgb(255, 255, 255)',
+          'rgb(255, 253, 249)',
+          'rgb(239, 232, 222)',
           'rgb(241, 247, 247)',
           'rgb(255, 228, 216)',
           'rgb(218, 241, 222)',

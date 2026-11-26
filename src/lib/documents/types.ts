@@ -6,6 +6,16 @@
 export type DocumentType = 'resume' | 'cv';
 export type DocumentStatus = 'draft' | 'ready';
 export type TemplateId = 'ats_single_column' | 'modern_professional' | 'academic_cv';
+export type PdfFontFamily = 'Noto Sans' | 'Noto Serif';
+
+export interface LayoutSettings {
+  fontFamily?: PdfFontFamily;
+  fontSize?: number;      // 8.5..12 pt, step 0.5
+  lineHeight?: number;    // 1.15..1.6, step 0.05
+  pageMargin?: number;    // 24..56 pt, step 2
+  underlineLinks?: boolean;
+  pageNumbers?: boolean;
+}
 
 export interface DocumentMeta {
   id: string;
@@ -28,6 +38,8 @@ export interface DocumentMeta {
   font_size?: string;
   marginSize?: string;
   margin_size?: string;
+  layoutSettings?: LayoutSettings;
+  layout_settings?: LayoutSettings;
   pageCount?: number | null;
   page_count?: number | null;
   createdAt?: string;

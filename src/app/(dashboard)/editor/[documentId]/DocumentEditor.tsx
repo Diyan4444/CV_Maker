@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   DocumentMeta,
   DocumentSection,
   DocumentStatus,
   TemplateId,
+  LayoutSettings,
+  PdfFontFamily,
   BaseEntry,
   HeaderContent,
   SummaryContent,
@@ -19,6 +22,7 @@ import { scanDocumentForNonLatin } from '@/lib/validation/pdf-text';
 import { pdf } from '@react-pdf/renderer';
 import { DocumentPdfRenderer } from '@/components/pdf/DocumentPdfRenderer';
 import { sanitizePdfFilename } from '@/lib/pdf/filename';
+import { resolvePdfLayout, getTemplateLayoutDefaults } from '@/lib/pdf/layout-settings';
 import { runAtsReadinessChecks } from '@/lib/ats/checker';
 import { AtsReadinessPanel } from '@/components/editor/AtsReadinessPanel';
 import { AtsReadinessReport } from '@/lib/ats/types';
@@ -42,6 +46,14 @@ import {
   Loader2,
   FileCheck,
   WifiOff,
+  FileText,
+  LayoutTemplate,
+  Palette,
+  SlidersHorizontal,
+  PanelRightOpen,
+  PanelRightClose,
+  Check,
+  RotateCcw,
 } from 'lucide-react';
 
 interface DocumentEditorProps {
@@ -74,6 +86,7 @@ function normalizeMeta(m: any): DocumentMeta {
     accentColor: m.accentColor || m.accent_color || '#0B0B0B',
     targetRole: m.targetRole ?? m.target_role ?? null,
     targetCompany: m.targetCompany ?? m.target_company ?? null,
+    layoutSettings: m.layoutSettings ?? m.layout_settings ?? undefined,
     version: Number(m.version) || 1,
     schemaVersion: m.schemaVersion || m.schema_version || '1.0.0',
     createdAt: m.createdAt || m.created_at,
@@ -242,6 +255,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           title: `${currentMeta.title} (Recovered Copy)`,
           accentColor: currentMeta.accentColor,
           targetRole: currentMeta.targetRole,
+          layoutSettings: currentMeta.layoutSettings,
           sections: currentSections.map((s, idx) => ({
             id: s.id,
             sectionType: s.sectionType,
@@ -292,6 +306,87 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   // Mobile active tab (<768px): 'edit' | 'preview' | 'ats'
   const [mobileTab, setMobileTab] = useState<'edit' | 'preview' | 'ats'>('edit');
+
+  // Left icon rail tab: 'content' | 'template' | 'theme' | 'page'
+  const [activeRailTab, setActiveRailTab] = useState<'content' | 'template' | 'theme' | 'page'>('content');
+
+  // Tablet (768-1023px) collapsible preview toggle
+  const [isTabletPreviewOpen, setIsTabletPreviewOpen] = useState(false);
+
+  // Measure toolbar height for sticky preview column
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(57);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const updateHeight = () => {
+      setToolbarHeight(Math.round(el.getBoundingClientRect().height));
+    };
+    updateHeight();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(updateHeight);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
+  // Preserve scroll positions when switching Preview <-> ATS or mobile tabs
+  const atsScrollRef = useRef<HTMLDivElement | null>(null);
+  const savedScrollPositionsRef = useRef<{ preview: number; ats: number; windowEdit: number }>({
+    preview: 0,
+    ats: 0,
+    windowEdit: 0,
+  });
+
+  const switchRightTab = useCallback((nextTab: 'preview' | 'ats') => {
+    if (typeof document !== 'undefined') {
+      const previewEl = document.getElementById('pdf-preview-scroll-container');
+      if (previewEl && activeRightTab === 'preview') {
+        savedScrollPositionsRef.current.preview = previewEl.scrollTop;
+      }
+      if (atsScrollRef.current && activeRightTab === 'ats') {
+        savedScrollPositionsRef.current.ats = atsScrollRef.current.scrollTop;
+      }
+    }
+    setActiveRightTab(nextTab);
+    requestAnimationFrame(() => {
+      if (nextTab === 'preview') {
+        const previewEl = document.getElementById('pdf-preview-scroll-container');
+        if (previewEl) previewEl.scrollTop = savedScrollPositionsRef.current.preview;
+      } else if (atsScrollRef.current) {
+        atsScrollRef.current.scrollTop = savedScrollPositionsRef.current.ats;
+      }
+    });
+  }, [activeRightTab]);
+
+  const switchMobileTab = useCallback((nextTab: 'edit' | 'preview' | 'ats') => {
+    if (typeof window !== 'undefined') {
+      if (mobileTab === 'edit') {
+        savedScrollPositionsRef.current.windowEdit = window.scrollY;
+      } else if (mobileTab === 'preview') {
+        const previewEl = document.getElementById('pdf-preview-scroll-container');
+        if (previewEl) savedScrollPositionsRef.current.preview = previewEl.scrollTop;
+      } else if (mobileTab === 'ats' && atsScrollRef.current) {
+        savedScrollPositionsRef.current.ats = atsScrollRef.current.scrollTop;
+      }
+    }
+    setMobileTab(nextTab);
+    if (nextTab === 'preview') setActiveRightTab('preview');
+    if (nextTab === 'ats') setActiveRightTab('ats');
+    requestAnimationFrame(() => {
+      if (nextTab === 'edit' && typeof window !== 'undefined') {
+        window.scrollTo(0, savedScrollPositionsRef.current.windowEdit);
+      } else if (nextTab === 'preview') {
+        const previewEl = document.getElementById('pdf-preview-scroll-container');
+        if (previewEl) previewEl.scrollTop = savedScrollPositionsRef.current.preview;
+      } else if (nextTab === 'ats' && atsScrollRef.current) {
+        atsScrollRef.current.scrollTop = savedScrollPositionsRef.current.ats;
+      }
+    });
+  }, [mobileTab]);
 
   // Draft recovery modal
   const [draftPrompt, setDraftPrompt] = useState<{
@@ -360,6 +455,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               accentColor: sentMeta.accentColor,
               targetRole: sentMeta.targetRole,
               status: sentMeta.status || 'draft',
+              layoutSettings: sentMeta.layoutSettings,
             },
             sections: sentSections.map((s, idx) => {
               let contentPayload: SectionContent = s.content;
@@ -971,8 +1067,39 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   // Scan document for non-Latin script
   const nonLatinScan = scanDocumentForNonLatin(sections);
 
+  const resolvedLayout = resolvePdfLayout(meta.templateId, meta.layoutSettings);
+  const templateDefaults = getTemplateLayoutDefaults(meta.templateId);
+
+  const updateLayoutSettings = useCallback(
+    (patch: Partial<LayoutSettings>) => {
+      const nextLayout: LayoutSettings = {
+        ...(metaRef.current.layoutSettings || {}),
+        ...patch,
+      };
+      const updated: DocumentMeta = {
+        ...metaRef.current,
+        layoutSettings: nextLayout,
+      };
+      setMeta(updated);
+      pushHistory(updated, sectionsRef.current);
+    },
+    [pushHistory]
+  );
+
+  const resetLayoutSettings = useCallback(() => {
+    const updated: DocumentMeta = {
+      ...metaRef.current,
+      layoutSettings: undefined,
+    };
+    setMeta(updated);
+    pushHistory(updated, sectionsRef.current);
+  }, [pushHistory]);
+
   return (
-    <div className="min-h-screen flex flex-col bg-transparent text-[#0B0B0B]">
+    <div
+      className="min-h-screen flex flex-col bg-[#EFE8DE] text-[#24221F]"
+      style={{ '--toolbar-h': `${toolbarHeight}px` } as React.CSSProperties}
+    >
       {sessionExpired && (
         <div
           role="alert"
@@ -994,7 +1121,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         </div>
       )}
       {/* Top Application Bar */}
-      <header className="bg-[#FFFFFF] border-b border-[#6B6B6B] px-3 sm:px-4 py-2 sm:py-2.5 shadow-xs sticky top-0 z-30">
+      <header ref={headerRef} className="bg-[#FFFDF9] border-b border-[#D8D0C5] px-3 sm:px-4 py-2 sm:py-2.5 shadow-xs sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-2">
           {/* Back & Document Title (Row 1 on mobile) */}
           <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
@@ -1040,8 +1167,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </div>
           </div>
 
-          {/* Template, Accents, Undo/Redo, Status, Actions (Row 2 on mobile, wraps cleanly) */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          {/* Template, Accents, Undo/Redo, Status, Actions (wraps cleanly below 1024px) */}
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             {/* Template Selector */}
             <div className="flex items-center gap-1 text-xs font-semibold flex-shrink-0">
               <select
@@ -1214,6 +1341,28 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 <Save className="w-4 h-4 sm:w-3.5 sm:h-3.5 flex-shrink-0" aria-hidden="true" /> <span>Save</span>
               </button>
 
+              {/* Tablet (768-1023px) Preview Toggle */}
+              <button
+                type="button"
+                id="tablet-preview-toggle"
+                onClick={() => setIsTabletPreviewOpen((prev) => !prev)}
+                aria-expanded={isTabletPreviewOpen}
+                aria-label={isTabletPreviewOpen ? 'Hide Preview' : 'Show Preview'}
+                className="hidden md:inline-flex lg:hidden items-center justify-center gap-1.5 px-2.5 h-8 rounded-md border border-[#D8D0C5] bg-[#FFFDF9] hover:bg-[#EFE8DE] text-[#24221F] text-xs font-semibold transition-colors flex-shrink-0"
+              >
+                {isTabletPreviewOpen ? (
+                  <>
+                    <PanelRightClose className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Hide Preview</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelRightOpen className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Show Preview</span>
+                  </>
+                )}
+              </button>
+
               {/* Download PDF Button */}
               <button
                 type="button"
@@ -1257,56 +1406,432 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         )}
 
         {/* Mobile View Tab Switcher (<768px) */}
-        <div className="md:hidden flex border-t border-[#6B6B6B] mt-2.5 pt-2">
+        <div className="md:hidden flex border-t border-[#D8D0C5] mt-2.5 pt-2">
           <button
             type="button"
-            onClick={() => setMobileTab('edit')}
+            onClick={() => switchMobileTab('edit')}
             aria-label="Edit Sections Tab"
             className={`flex-1 min-h-[44px] py-2 px-1 text-xs font-semibold text-center border-b-2 transition-colors flex items-center justify-center ${
               mobileTab === 'edit'
                 ? 'border-[#800021] text-[#800021]'
-                : 'border-transparent text-[#333333]'
+                : 'border-transparent text-[#706A63]'
             }`}
           >
-            Edit Sections
+            Edit
           </button>
           <button
             type="button"
-            onClick={() => setMobileTab('preview')}
+            onClick={() => switchMobileTab('preview')}
             aria-label="Live A4 Preview Tab"
             className={`flex-1 min-h-[44px] py-2 px-1 text-xs font-semibold text-center border-b-2 transition-colors flex items-center justify-center ${
               mobileTab === 'preview'
                 ? 'border-[#800021] text-[#800021]'
-                : 'border-transparent text-[#333333]'
+                : 'border-transparent text-[#706A63]'
             }`}
           >
-            Live A4 Preview
+            Preview
           </button>
           <button
             type="button"
             id="mobile-ats-tab-btn"
-            onClick={() => setMobileTab('ats')}
+            onClick={() => switchMobileTab('ats')}
             aria-label="ATS Readiness Tab"
             className={`flex-1 min-h-[44px] py-2 px-1 text-xs font-semibold text-center border-b-2 transition-colors flex items-center justify-center ${
               mobileTab === 'ats'
                 ? 'border-[#800021] text-[#800021]'
-                : 'border-transparent text-[#333333]'
+                : 'border-transparent text-[#706A63]'
             }`}
           >
-            ATS Readiness
+            ATS
           </button>
         </div>
       </header>
 
       {/* Main Split Body */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Sections & Entry Editing (7 cols on desktop) */}
-        <div
-          key={`editor-revision-${editorRevision}`}
-          className={`space-y-4 md:col-span-7 ${
-            mobileTab === 'preview' ? 'hidden md:block' : 'block'
-          }`}
+      <main className="flex-1 w-full max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-5 py-4 flex flex-col md:flex-row items-start gap-4 lg:gap-5">
+        {/* Left Vertical Icon Rail (md+) */}
+        <nav
+          aria-label="Editor sections"
+          id="editor-icon-rail"
+          style={{ top: 'calc(var(--toolbar-h, 57px) + 12px)' }}
+          className="hidden md:flex flex-col gap-1.5 w-14 xl:w-16 flex-shrink-0 sticky bg-[#FFFDF9] border border-[#D8D0C5] rounded-xl p-1.5 z-10"
         >
+          {(
+            [
+              { id: 'content', label: 'Content', icon: FileText },
+              { id: 'template', label: 'Template', icon: LayoutTemplate },
+              { id: 'theme', label: 'Theme', icon: Palette },
+              { id: 'page', label: 'Page', icon: SlidersHorizontal },
+            ] as const
+          ).map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeRailTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                id={`rail-tab-${tab.id}`}
+                onClick={() => setActiveRailTab(tab.id)}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={tab.label}
+                className={`w-full min-h-[48px] px-1 py-2 rounded-lg flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] ${
+                  isActive
+                    ? 'bg-[#800021] text-[#FFFFFF]'
+                    : 'text-[#24221F] hover:bg-[#EFE8DE]'
+                }`}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Left Side Panel (Content / Template / Theme / Page) */}
+        <div
+          className={`flex-1 min-w-0 w-full space-y-4 ${
+            mobileTab !== 'edit' ? 'hidden md:block' : 'block'
+          } ${isTabletPreviewOpen ? 'md:hidden lg:block' : ''}`}
+        >
+          {/* Mobile Rail Strip (<768px) */}
+          <div
+            role="tablist"
+            aria-label="Editor panels"
+            className="md:hidden grid grid-cols-4 gap-1 bg-[#FFFDF9] border border-[#D8D0C5] rounded-xl p-1"
+          >
+            {(
+              [
+                { id: 'content', label: 'Content', icon: FileText },
+                { id: 'template', label: 'Template', icon: LayoutTemplate },
+                { id: 'theme', label: 'Theme', icon: Palette },
+                { id: 'page', label: 'Page', icon: SlidersHorizontal },
+              ] as const
+            ).map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeRailTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveRailTab(tab.id)}
+                  className={`min-h-[44px] px-1.5 py-1.5 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${
+                    isActive
+                      ? 'bg-[#800021] text-[#FFFFFF]'
+                      : 'text-[#24221F] hover:bg-[#EFE8DE]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeRailTab === 'template' && (
+            <section
+              id="rail-panel-template"
+              aria-label="Template selection"
+              className="bg-[#FFFDF9] border border-[#D8D0C5] rounded-xl p-4 lg:p-5 space-y-4"
+            >
+              <div>
+                <h2 className="font-display text-base font-bold text-[#24221F]">Template</h2>
+                <p className="text-xs text-[#706A63] mt-0.5">
+                  All templates export to single-column A4 PDF with selectable text.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {[
+                  {
+                    id: 'ats_single_column' as TemplateId,
+                    name: 'ATS Single Column',
+                    description: 'Clean single-column layout built for applicant tracking systems.',
+                    image: '/landing/ats_single_column.png',
+                  },
+                  {
+                    id: 'modern_professional' as TemplateId,
+                    name: 'Modern Professional',
+                    description: 'Structured hierarchy with subtle accent bars and crisp spacing.',
+                    image: '/landing/modern_professional.png',
+                  },
+                  {
+                    id: 'academic_cv' as TemplateId,
+                    name: 'Academic CV',
+                    description: 'Serif typography tailored for publications, grants, and teaching.',
+                    image: '/landing/academic_cv.png',
+                  },
+                ].map((tpl) => {
+                  const selected = meta.templateId === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      id={`template-card-${tpl.id}`}
+                      onClick={() => {
+                        const updated = { ...meta, templateId: tpl.id };
+                        setMeta(updated);
+                        pushHistory(updated, sections);
+                      }}
+                      aria-pressed={selected}
+                      className={`text-left rounded-xl border p-3 transition-colors flex flex-col gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#800021] ${
+                        selected
+                          ? 'border-[#800021] bg-[#EFE8DE]/60 ring-1 ring-[#800021]'
+                          : 'border-[#D8D0C5] bg-[#FFFDF9] hover:bg-[#EFE8DE]/40'
+                      }`}
+                    >
+                      <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden border border-[#D8D0C5] bg-[#FFFFFF]">
+                        <Image
+                          src={tpl.image}
+                          alt={`${tpl.name} specimen preview`}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 240px"
+                          className="object-cover object-top"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-[#24221F]">{tpl.name}</span>
+                          {selected && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#800021]">
+                              <Check className="w-3 h-3" aria-hidden="true" /> Selected
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-[#706A63] leading-snug">{tpl.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {activeRailTab === 'theme' && (
+            <section
+              id="rail-panel-theme"
+              aria-label="Theme accent color"
+              className="bg-[#FFFDF9] border border-[#D8D0C5] rounded-xl p-4 lg:p-5 space-y-4"
+            >
+              <div>
+                <h2 className="font-display text-base font-bold text-[#24221F]">Theme</h2>
+                <p className="text-xs text-[#706A63] mt-0.5">
+                  Choose an accent color from the verified high-contrast palette.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {ALLOWED_ACCENTS.map((acc) => {
+                  const selected =
+                    (meta.accentColor || meta.accent_color || '#0B0B0B').toUpperCase() ===
+                    acc.hex.toUpperCase();
+                  return (
+                    <button
+                      key={acc.hex}
+                      type="button"
+                      onClick={() => {
+                        const updated = { ...meta, accentColor: acc.hex };
+                        setMeta(updated);
+                        pushHistory(updated, sections);
+                      }}
+                      aria-pressed={selected}
+                      className={`min-h-[44px] px-3 py-2 rounded-lg border flex items-center justify-between gap-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] ${
+                        selected
+                          ? 'border-[#800021] bg-[#EFE8DE]/60 ring-1 ring-[#800021]'
+                          : 'border-[#D8D0C5] bg-[#FFFDF9] hover:bg-[#EFE8DE]/40'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span
+                          className="w-5 h-5 rounded-full border border-[#D8D0C5] flex-shrink-0"
+                          style={{ backgroundColor: acc.hex }}
+                          aria-hidden="true"
+                        />
+                        <span className="text-xs font-semibold text-[#24221F]">{acc.label}</span>
+                      </span>
+                      <span className="text-[11px] font-mono text-[#706A63]">{acc.hex}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {activeRailTab === 'page' && (
+            <section
+              id="rail-panel-page"
+              aria-label="Page typography and layout settings"
+              className="bg-[#FFFDF9] border border-[#D8D0C5] rounded-xl p-4 lg:p-5 space-y-5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-base font-bold text-[#24221F]">Page</h2>
+                  <p className="text-xs text-[#706A63] mt-0.5">
+                    Adjust typography, spacing, and A4 page options.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id="page-settings-reset-btn"
+                  onClick={resetLayoutSettings}
+                  className="inline-flex items-center gap-1.5 min-h-[36px] px-2.5 py-1 rounded-md border border-[#D8D0C5] bg-[#FFFDF9] hover:bg-[#EFE8DE] text-xs font-medium text-[#24221F] transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Reset</span>
+                </button>
+              </div>
+
+              {/* Font Family */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-[#24221F]">
+                  Font family
+                </label>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Font family">
+                  {(['Noto Sans', 'Noto Serif'] as PdfFontFamily[]).map((font) => {
+                    const selected = resolvedLayout.fontFamily === font;
+                    return (
+                      <button
+                        key={font}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        id={`page-font-${font.toLowerCase().replace(/\s+/g, '-')}`}
+                        onClick={() => updateLayoutSettings({ fontFamily: font })}
+                        className={`min-h-[44px] px-3 py-2 rounded-lg border text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] ${
+                          selected
+                            ? 'border-[#800021] bg-[#EFE8DE]/70 text-[#800021] ring-1 ring-[#800021]'
+                            : 'border-[#D8D0C5] bg-[#FFFDF9] text-[#24221F] hover:bg-[#EFE8DE]/40'
+                        }`}
+                      >
+                        {font}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Font Size Slider */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <label htmlFor="page-font-size-slider" className="font-semibold text-[#24221F]">
+                    Font size
+                  </label>
+                  <span id="page-font-size-value" className="font-mono text-[#706A63] tabular-nums">
+                    {resolvedLayout.fontSize.toFixed(1)} pt
+                  </span>
+                </div>
+                <input
+                  id="page-font-size-slider"
+                  type="range"
+                  min={8.5}
+                  max={12}
+                  step={0.5}
+                  value={resolvedLayout.fontSize}
+                  onChange={(e) => updateLayoutSettings({ fontSize: Number(e.target.value) })}
+                  className="w-full accent-[#800021] cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-[#706A63]">
+                  <span>8.5 pt</span>
+                  <span>Default {templateDefaults.fontSize} pt</span>
+                  <span>12 pt</span>
+                </div>
+              </div>
+
+              {/* Line Height Slider */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <label htmlFor="page-line-height-slider" className="font-semibold text-[#24221F]">
+                    Line height
+                  </label>
+                  <span id="page-line-height-value" className="font-mono text-[#706A63] tabular-nums">
+                    {resolvedLayout.lineHeight.toFixed(2)}
+                  </span>
+                </div>
+                <input
+                  id="page-line-height-slider"
+                  type="range"
+                  min={1.15}
+                  max={1.6}
+                  step={0.05}
+                  value={resolvedLayout.lineHeight}
+                  onChange={(e) => updateLayoutSettings({ lineHeight: Number(e.target.value) })}
+                  className="w-full accent-[#800021] cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-[#706A63]">
+                  <span>1.15</span>
+                  <span>Default {templateDefaults.lineHeight}</span>
+                  <span>1.60</span>
+                </div>
+              </div>
+
+              {/* Page Margin Slider */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <label htmlFor="page-margin-slider" className="font-semibold text-[#24221F]">
+                    Page margin
+                  </label>
+                  <span id="page-margin-value" className="font-mono text-[#706A63] tabular-nums">
+                    {resolvedLayout.pageMargin} pt
+                  </span>
+                </div>
+                <input
+                  id="page-margin-slider"
+                  type="range"
+                  min={24}
+                  max={56}
+                  step={2}
+                  value={resolvedLayout.pageMargin}
+                  onChange={(e) => updateLayoutSettings({ pageMargin: Number(e.target.value) })}
+                  className="w-full accent-[#800021] cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-[#706A63]">
+                  <span>24 pt</span>
+                  <span>Default {templateDefaults.pageMargin} pt</span>
+                  <span>56 pt</span>
+                </div>
+              </div>
+
+              {/* Toggles */}
+              <div className="space-y-3 pt-2 border-t border-[#D8D0C5]">
+                <label className="flex items-center justify-between gap-3 cursor-pointer min-h-[44px]">
+                  <div>
+                    <span className="block text-xs font-semibold text-[#24221F]">Underline links</span>
+                    <span className="block text-[11px] text-[#706A63]">
+                      Show underlines on email, portfolio, and publication links.
+                    </span>
+                  </div>
+                  <input
+                    id="page-underline-links-toggle"
+                    type="checkbox"
+                    checked={resolvedLayout.underlineLinks}
+                    onChange={(e) => updateLayoutSettings({ underlineLinks: e.target.checked })}
+                    className="w-4 h-4 accent-[#800021] rounded cursor-pointer"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-3 cursor-pointer min-h-[44px]">
+                  <div>
+                    <span className="block text-xs font-semibold text-[#24221F]">Page numbers</span>
+                    <span className="block text-[11px] text-[#706A63]">
+                      Display a subtle &ldquo;1 / 2&rdquo; footer on every page.
+                    </span>
+                  </div>
+                  <input
+                    id="page-numbers-toggle"
+                    type="checkbox"
+                    checked={resolvedLayout.pageNumbers}
+                    onChange={(e) => updateLayoutSettings({ pageNumbers: e.target.checked })}
+                    className="w-4 h-4 accent-[#800021] rounded cursor-pointer"
+                  />
+                </label>
+              </div>
+            </section>
+          )}
+
+          {/* Content Tab: Sections & Entry Editing */}
+          <div
+            key={`editor-revision-${editorRevision}`}
+            className={`space-y-4 ${activeRailTab === 'content' ? 'block' : 'hidden'}`}
+          >
           {/* Master Profile Copy Meta Card */}
           <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
@@ -2231,33 +2756,42 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </div>
           ))}
         </div>
+        </div>
 
-        {/* Right Column: Live A4 Preview & ATS Readiness (5 cols on desktop) */}
+        {/* Right Column: Live A4 Preview & ATS Readiness */}
         <div
-          className={`h-[calc(100vh-100px)] sticky top-20 md:col-span-5 flex flex-col ${
-            mobileTab === 'edit' ? 'hidden md:flex' : 'flex'
+          style={{
+            top: 'calc(var(--toolbar-h, 57px) + 12px)',
+            height: 'calc(100dvh - var(--toolbar-h, 57px) - 24px)',
+          }}
+          className={`w-full lg:w-[420px] xl:w-[500px] 2xl:w-[540px] flex-shrink-0 md:sticky flex-col ${
+            mobileTab === 'edit'
+              ? isTabletPreviewOpen
+                ? 'hidden md:flex md:flex-1 md:min-w-0 lg:flex-none lg:w-[420px]'
+                : 'hidden lg:flex'
+              : 'flex'
           }`}
         >
           {/* Desktop Right Column Tab Switcher */}
-          <div className="flex items-center gap-1 bg-[#FFFFFF] border border-[#6B6B6B] p-1 rounded-xl mb-3 shadow-xs">
+          <div className="flex items-center gap-1 bg-[#FFFDF9] border border-[#D8D0C5] p-1 rounded-xl mb-3 shadow-xs">
             <button
               type="button"
               id="right-tab-preview"
               onClick={() => {
-                setActiveRightTab('preview');
-                if (mobileTab === 'ats') setMobileTab('preview');
+                switchRightTab('preview');
+                if (mobileTab === 'ats') switchMobileTab('preview');
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  setActiveRightTab('preview');
-                  if (mobileTab === 'ats') setMobileTab('preview');
+                  switchRightTab('preview');
+                  if (mobileTab === 'ats') switchMobileTab('preview');
                 }
               }}
               className={`flex-1 min-h-[44px] sm:min-h-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors flex items-center justify-center ${
                 (mobileTab === 'ats' ? false : activeRightTab === 'preview')
                   ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
-                  : 'text-[#333333] hover:bg-[#F1F7F7] hover:text-[#0B0B0B]'
+                  : 'text-[#24221F] hover:bg-[#EFE8DE]'
               }`}
             >
               Live A4 Preview
@@ -2266,20 +2800,20 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               type="button"
               id="right-tab-ats"
               onClick={() => {
-                setActiveRightTab('ats');
-                if (mobileTab === 'preview') setMobileTab('ats');
+                switchRightTab('ats');
+                if (mobileTab === 'preview') switchMobileTab('ats');
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  setActiveRightTab('ats');
-                  if (mobileTab === 'preview') setMobileTab('ats');
+                  switchRightTab('ats');
+                  if (mobileTab === 'preview') switchMobileTab('ats');
                 }
               }}
               className={`flex-1 min-h-[44px] sm:min-h-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-center transition-colors inline-flex items-center justify-center gap-1.5 ${
                 (mobileTab === 'ats' || activeRightTab === 'ats')
                   ? 'bg-[#800021] text-[#FFFFFF] shadow-xs'
-                  : 'text-[#333333] hover:bg-[#F1F7F7] hover:text-[#0B0B0B]'
+                  : 'text-[#24221F] hover:bg-[#EFE8DE]'
               }`}
             >
               <FileCheck className="w-3.5 h-3.5" />
@@ -2302,6 +2836,8 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
           {/* ATS Readiness Panel Container */}
           <div
+            ref={atsScrollRef}
+            id="ats-panel-scroll-container"
             className={`flex-1 min-h-0 overflow-y-auto ${
               (mobileTab === 'ats' || activeRightTab === 'ats') ? 'block' : 'hidden'
             }`}
@@ -2309,7 +2845,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             <AtsReadinessPanel
               report={atsReport}
               isLoading={atsLoading}
-              onJumpToSection={handleJumpToSection}
+              onJumpToSection={(sectionId) => {
+                setActiveRailTab('content');
+                handleJumpToSection(sectionId);
+              }}
             />
           </div>
         </div>

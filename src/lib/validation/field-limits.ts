@@ -54,6 +54,7 @@ export const FIELD_LIMITS = {
   targetRole: 200,        // documents.target_role varchar(200) + CHECK <= 200
   sectionTitle: 150,      // document_sections.title varchar(150) + CHECK <= 150
   sectionContentBytes: 65536, // document_sections.content CHECK octet_length <= 65536 (64KB)
+  layoutSettingsBytes: 2048,  // documents.layout_settings CHECK octet_length <= 2048 (2KB)
 } as const;
 
 export type FieldLimitKey = keyof typeof FIELD_LIMITS;

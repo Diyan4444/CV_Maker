@@ -54,6 +54,7 @@ export default async function EditorPage({
       targetRole: doc.target_role ?? doc.targetRole ?? null,
       targetCompany: doc.target_company ?? doc.targetCompany ?? null,
       status: doc.status === 'ready' ? 'ready' : 'draft',
+      layoutSettings: doc.layout_settings ?? doc.layoutSettings ?? {},
       version: doc.version,
       schemaVersion: doc.schema_version || '1.0.0',
       createdAt: doc.created_at,

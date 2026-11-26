@@ -4,6 +4,7 @@ import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 import { stripNonLatinScript } from '@/lib/validation/pdf-text';
 import { breakUrl, breakEmail } from '@/lib/pdf/wrap-long-tokens';
 import { registerNotoFonts } from '@/lib/pdf/fonts';
+import { resolvePdfLayout } from '@/lib/pdf/layout-settings';
 import { PRODUCT_NAME } from '@/config/app';
 
 registerNotoFonts();
@@ -27,7 +28,6 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 20,
-    fontFamily: 'Noto Serif',
     fontWeight: 'bold',
     letterSpacing: 0.5,
     lineHeight: 1.25,
@@ -35,7 +35,6 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontSize: 10,
-    fontFamily: 'Noto Serif',
     color: '#333333',
     lineHeight: 1.35,
     marginBottom: 6,
@@ -53,7 +52,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: 'bold',
-    fontFamily: 'Noto Serif',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     borderBottomWidth: 0.8,
@@ -72,7 +70,6 @@ const styles = StyleSheet.create({
   },
   entryTitle: {
     fontWeight: 'bold',
-    fontFamily: 'Noto Serif',
     fontSize: 9.5,
     color: '#0B0B0B',
   },
@@ -105,7 +102,6 @@ const styles = StyleSheet.create({
     width: 22,
     fontSize: 9,
     fontWeight: 'bold',
-    fontFamily: 'Noto Serif',
     color: '#333333',
   },
   pubContent: {
@@ -113,7 +109,6 @@ const styles = StyleSheet.create({
   },
   pubTitle: {
     fontSize: 9,
-    fontFamily: 'Noto Serif',
     fontWeight: 'bold',
     color: '#0B0B0B',
   },
@@ -133,7 +128,6 @@ const styles = StyleSheet.create({
   },
   boldLabel: {
     fontWeight: 'bold',
-    fontFamily: 'Noto Serif',
   },
 });
 
@@ -167,6 +161,8 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
   const rawAuthor = headerSec ? stripNonLatinScript((headerSec.content as any)?.fullName || (headerSec.content as any)?.full_name || '').trim() : '';
   const authorName = rawAuthor || undefined;
   const docSubject = (meta as any).target_role || (meta as any).targetRole || (meta.type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume');
+  const layout = resolvePdfLayout('academic_cv', meta.layoutSettings ?? (meta as any).layout_settings);
+  const s = layout.fontScale;
 
   return (
     <Document
@@ -177,7 +173,20 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
       producer={`${PRODUCT_NAME} (react-pdf)`}
       language="en"
     >
-      <Page size="A4" style={styles.page}>
+      <Page
+        size="A4"
+        style={[
+          styles.page,
+          {
+            fontFamily: layout.fontFamily,
+            fontSize: layout.fontSize,
+            lineHeight: layout.lineHeight,
+            paddingTop: layout.paddingTop,
+            paddingBottom: layout.paddingBottom,
+            paddingHorizontal: layout.paddingHorizontal,
+          },
+        ]}
+      >
         {visibleSections.map((sec) => {
           const type = sec.sectionType || (sec as any).section_type;
           const displayTitle = (sec as any).custom_title || (sec as any).customTitle || sec.title;
@@ -255,7 +264,10 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
                       <React.Fragment key={idx}>
                         {idx > 0 ? ' • ' : ''}
                         {item.url ? (
-                          <Link src={item.url} style={{ color: '#0B0B0B', textDecoration: 'none' }}>
+                          <Link
+                            src={item.url}
+                            style={{ color: '#0B0B0B', textDecoration: layout.underlineLinks ? 'underline' : 'none', fontSize: 8.5 * s, fontFamily: layout.fontFamily }}
+                          >
                             {item.text}
                           </Link>
                         ) : (
@@ -607,6 +619,23 @@ export function AcademicCvTemplate({ meta, sections }: TemplateProps) {
 
           return null;
         })}
+        {layout.pageNumbers && (
+          <Text
+            fixed
+            render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+            style={{
+              position: 'absolute',
+              top: 841.89 - Math.max(20, Math.round(layout.paddingBottom * 0.55)),
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              fontSize: 8,
+              lineHeight: 1.2,
+              fontFamily: layout.fontFamily,
+              color: '#6B6B6B',
+            }}
+          />
+        )}
       </Page>
     </Document>
   );

@@ -448,7 +448,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     });
 
     // Restore name to show mobile all-pass
-    await page.click('button:has-text("Edit Sections")');
+    await page.click('button[aria-label="Edit Sections Tab"]');
     await expect(nameInput).toBeVisible();
     await nameInput.fill('Alex Example');
     await page.waitForTimeout(1000);
