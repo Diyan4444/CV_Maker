@@ -493,6 +493,116 @@ export function checkEmptySections(sections: DocumentSection[]): AtsCheckResult 
 }
 
 /**
+ * 11. Professional Summary Present Check
+ */
+export function checkSummaryPresent(sections: DocumentSection[]): AtsCheckResult {
+  const summarySec = sections.find(
+    (s) => (s.sectionType || (s as any).section_type) === 'summary'
+  );
+  const isVisible = summarySec
+    ? summarySec.isVisible !== undefined
+      ? summarySec.isVisible
+      : (summarySec as any).is_visible !== false
+    : false;
+  const text = ((summarySec?.content as any)?.text || '').trim();
+
+  if (summarySec && isVisible && text.length > 0) {
+    return {
+      id: 'summary_present',
+      name: 'Professional summary',
+      status: 'pass',
+      explanation: 'Professional summary is present and visible.',
+      sectionId: summarySec.id,
+    };
+  }
+
+  return {
+    id: 'summary_present',
+    name: 'Professional summary',
+    status: 'info',
+    explanation:
+      'No visible professional summary found. A brief 2–3 sentence summary helps recruiters and ATS parsers understand your target role.',
+    sectionId: summarySec?.id,
+  };
+}
+
+/**
+ * 12. Education Section Populated Check
+ */
+export function checkEducationPresent(sections: DocumentSection[]): AtsCheckResult {
+  const eduSec = sections.find(
+    (s) => (s.sectionType || (s as any).section_type) === 'education'
+  );
+  const isVisible = eduSec
+    ? eduSec.isVisible !== undefined
+      ? eduSec.isVisible
+      : (eduSec as any).is_visible !== false
+    : false;
+  const entries = (((eduSec?.content as any)?.entries as any[]) || []).filter(
+    (e) => e.isVisible !== false
+  );
+
+  if (eduSec && isVisible && entries.length > 0) {
+    return {
+      id: 'education_present',
+      name: 'Education section',
+      status: 'pass',
+      explanation: 'Education section contains at least one visible entry.',
+      sectionId: eduSec.id,
+    };
+  }
+
+  return {
+    id: 'education_present',
+    name: 'Education section',
+    status: 'needs_attention',
+    explanation: 'Education section is missing, hidden, or has no visible entries.',
+    sectionId: eduSec?.id,
+  };
+}
+
+/**
+ * 13. Experience or Projects Populated Check
+ */
+export function checkExperienceOrProjectsPresent(sections: DocumentSection[]): AtsCheckResult {
+  const expSec = sections.find(
+    (s) => (s.sectionType || (s as any).section_type) === 'experience'
+  );
+  const projSec = sections.find(
+    (s) => (s.sectionType || (s as any).section_type) === 'projects'
+  );
+
+  const hasVisibleEntries = (sec?: DocumentSection) => {
+    if (!sec) return false;
+    const vis = sec.isVisible !== undefined ? sec.isVisible : (sec as any).is_visible !== false;
+    if (!vis) return false;
+    const entries = (((sec.content as any)?.entries as any[]) || []).filter(
+      (e) => e.isVisible !== false
+    );
+    return entries.length > 0;
+  };
+
+  if (hasVisibleEntries(expSec) || hasVisibleEntries(projSec)) {
+    return {
+      id: 'experience_or_projects',
+      name: 'Experience or projects',
+      status: 'pass',
+      explanation: 'Document includes visible experience or project entries.',
+      sectionId: hasVisibleEntries(expSec) ? expSec?.id : projSec?.id,
+    };
+  }
+
+  return {
+    id: 'experience_or_projects',
+    name: 'Experience or projects',
+    status: 'needs_attention',
+    explanation:
+      'No visible experience or project entries found. Add work, internship, or project entries so ATS parsers can index your background.',
+    sectionId: expSec?.id || projSec?.id,
+  };
+}
+
+/**
  * Complete ATS Readiness Evaluation Suite
  */
 export function runAtsReadinessChecks(
@@ -514,6 +624,9 @@ export function runAtsReadinessChecks(
     checkVisibleUrls(sections),
     checkNonLatinText(sections),
     checkEmptySections(sections),
+    checkSummaryPresent(sections),
+    checkEducationPresent(sections),
+    checkExperienceOrProjectsPresent(sections),
   ];
 
   const passCount = checks.filter((c) => c.status === 'pass').length;
@@ -523,7 +636,7 @@ export function runAtsReadinessChecks(
   const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
 
   return {
-    title: 'ATS readiness checks',
+    title: 'ATS Readiness',
     note: 'Automated checks, not a guarantee. No tool can promise compatibility with every applicant tracking system; read your PDF yourself.',
     checks,
     summary: {

@@ -10,6 +10,9 @@ import {
   checkVisibleUrls,
   checkNonLatinText,
   checkEmptySections,
+  checkSummaryPresent,
+  checkEducationPresent,
+  checkExperienceOrProjectsPresent,
   runAtsReadinessChecks,
 } from '../lib/ats/checker';
 import { ONE_PAGE_RESUME_FIXTURE } from '../lib/fixtures/document-fixtures';
@@ -263,9 +266,60 @@ describe('ATS Readiness Checks (10 Pure Rules)', () => {
     });
   });
 
+  // 11. Professional Summary Present
+  describe('11. Professional Summary Present', () => {
+    it('passes when summary section is visible and populated', () => {
+      const result = checkSummaryPresent(ONE_PAGE_RESUME_FIXTURE.sections);
+      expect(result.status).toBe('pass');
+    });
+
+    it('flags info when summary is missing or empty', () => {
+      const withoutSummary = ONE_PAGE_RESUME_FIXTURE.sections.filter(
+        (s: any) => (s.sectionType || s.section_type) !== 'summary'
+      );
+      const result = checkSummaryPresent(withoutSummary);
+      expect(result.status).toBe('info');
+      expect(result.explanation).toContain('No visible professional summary');
+    });
+  });
+
+  // 12. Education Section Populated
+  describe('12. Education Section Populated', () => {
+    it('passes when education section has visible entries', () => {
+      const result = checkEducationPresent(ONE_PAGE_RESUME_FIXTURE.sections);
+      expect(result.status).toBe('pass');
+    });
+
+    it('needs attention when education section is empty or missing', () => {
+      const sections = JSON.parse(JSON.stringify(ONE_PAGE_RESUME_FIXTURE.sections));
+      const edu = sections.find((s: any) => (s.sectionType || s.section_type) === 'education');
+      edu.content.entries = [];
+      const result = checkEducationPresent(sections);
+      expect(result.status).toBe('needs_attention');
+      expect(result.explanation).toContain('Education section is missing, hidden, or has no visible entries');
+    });
+  });
+
+  // 13. Experience or Projects Populated
+  describe('13. Experience or Projects Populated', () => {
+    it('passes when experience or projects has visible entries', () => {
+      const result = checkExperienceOrProjectsPresent(ONE_PAGE_RESUME_FIXTURE.sections);
+      expect(result.status).toBe('pass');
+    });
+
+    it('needs attention when neither experience nor projects has visible entries', () => {
+      const sections = ONE_PAGE_RESUME_FIXTURE.sections.filter(
+        (s: any) => !['experience', 'projects'].includes(s.sectionType || s.section_type)
+      );
+      const result = checkExperienceOrProjectsPresent(sections);
+      expect(result.status).toBe('needs_attention');
+      expect(result.explanation).toContain('No visible experience or project entries found');
+    });
+  });
+
   // Full Suite Execution & Timing
   describe('Full Suite Execution', () => {
-    it('runs all 10 checks in under 10ms with accurate summary counts', () => {
+    it('runs all 13 checks in under 50ms with accurate summary counts', () => {
       const extractedText = 'Alex Example • alex@example.com\nSUMMARY\nPassionate engineer\nEXPERIENCE\nSenior Developer';
       const report = runAtsReadinessChecks(
         ONE_PAGE_RESUME_FIXTURE.meta,
@@ -274,10 +328,10 @@ describe('ATS Readiness Checks (10 Pure Rules)', () => {
         1
       );
 
-      expect(report.title).toBe('ATS readiness checks');
+      expect(report.title).toBe('ATS Readiness');
       expect(report.note).toContain('Automated checks, not a guarantee');
-      expect(report.checks.length).toBe(10);
-      expect(report.summary.passCount + report.summary.needsAttentionCount + report.summary.infoCount).toBe(10);
+      expect(report.checks.length).toBe(13);
+      expect(report.summary.passCount + report.summary.needsAttentionCount + report.summary.infoCount).toBe(13);
       expect(report.durationMs).toBeLessThan(50);
       console.log('ATS Full Suite Duration:', report.durationMs, 'ms; Summary:', report.summary);
     });

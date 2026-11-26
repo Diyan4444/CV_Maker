@@ -396,11 +396,11 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     // Verify ATS panel elements
     const panel = page.locator('#ats-readiness-panel');
     await expect(panel).toBeVisible();
-    await expect(panel.getByText('ATS readiness checks')).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'ATS Readiness' })).toBeVisible();
     await expect(panel.getByText('Automated checks, not a guarantee')).toBeVisible();
 
     // All-pass verification
-    await expect(page.getByText('Passed')).toBeVisible();
+    await expect(panel.getByText('look good')).toBeVisible();
 
     // Screenshot 1: 1440px all-pass
     await page.screenshot({
@@ -424,7 +424,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
 
     // Switch back to ATS tab to inspect needs-attention item
     await atsTabBtn.click();
-    await expect(page.locator('[data-testid="ats-check-contact_details"]').getByText('Needs attention')).toBeVisible();
+    await expect(page.locator('[data-testid="ats-group-needs_attention"] [data-testid="ats-check-contact_details"]')).toBeVisible();
 
     // Screenshot 2: 1440px with needs-attention
     await page.screenshot({

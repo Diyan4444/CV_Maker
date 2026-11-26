@@ -29,6 +29,24 @@ import { AtsReadinessReport } from '@/lib/ats/types';
 import { isDocumentContentEqual } from '@/lib/utils/deep-equal';
 import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableSectionCard } from '@/components/editor/SortableSectionCard';
+import { SectionEmptyState } from '@/components/editor/SectionEmptyState';
+import {
   ArrowLeft,
   Save,
   Undo2,
@@ -309,6 +327,21 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   // Left icon rail tab: 'content' | 'template' | 'theme' | 'page'
   const [activeRailTab, setActiveRailTab] = useState<'content' | 'template' | 'theme' | 'page'>('content');
+
+  // Section collapse, focus highlight, DnD announcement & master-profile import state
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
+  const [reorderAnnouncement, setReorderAnnouncement] = useState('');
+  const [importingSectionId, setImportingSectionId] = useState<string | null>(null);
+  const [noMasterDataSections, setNoMasterDataSections] = useState<Record<string, boolean>>({});
+  const [expandedEmptyForms, setExpandedEmptyForms] = useState<Record<string, boolean>>({});
+  const [importToast, setImportToast] = useState<{ message: string } | null>(null);
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Tablet (768-1023px) collapsible preview toggle
   const [isTabletPreviewOpen, setIsTabletPreviewOpen] = useState(false);
@@ -930,6 +963,115 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     const reordered = next.map((s, i) => ({ ...s, orderIndex: i }));
     setSections(reordered);
     pushHistory(meta, reordered);
+    setReorderAnnouncement(
+      `Moved ${moved.title || moved.sectionType} to position ${targetIdx + 1} of ${reordered.length}`
+    );
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = sections.findIndex((s) => s.id === active.id);
+    const newIndex = sections.findIndex((s) => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const moved = sections[oldIndex];
+    const reordered = arrayMove(sections, oldIndex, newIndex).map((s, i) => ({
+      ...s,
+      orderIndex: i,
+    }));
+    setSections(reordered);
+    pushHistory(meta, reordered);
+    setReorderAnnouncement(
+      `Moved ${moved.title || moved.sectionType} to position ${newIndex + 1} of ${reordered.length}`
+    );
+  };
+
+  const addEmptyEntryToSection = (sec: DocumentSection) => {
+    const newEntryId = crypto.randomUUID();
+    const currentEntries = [...((sec.content as EntriesContent<BaseEntry>).entries || [])];
+    currentEntries.push({
+      id: newEntryId,
+      institution: '',
+      degree: '',
+      role: '',
+      organization: '',
+      title: '',
+      category: '',
+      items: [],
+      authors: [],
+      name: '',
+      issuingOrg: '',
+      issuer: '',
+      description: '',
+      bullets: [],
+    });
+    updateSection(sec.id, (s) => ({
+      ...s,
+      content: {
+        ...(s.content as EntriesContent<BaseEntry>),
+        entries: currentEntries,
+      },
+    }));
+  };
+
+  const handleImportFromMasterProfile = async (sec: DocumentSection) => {
+    if (importingSectionId) return;
+    setImportingSectionId(sec.id);
+    try {
+      const res = await fetch(
+        `/api/documents/${meta.id}/import-source?section=${encodeURIComponent(sec.sectionType || 'custom')}`
+      );
+      if (!res.ok) {
+        setImportingSectionId(null);
+        return;
+      }
+      const data = await res.json();
+      if (!data.hasData) {
+        setNoMasterDataSections((prev) => ({ ...prev, [sec.id]: true }));
+        setImportingSectionId(null);
+        return;
+      }
+
+      if (sec.sectionType === 'header' && data.content) {
+        setExpandedEmptyForms((prev) => ({ ...prev, [sec.id]: true }));
+        updateSection(sec.id, (s) => ({
+          ...s,
+          content: {
+            ...(s.content as HeaderContent),
+            ...data.content,
+            schema_version: '1.0.0',
+          },
+        }));
+        setImportToast({ message: 'Imported profile contact details' });
+      } else if (sec.sectionType === 'summary' && data.content) {
+        setExpandedEmptyForms((prev) => ({ ...prev, [sec.id]: true }));
+        updateSection(sec.id, (s) => ({
+          ...s,
+          content: data.content,
+        }));
+        setImportToast({ message: 'Imported 1 entry' });
+      } else if (Array.isArray(data.entries) && data.entries.length > 0) {
+        const existing = [...((sec.content as EntriesContent<BaseEntry>).entries || [])];
+        const merged = [...existing, ...data.entries];
+        updateSection(sec.id, (s) => ({
+          ...s,
+          content: {
+            ...(s.content as EntriesContent<BaseEntry>),
+            entries: merged,
+          },
+        }));
+        const count = data.entries.length;
+        setImportToast({
+          message: `Imported ${count} ${count === 1 ? 'entry' : 'entries'}`,
+        });
+      }
+    } catch {
+      // Ignore network errors cleanly
+    } finally {
+      setImportingSectionId(null);
+    }
   };
 
   const toggleSectionVisibility = (sectionId: string) => {
@@ -992,8 +1134,12 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
   // Jump to section handler from ATS readiness check
   const handleJumpToSection = useCallback(
     (sectionId?: string, fieldId?: string) => {
+      setActiveRailTab('content');
       if (mobileTab !== 'edit') {
         setMobileTab('edit');
+      }
+      if (sectionId) {
+        setCollapsedSections((prev) => ({ ...prev, [sectionId]: false }));
       }
       setTimeout(() => {
         if (sectionId) {
@@ -1001,14 +1147,22 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             if (fieldId) {
-              const input = el.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+              const specific = el.querySelector<HTMLInputElement | HTMLTextAreaElement>(
                 `[name="${fieldId}"], #${fieldId}`
               );
-              input?.focus();
+              if (specific) {
+                specific.focus();
+                return;
+              }
             }
+            const body = document.getElementById(`section-body-${sectionId}`) || el;
+            const firstInput = body.querySelector<HTMLElement>(
+              'input:not([disabled]), textarea:not([disabled]), select:not([disabled])'
+            );
+            firstInput?.focus();
           }
         }
-      }, 50);
+      }, 80);
     },
     [mobileTab]
   );
@@ -1870,104 +2024,81 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </div>
           )}
 
-          {/* Section List Accordion / Panels */}
-          {sections.map((sec, idx) => (
-            <div
-              key={sec.id}
-              id={sec.id}
-              data-section-type={sec.sectionType}
-              style={{ backgroundColor: sec.isVisible ? '#FFFFFF' : '#F1F7F7' }}
-              className={`border border-[#6B6B6B] rounded-xl overflow-hidden shadow-xs transition-colors ${
-                sec.isVisible ? 'bg-[#FFFFFF]' : 'bg-[#F1F7F7]'
-              }`}
+          {/* Live region for drag-and-drop & keyboard reorder announcements */}
+          <div id="section-reorder-live" role="status" aria-live="polite" className="sr-only">
+            {reorderAnnouncement}
+          </div>
+
+          {/* Section List Accordion / Sortable Panels */}
+          <DndContext
+            sensors={dndSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={sections.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
             >
-              {/* Section Header Controls */}
-              <div
-                className={`p-3.5 sm:px-5 border-b border-[#6B6B6B] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 ${
-                  sec.isVisible ? 'bg-[#FFFFFF]' : 'bg-[#F1F7F7]'
-                }`}
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-xs font-mono font-bold text-[#333333] w-5 flex-shrink-0">
-                    {idx + 1}.
-                  </span>
-                  <input
-                    type="text"
-                    aria-label={`Section Title for ${sec.title || sec.sectionType}`}
-                    value={sec.title}
-                    onChange={(e) =>
-                      updateSection(sec.id, (s) => ({ ...s, title: e.target.value }))
-                    }
-                    className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-2 py-1 sm:py-0.5 flex-1 min-w-0 transition-colors"
-                  />
-                  <span className="text-[10px] uppercase font-semibold text-[#5D6B6B] px-1.5 py-0.5 rounded border border-[#6B6B6B] flex-shrink-0">
-                    {sec.sectionType}
-                  </span>
-                  {!sec.isVisible && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#800021] bg-[#FFE4D8] border border-[#800021]/30 px-2 py-0.5 rounded-md flex-shrink-0">
-                      <EyeOff className="w-3 h-3" /> Hidden from PDF
-                    </span>
-                  )}
-                </div>
+              {sections.map((sec, idx) => {
+                const hc = sec.content as HeaderContent;
+                const headerEmpty =
+                  sec.sectionType === 'header' &&
+                  !expandedEmptyForms[sec.id] &&
+                  !String(hc.fullName || (hc as any).full_name || '').trim() &&
+                  !String(hc.email || '').trim() &&
+                  !String(hc.phone || '').trim() &&
+                  !String(hc.headline || '').trim();
+                const sc = sec.content as SummaryContent;
+                const summaryEmpty =
+                  sec.sectionType === 'summary' &&
+                  !expandedEmptyForms[sec.id] &&
+                  !String(sc.text || '').trim();
 
-                <div className="flex items-center gap-1.5 sm:gap-1 flex-wrap self-end sm:self-auto">
-                  {/* Reorder Up / Down */}
-                  <button
-                    type="button"
-                    onClick={() => moveSection(idx, 'up')}
-                    disabled={idx === 0}
-                    aria-label={`Move ${sec.title || sec.sectionType} Up`}
-                    className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] disabled:opacity-20 text-[#0B0B0B] transition-colors"
-                  >
-                    <ChevronUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveSection(idx, 'down')}
-                    disabled={idx === sections.length - 1}
-                    aria-label={`Move ${sec.title || sec.sectionType} Down`}
-                    className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] disabled:opacity-20 text-[#0B0B0B] transition-colors"
-                  >
-                    <ChevronDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                  </button>
-
-                  {/* Hide / Show Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => toggleSectionVisibility(sec.id)}
-                    aria-label={sec.isVisible ? `Hide ${sec.title || sec.sectionType}` : `Show ${sec.title || sec.sectionType}`}
-                    className={`min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] transition-colors ${
-                      sec.isVisible
-                        ? 'bg-[#FFFFFF] text-[#0B0B0B] hover:bg-[#F1F7F7]'
-                        : 'bg-[#FFE4D8] text-[#800021]'
-                    }`}
-                  >
-                    {sec.isVisible ? (
-                      <Eye className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                    )}
-                  </button>
-
-                  {/* Remove Custom Section */}
-                  {sec.sectionType === 'custom' && (
-                    <button
-                      type="button"
-                      onClick={() => removeSection(sec.id)}
-                      aria-label={`Delete ${sec.title || sec.sectionType}`}
-                      className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2.5 sm:p-1 flex items-center justify-center rounded border border-[#6B6B6B] text-red-700 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Section Body */}
-              <div className="p-4 sm:p-5 space-y-4">
-                {/* 1. Header Section */}
-                {sec.sectionType === 'header' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                return (
+                <SortableSectionCard
+                  key={sec.id}
+                  section={sec}
+                  index={idx}
+                  totalCount={sections.length}
+                  isCollapsed={Boolean(collapsedSections[sec.id])}
+                  isFocused={focusedSectionId === sec.id}
+                  onToggleCollapse={() =>
+                    setCollapsedSections((prev) => ({
+                      ...prev,
+                      [sec.id]: !prev[sec.id],
+                    }))
+                  }
+                  onFocusSection={() => setFocusedSectionId(sec.id)}
+                  onBlurSection={() => {
+                    setFocusedSectionId((prev) => (prev === sec.id ? null : prev));
+                  }}
+                  onTitleChange={(title) =>
+                    updateSection(sec.id, (s) => ({ ...s, title }))
+                  }
+                  onToggleVisibility={() => toggleSectionVisibility(sec.id)}
+                  onMove={(dir) => moveSection(idx, dir)}
+                  onDeleteCustom={
+                    sec.sectionType === 'custom'
+                      ? () => removeSection(sec.id)
+                      : undefined
+                  }
+                >
+                  {/* Section Body */}
+                  <div className="p-4 sm:p-5 space-y-4">
+                    {/* 1. Header Section */}
+                    {sec.sectionType === 'header' && (
+                      headerEmpty ? (
+                          <SectionEmptyState
+                            sectionType="header"
+                            onAdd={() =>
+                              setExpandedEmptyForms((prev) => ({ ...prev, [sec.id]: true }))
+                            }
+                            onImport={() => handleImportFromMasterProfile(sec)}
+                            isImporting={importingSectionId === sec.id}
+                            noMasterData={Boolean(noMasterDataSections[sec.id])}
+                          />
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs p-3.5 rounded-lg bg-[#EFE8DE] border border-[#D8D0C5]">
                     <div>
                       <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
                         Full Name
@@ -2173,11 +2304,23 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       )}
                     </div>
                   </div>
-                )}
+                      )
+                    )}
 
                 {/* 2. Summary Section */}
                 {sec.sectionType === 'summary' && (
-                  <div>
+                  summaryEmpty ? (
+                      <SectionEmptyState
+                        sectionType="summary"
+                        onAdd={() =>
+                          setExpandedEmptyForms((prev) => ({ ...prev, [sec.id]: true }))
+                        }
+                        onImport={() => handleImportFromMasterProfile(sec)}
+                        isImporting={importingSectionId === sec.id}
+                        noMasterData={Boolean(noMasterDataSections[sec.id])}
+                      />
+                  ) : (
+                  <div className="p-3.5 rounded-lg bg-[#EFE8DE] border border-[#D8D0C5]">
                     <label className="block text-[11px] font-semibold text-[#0B0B0B] mb-1">
                       Summary Text
                     </label>
@@ -2209,6 +2352,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </p>
                     )}
                   </div>
+                  )
                 )}
 
                 {/* 3. Entries Sections (Education, Experience, Projects, Skills, etc.) */}
@@ -2217,16 +2361,20 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     {/* Honest empty state */}
                     {(!(sec.content as EntriesContent<BaseEntry>).entries ||
                       (sec.content as EntriesContent<BaseEntry>).entries.length === 0) && (
-                      <div className="p-4 rounded-lg bg-[#F1F7F7] border border-[#6B6B6B] text-xs text-[#333333] text-center">
-                        No entries yet in this section. Add an entry below or copy from your master profile.
-                      </div>
+                      <SectionEmptyState
+                        sectionType={sec.sectionType || 'custom'}
+                        onAdd={() => addEmptyEntryToSection(sec)}
+                        onImport={() => handleImportFromMasterProfile(sec)}
+                        isImporting={importingSectionId === sec.id}
+                        noMasterData={Boolean(noMasterDataSections[sec.id])}
+                      />
                     )}
 
                     {/* Entry Cards */}
                     {(((sec.content as any).entries as any[]) || []).map((entry, eIdx) => (
                       <div
                         key={entry.id}
-                        className="p-3.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] space-y-2.5 text-xs shadow-xs"
+                        className="p-3.5 rounded-lg border border-[#D8D0C5] bg-[#EFE8DE] space-y-2.5 text-xs shadow-xs"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#6B6B6B] pb-2">
                           <div className="flex items-center gap-2">
@@ -2713,48 +2861,25 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                       </div>
                     ))}
 
-                    {/* Add Entry Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newEntryId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : `ent-${Date.now()}`;
-                        const currentEntries = [
-                          ...((sec.content as EntriesContent<BaseEntry>).entries || []),
-                        ];
-                        currentEntries.push({
-                          id: newEntryId,
-                          institution: '',
-                          degree: '',
-                          role: '',
-                          organization: '',
-                          title: '',
-                          category: '',
-                          items: [],
-                          authors: [],
-                          name: '',
-                          issuingOrg: '',
-                          issuer: '',
-                          description: '',
-                          bullets: [],
-                        });
-                        updateSection(sec.id, (s) => ({
-                          ...s,
-                          content: {
-                            ...(s.content as EntriesContent<BaseEntry>),
-                            entries: currentEntries,
-                          },
-                        }));
-                      }}
-                      aria-label={`Add Entry to ${sec.title || sec.sectionType}`}
-                      className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-0 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] hover:bg-[#F1F7F7] text-xs font-semibold text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
-                    >
-                      <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Add Entry
-                    </button>
+                    {/* Add Entry Button (shown when entries already exist; empty state provides primary CTA when empty) */}
+                    {((sec.content as EntriesContent<BaseEntry>).entries || []).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => addEmptyEntryToSection(sec)}
+                        aria-label={`Add Entry to ${sec.title || sec.sectionType}`}
+                        className="inline-flex items-center justify-center gap-1.5 min-h-[44px] sm:min-h-0 px-4 py-2.5 sm:px-3 sm:py-1.5 rounded-md border border-[#D8D0C5] bg-[#FFFDF9] hover:bg-[#EFE8DE] text-xs font-semibold text-[#24221F] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                      >
+                        <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> Add Entry
+                      </button>
+                    )}
                   </div>
                 )}
-              </div>
-            </div>
-          ))}
+                  </div>
+                </SortableSectionCard>
+                );
+              })}
+            </SortableContext>
+          </DndContext>
         </div>
         </div>
 
@@ -2933,6 +3058,38 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         >
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>{copySuccessToast}</span>
+        </div>
+      )}
+
+      {/* Import Success Toast with Undo */}
+      {importToast && (
+        <div
+          id="import-success-toast"
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 bg-[#24221F] text-[#FFFFFF] px-4 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-3"
+        >
+          <CheckCircle2 className="w-4 h-4 text-[#DAF1DE] flex-shrink-0" aria-hidden="true" />
+          <span>{importToast.message}</span>
+          <button
+            type="button"
+            id="import-toast-undo-btn"
+            onClick={() => {
+              handleUndo();
+              setImportToast(null);
+            }}
+            className="px-2 py-1 rounded bg-[#FFFDF9] text-[#24221F] hover:bg-[#EFE8DE] text-[11px] font-bold transition-colors"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss import notice"
+            onClick={() => setImportToast(null)}
+            className="text-[#D8D0C5] hover:text-[#FFFFFF] text-xs px-1"
+          >
+            ×
+          </button>
         </div>
       )}
 
