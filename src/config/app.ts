@@ -1,4 +1,6 @@
 export const PRODUCT_NAME = "Quillfolio"; // Configurable single constant placeholder
 
-export type WorkspaceBackgroundMode = 'animated' | 'warm';
-export const WORKSPACE_BACKGROUND: WorkspaceBackgroundMode = 'animated';
+export const FLOAT = {
+  enabled: true,
+  amplitudePx: 3,
+} as const;

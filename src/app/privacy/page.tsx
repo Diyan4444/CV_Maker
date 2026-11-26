@@ -10,6 +10,7 @@ import {
 import { PRODUCT_NAME } from '@/config/app';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { PublicFooter } from '@/components/public/PublicFooter';
+import { FloatCard } from '@/components/ui/FloatCard';
 import {
   Shield,
   Server,
@@ -37,7 +38,7 @@ export default function PrivacyPage() {
       {/* Main Content Container */}
       <main className="max-w-4xl w-full mx-auto px-4 sm:px-8 my-8 space-y-8">
         {/* Title Panel */}
-        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3">
+        <FloatCard floatIndex={1} className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm space-y-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-[#F1F7F7] text-[#800021] border border-[#6B6B6B]">
               <Shield className="w-5 h-5" aria-hidden="true" />
@@ -59,7 +60,7 @@ export default function PrivacyPage() {
           <p className="text-xs sm:text-sm text-[#333333] leading-relaxed pt-2 border-t border-[#6B6B6B]">
             This policy describes strictly and transparently what data {PRODUCT_NAME} collects, where that data is hosted, how authentication is handled, and how you can export or permanently destroy your records at any time.
           </p>
-        </div>
+        </FloatCard>
 
         {/* Table of Contents Panel */}
         <nav

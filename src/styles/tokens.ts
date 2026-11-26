@@ -39,6 +39,23 @@ export const BORDER_TOKENS = {
   strong: mixHexOklab(BASE_TOKENS.page, BASE_TOKENS.ink, 0.48),
 } as const;
 
+export const ON_DARK_TOKENS = {
+  charcoalBase: '#1A1A1A',
+  charcoalTeal: mixHexOklab('#1A1A1A', '#0B2B26', 0.25),
+  charcoalSlate: mixHexOklab('#1A1A1A', '#243A66', 0.2),
+  charcoalPlum: mixHexOklab('#1A1A1A', '#881144', 0.14),
+  contourLow: '#6B6B6B',
+  contourHigh: '#8EB69B',
+  lightestContourEstimate: mixHexOklab(
+    mixHexOklab('#1A1A1A', '#243A66', 0.2),
+    '#8EB69B',
+    0.22
+  ),
+  onDarkInk: BASE_TOKENS.surface,
+  onDarkWarm: BASE_TOKENS.page,
+  onDarkMuted: mixHexOklab(BASE_TOKENS.page, '#6B6B6B', 0.35),
+} as const;
+
 export const WARM_TOKENS = {
   ...BASE_TOKENS,
   ...SURFACE_MIXTURES,

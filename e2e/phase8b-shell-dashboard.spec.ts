@@ -136,13 +136,23 @@ test.describe.serial('Phase 8B: Warm Tokens, AppShell, Documents-First Dashboard
     await expect(page.getByText('0 of 20')).toBeVisible();
     await expect(page.getByText('No documents yet')).toBeVisible();
 
-    // Verify real master-profile section counts (1 Edu, 2 Exp, 0 Proj, 3 Skills, 0 Pubs, 0 Certs)
+    // Verify real master-profile section counts equal DB counts (1 Edu, 2 Exp, 0 Proj, 3 Skills, 0 Pubs, 0 Ach, 0 Certs, 0 Custom)
     const profileStrip = page.locator('section[aria-labelledby="master-profile-summary-heading"]');
     await expect(profileStrip).toBeVisible();
-    await expect(profileStrip.getByText('Education')).toBeVisible();
-    await expect(profileStrip.locator('text=1').first()).toBeVisible();
-    await expect(profileStrip.locator('text=2').first()).toBeVisible();
-    await expect(profileStrip.locator('text=3').first()).toBeVisible();
+    const expectedCounts: Array<[string, string]> = [
+      ['Education', '1'],
+      ['Experience', '2'],
+      ['Projects', '0'],
+      ['Skills', '3'],
+      ['Publications', '0'],
+      ['Achievements', '0'],
+      ['Certifications', '0'],
+      ['Custom sections', '0'],
+    ];
+    for (const [label, countStr] of expectedCounts) {
+      const card = profileStrip.locator('div', { hasText: label }).filter({ hasText: countStr }).first();
+      await expect(card, `Expected ${label} count to equal DB count ${countStr}`).toBeVisible();
+    }
 
     await page.screenshot({ path: shotPath('phase8b_dashboard_0docs_1440px.png'), fullPage: false });
 
@@ -254,24 +264,66 @@ test.describe.serial('Phase 8B: Warm Tokens, AppShell, Documents-First Dashboard
     await expect(page.getByText('8 of 20')).toBeVisible();
     await page.screenshot({ path: shotPath('phase8b_dashboard_8docs_1440px.png'), fullPage: false });
 
-    // Mobile 390px screenshot with bottom tab bar
+    // Mobile 390px screenshot with bottom tab bar + verify last row is not covered by tab bar
     await page.setViewportSize({ width: 390, height: 844 });
+    const lastRow = page.locator('[role="listitem"]').last();
+    await lastRow.scrollIntoViewIfNeeded();
+    const lastRowBox = await lastRow.boundingBox();
+    const mobileTabBar = page.locator('nav[aria-label="Mobile Navigation"]');
+    const tabBarBox = await mobileTabBar.boundingBox();
+    expect(lastRowBox).not.toBeNull();
+    expect(tabBarBox).not.toBeNull();
+    const lastRowMidY = lastRowBox!.y + lastRowBox!.height / 2;
+    const hitInTabBar = await page.evaluate(
+      ({ x, y }) => {
+        const el = document.elementFromPoint(x, y);
+        return Boolean(el?.closest('nav[aria-label="Mobile Navigation"]'));
+      },
+      { x: lastRowBox!.x + lastRowBox!.width / 2, y: lastRowMidY }
+    );
+    expect(hitInTabBar, 'Mobile bottom tab bar must not cover the last document row').toBe(false);
     await page.screenshot({ path: shotPath('phase8b_dashboard_8docs_390px.png'), fullPage: false });
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    // Search filter
+    // Search filter by title and by target role
     const searchInput = page.locator('input[aria-label="Search documents"]');
     await searchInput.fill('Academic Research');
     await expect(page.locator('[role="listitem"]')).toHaveCount(1);
     await expect(page.getByText('Academic Research CV')).toBeVisible();
+    await searchInput.fill('Postdoc Fellow');
+    await expect(page.locator('[role="listitem"]')).toHaveCount(1);
+    await expect(page.getByText('Academic Research CV')).toBeVisible();
     await searchInput.fill('');
 
-    // Status filter -> Ready (should match 3 seeded ready docs)
+    // Status filter -> Ready (3) and Draft (5)
     const statusSelect = page.locator('select[aria-label="Filter by status"]');
     await statusSelect.selectOption('ready');
     await expect(page.locator('[role="listitem"]')).toHaveCount(3);
+    await statusSelect.selectOption('draft');
+    await expect(page.locator('[role="listitem"]')).toHaveCount(5);
     await statusSelect.selectOption('all');
     await expect(page.locator('[role="listitem"]')).toHaveCount(8);
+
+    // Row menu keyboard (Enter opens, Escape closes)
+    const firstMenuBtn = page.locator('button[aria-label="Actions for Backend Platform Resume"]');
+    await firstMenuBtn.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('menuitem', { name: 'Mark as Ready' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('menuitem', { name: 'Mark as Ready' })).toHaveCount(0);
+
+    // Duplicate a Ready doc -> navigates to editor with status Draft, and shows Draft on dashboard
+    const readyRow = page.locator('[role="listitem"]', { hasText: 'Frontend Staff Resume' }).first();
+    await readyRow.locator('button[aria-label="Actions for Frontend Staff Resume"]').click();
+    await Promise.all([
+      page.waitForURL(/\/editor\/[a-f0-9-]+/, { timeout: 15000 }),
+      page.getByRole('menuitem', { name: 'Duplicate' }).click(),
+    ]);
+    await expect(page.locator('#document-status-picker')).toHaveValue('draft');
+    await page.goto('/dashboard');
+    const duplicatedRow = page.locator('[role="listitem"]', { hasText: 'Copy of Frontend Staff Resume' }).first();
+    await expect(duplicatedRow).toBeVisible({ timeout: 10000 });
+    await expect(duplicatedRow.locator('[data-status-pill="draft"]')).toBeVisible();
 
     // Toggle first doc ("Backend Platform Resume") from Draft -> Ready via row menu
     const targetDocId = createdDocIds[0];
@@ -303,15 +355,12 @@ test.describe.serial('Phase 8B: Warm Tokens, AppShell, Documents-First Dashboard
     await expect(page.locator(`[data-doc-row="${targetDocId}"] [data-status-pill="draft"]`)).toBeVisible();
   });
 
-  test('4. /dev/design gallery screenshots in animated and warm background modes', async ({ page }) => {
+  test('4. /dev/design gallery screenshots with TopoBackground', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/dev/design');
 
     await expect(page.locator('h1')).toContainText('Phase 8B Warm Design Gallery');
-    await page.screenshot({ path: shotPath('phase8b_dev_design_animated_1440px.png'), fullPage: false });
-
-    await page.getByRole('button', { name: 'Warm Solid' }).click();
-    await expect(page.locator('[data-colorfield-warm-bg]')).toBeVisible();
-    await page.screenshot({ path: shotPath('phase8b_dev_design_warm_1440px.png'), fullPage: false });
+    await expect(page.locator('[data-topo-canvas], [data-topo-fallback]').first()).toBeVisible();
+    await page.screenshot({ path: shotPath('phase8b_dev_design_1440px.png'), fullPage: false });
   });
 });

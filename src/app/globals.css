@@ -71,6 +71,27 @@ input::placeholder, textarea::placeholder {
   animation: inkLineSweep 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
+@keyframes floatCardBob {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+html[data-motion="off"],
+html[data-motion="off"] body {
+  overscroll-behavior: none !important;
+}
+
+html[data-motion="off"] * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

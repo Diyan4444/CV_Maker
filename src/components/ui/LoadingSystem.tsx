@@ -333,7 +333,7 @@ export function DashboardSkeleton() {
     >
       <HonestyNotifier />
       {/* Desktop Sidebar Skeleton (>= 768px) */}
-      <aside className="hidden md:flex md:flex-col md:justify-between md:sticky md:top-0 md:h-screen shrink-0 w-[232px] border-r bg-[#FFFDF9] border-[#E7DDD0] p-3">
+      <aside className="hidden md:flex md:flex-col md:justify-between md:sticky md:top-4 md:m-4 md:mr-0 md:h-[calc(100vh-32px)] shrink-0 w-[232px] rounded-2xl border bg-[#FFFDF9] border-[#E7DDD0] p-3">
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2 py-2">
             <SkeletonBlock className="h-6 w-28" />
@@ -420,7 +420,7 @@ export function ProfileSkeleton() {
     >
       <HonestyNotifier />
       {/* Desktop Sidebar Skeleton (>= 768px) */}
-      <aside className="hidden md:flex md:flex-col md:justify-between md:sticky md:top-0 md:h-screen shrink-0 w-[232px] border-r bg-[#FFFDF9] border-[#E7DDD0] p-3">
+      <aside className="hidden md:flex md:flex-col md:justify-between md:sticky md:top-4 md:m-4 md:mr-0 md:h-[calc(100vh-32px)] shrink-0 w-[232px] rounded-2xl border bg-[#FFFDF9] border-[#E7DDD0] p-3">
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2 py-2">
             <SkeletonBlock className="h-6 w-28" />

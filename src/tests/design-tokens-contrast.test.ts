@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { wcagContrast } from 'culori';
-import { BASE_TOKENS, SURFACE_MIXTURES, ACCENT_TINTS, WARM_TOKENS } from '@/styles/tokens';
+import { BASE_TOKENS, SURFACE_MIXTURES, ACCENT_TINTS, WARM_TOKENS, ON_DARK_TOKENS } from '@/styles/tokens';
 
 function ratio(fg: string, bg: string): number {
   return Math.round(wcagContrast(fg, bg) * 100) / 100;
@@ -44,5 +44,16 @@ describe('Phase 8B Warm Design Tokens & WCAG Contrast Audit', () => {
     expect(ratio(WARM_TOKENS.primaryText, WARM_TOKENS.primary)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(WARM_TOKENS.primaryText, WARM_TOKENS.primaryHover)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(WARM_TOKENS.readyText, WARM_TOKENS.readyBg)).toBeGreaterThanOrEqual(4.5);
+
+    // On-dark tokens must pass >= 4.5:1 on both charcoal base and lightest contour area
+    const darkSurfaces: Array<[string, string]> = [
+      ['charcoalBase', ON_DARK_TOKENS.charcoalBase],
+      ['lightestContourEstimate', ON_DARK_TOKENS.lightestContourEstimate],
+    ];
+    for (const [bgName, bgHex] of darkSurfaces) {
+      expect(ratio(ON_DARK_TOKENS.onDarkInk, bgHex), `onDarkInk on ${bgName}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(ON_DARK_TOKENS.onDarkWarm, bgHex), `onDarkWarm on ${bgName}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(ON_DARK_TOKENS.onDarkMuted, bgHex), `onDarkMuted on ${bgName}`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

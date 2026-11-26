@@ -18,6 +18,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3100',
+    reducedMotion: 'reduce',
     trace: 'off',
     video: 'off',
     screenshot: 'off',

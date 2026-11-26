@@ -205,8 +205,8 @@ test.describe('Phase 7A: Public Header/Footer, Anchors, Backgrounds, Toast & Log
       await page.waitForSelector('main', { timeout: 15000 });
 
       const bgState = await page.evaluate(() => {
-        const canvas = document.querySelector('canvas');
-        const fallback = document.querySelector('[data-colorfield-fallback]');
+        const canvas = document.querySelector('[data-topo-canvas]') || document.querySelector('canvas');
+        const fallback = document.querySelector('[data-topo-fallback]');
         const wrapper = document.querySelector('.min-h-screen');
         const wrapperBg = wrapper ? getComputedStyle(wrapper).backgroundColor : 'none';
         return {

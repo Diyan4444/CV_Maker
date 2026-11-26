@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PRODUCT_NAME } from '@/config/app';
 import { WARM_TOKENS } from '@/styles/tokens';
+import { FloatCard } from '@/components/ui/FloatCard';
 import {
   FileText,
   User,
@@ -61,11 +62,13 @@ export function AppShell({ children, userEmail, currentPath }: AppShellProps) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row" style={{ color: WARM_TOKENS.ink }}>
-      {/* Desktop Left Sidebar (>= 768px) */}
-      <aside
+      {/* Desktop Inset Floating Left Sidebar (>= 768px) */}
+      <FloatCard
+        as="aside"
+        floatIndex={0}
         aria-label="Workspace sidebar"
         data-collapsed={collapsed ? 'true' : 'false'}
-        className={`hidden md:flex md:flex-col md:justify-between md:sticky md:top-0 md:h-screen shrink-0 border-r transition-[width] duration-150 motion-reduce:transition-none ${
+        className={`hidden md:flex md:flex-col md:justify-between md:sticky md:top-4 md:m-4 md:mr-0 md:h-[calc(100vh-32px)] shrink-0 rounded-2xl border shadow-lg transition-[width] duration-150 motion-reduce:transition-none ${
           collapsed ? 'w-[72px]' : 'w-[232px]'
         }`}
         style={{
@@ -180,7 +183,7 @@ export function AppShell({ children, userEmail, currentPath }: AppShellProps) {
             </button>
           </form>
         </div>
-      </aside>
+      </FloatCard>
 
       {/* Mobile Compact Top Bar (< 768px) */}
       <header

@@ -8,8 +8,8 @@ describe('Dev Routes Production 404 Guard', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 404 Not Found for /dev/backgrounds in production', async () => {
-    const res = await fetch(`${BASE_URL}/dev/backgrounds`);
+  it('returns 404 Not Found for /dev/background in production', async () => {
+    const res = await fetch(`${BASE_URL}/dev/background`);
     expect(res.status).toBe(404);
   });
 

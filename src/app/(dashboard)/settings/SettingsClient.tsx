@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { safeNextPath } from '@/lib/navigation/safe-redirect';
 import { useToast } from '@/components/ui/ToastProvider';
+import { FloatCard } from '@/components/ui/FloatCard';
 import {
   Shield,
   Download,
@@ -187,7 +188,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
   return (
     <div className="space-y-6">
       {/* Page Title Panel */}
-      <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm">
+      <FloatCard floatIndex={1} className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 rounded-lg bg-[#F1F7F7] text-[#800021] border border-[#6B6B6B]">
             <Shield className="w-5 h-5" aria-hidden="true" />
@@ -201,10 +202,12 @@ export function SettingsClient({ user }: SettingsClientProps) {
             </p>
           </div>
         </div>
-      </div>
+      </FloatCard>
 
       {/* SECTION 1: ACCOUNT DETAILS */}
-      <section
+      <FloatCard
+        as="section"
+        floatIndex={2}
         aria-labelledby="section-account-title"
         className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-8 shadow-sm space-y-6 min-w-0"
       >
@@ -247,7 +250,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
           </span>
           <p className="font-mono text-xs text-[#0B0B0B] break-all select-all">{user.id}</p>
         </div>
-      </section>
+      </FloatCard>
 
       {/* SECTION 2: YOUR DATA & EXPORT */}
       <section

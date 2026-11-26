@@ -1,16 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { wcagContrast } from 'culori';
-import { ColorField } from '@/components/canvas/ColorField';
 import { AppShell } from '@/components/navigation/AppShell';
-import { WorkspaceBackgroundMode } from '@/config/app';
+import { FloatCard } from '@/components/ui/FloatCard';
 import { BASE_TOKENS, SURFACE_MIXTURES, ACCENT_TINTS, WARM_TOKENS } from '@/styles/tokens';
 import { FileText, GraduationCap, CheckCircle2, Clock } from 'lucide-react';
 
 export function DesignGalleryClient() {
-  const [bgMode, setBgMode] = useState<WorkspaceBackgroundMode>('animated');
-
   const surfaces = Object.entries(SURFACE_MIXTURES);
   const foregrounds: Array<[string, string]> = [
     ['ink', BASE_TOKENS.ink],
@@ -21,12 +18,12 @@ export function DesignGalleryClient() {
 
   return (
     <div className="min-h-screen relative">
-      <ColorField forcedRecipeId="dashboard" forcedBackgroundMode={bgMode} />
-
       <AppShell userEmail="designer@quillfolio.dev" currentPath="/dashboard">
         <main className="space-y-8">
-          {/* Header & Mode Switcher */}
-          <section
+          {/* Header */}
+          <FloatCard
+            as="section"
+            floatIndex={1}
             className="rounded-xl border p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             style={{
               backgroundColor: WARM_TOKENS.surface,
@@ -41,36 +38,7 @@ export function DesignGalleryClient() {
                 OKLab-mixed warm surfaces, WCAG contrast matrix, status pills, document rows, and AppShell preview.
               </p>
             </div>
-
-            <div className="flex items-center gap-2" role="group" aria-label="Workspace background mode">
-              <button
-                type="button"
-                onClick={() => setBgMode('animated')}
-                aria-pressed={bgMode === 'animated'}
-                className="min-h-[44px] px-4 rounded-lg border text-xs font-semibold transition-colors"
-                style={{
-                  backgroundColor: bgMode === 'animated' ? WARM_TOKENS.primary : WARM_TOKENS.surface,
-                  color: bgMode === 'animated' ? WARM_TOKENS.primaryText : WARM_TOKENS.ink,
-                  borderColor: WARM_TOKENS.borderDefault,
-                }}
-              >
-                Animated
-              </button>
-              <button
-                type="button"
-                onClick={() => setBgMode('warm')}
-                aria-pressed={bgMode === 'warm'}
-                className="min-h-[44px] px-4 rounded-lg border text-xs font-semibold transition-colors"
-                style={{
-                  backgroundColor: bgMode === 'warm' ? WARM_TOKENS.primary : WARM_TOKENS.surface,
-                  color: bgMode === 'warm' ? WARM_TOKENS.primaryText : WARM_TOKENS.ink,
-                  borderColor: WARM_TOKENS.borderDefault,
-                }}
-              >
-                Warm Solid
-              </button>
-            </div>
-          </section>
+          </FloatCard>
 
           {/* Tokens & Surface Mixtures */}
           <section

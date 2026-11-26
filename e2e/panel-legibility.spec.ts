@@ -188,8 +188,8 @@ test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
             curr = curr.parentElement;
           }
 
-          // Composite non-transparent backgrounds top-down starting from warm page (#EFE8DE)
-          let effectiveBg: [number, number, number] = [239, 232, 222];
+          // Composite non-transparent backgrounds top-down starting from dark charcoal canvas (#1A1A1A)
+          let effectiveBg: [number, number, number] = [26, 26, 26];
           let hasPanelBg = false;
           let maxAncestorBgAlpha = 0;
 

@@ -87,7 +87,7 @@ export default async function ProfilePage() {
   return (
     <AppShell userEmail={user.email || ''} currentPath="/profile">
       {/* Main Content */}
-      <main className="w-full space-y-6">
+      <main className="w-full min-w-0 overflow-x-clip space-y-6">
         {/* Page Title & Instructions Panel (All text inside solid panel) */}
         <div className="bg-[#FFFDF9] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm">
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#24221F]">

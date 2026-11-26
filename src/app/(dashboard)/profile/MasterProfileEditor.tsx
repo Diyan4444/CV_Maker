@@ -5,6 +5,7 @@ import React, { useRef, useState } from 'react';
 import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 import { DISCOVERY_PROMPTS, ExperienceDiscoveryPrompt } from '@/config/experience-prompts';
 import { useToast } from '@/components/ui/ToastProvider';
+import { FloatCard } from '@/components/ui/FloatCard';
 import {
   Plus,
   Trash2,
@@ -249,7 +250,7 @@ export function MasterProfileEditor({
       )}
 
       {/* TOP BAR ACTION PANEL */}
-      <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <FloatCard floatIndex={1} className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-medium text-[#333333]">
             Manage your normalized facts once; synchronize across resumes and CVs anytime.
@@ -277,7 +278,7 @@ export function MasterProfileEditor({
             </>
           )}
         </button>
-      </div>
+      </FloatCard>
 
       {/* SECTION 1: Step 1 Basic Identity & Contact Information (per docs/PRODUCT_VISION.md) */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-6 shadow-sm">

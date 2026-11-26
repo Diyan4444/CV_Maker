@@ -22,6 +22,7 @@ import {
 import { DocumentStatus, DocumentType, TemplateId } from '@/lib/documents/types';
 import { WARM_TOKENS } from '@/styles/tokens';
 import { useToast } from '@/components/ui/ToastProvider';
+import { FloatCard } from '@/components/ui/FloatCard';
 
 export interface DocumentItem {
   id: string;
@@ -305,7 +306,9 @@ export function DashboardDocumentList({
   return (
     <div className="space-y-8">
       {/* Main Documents Surface */}
-      <section
+      <FloatCard
+        as="section"
+        floatIndex={1}
         aria-labelledby="documents-heading"
         className="rounded-xl overflow-visible shadow-sm"
         style={{ backgroundColor: WARM_TOKENS.surface }}
@@ -630,10 +633,12 @@ export function DashboardDocumentList({
             })}
           </div>
         )}
-      </section>
+      </FloatCard>
 
       {/* Master Profile Summary (Kept as bordered card per Phase 8B spec) */}
-      <section
+      <FloatCard
+        as="section"
+        floatIndex={2}
         aria-labelledby="master-profile-summary-heading"
         className="rounded-xl border p-5 sm:p-6 shadow-sm space-y-4"
         style={{
@@ -691,7 +696,7 @@ export function DashboardDocumentList({
             </div>
           ))}
         </div>
-      </section>
+      </FloatCard>
 
       {/* CREATE DOCUMENT MODAL */}
       {isCreateOpen && (

@@ -2,7 +2,7 @@ import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { fraunces, dmSans } from '@/config/fonts';
 import { PRODUCT_NAME } from '@/config/app';
-import { ColorField } from '@/components/canvas/ColorField';
+import { TopoBackground } from '@/components/canvas/TopoBackground';
 import { NavigationProgressBar } from '@/components/navigation/NavigationProgressBar';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { WARM_CSS_VARIABLES } from '@/styles/tokens';
@@ -29,9 +29,11 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavigationProgressBar />
         </Suspense>
-        {/* Persistent Procedural ColorField Background */}
-        <ColorField />
-        <ToastProvider>{children}</ToastProvider>
+        {/* Persistent Topographic Canvas & Icon Layer */}
+        <TopoBackground />
+        <div className="relative z-10 min-h-screen">
+          <ToastProvider>{children}</ToastProvider>
+        </div>
       </body>
     </html>
   );

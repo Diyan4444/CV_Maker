@@ -52,9 +52,15 @@ Quillfolio employs an atomic, checksum-verified migration runner in `scripts/app
 9. `0010_remove_public_side.sql` (Drop websites table, reserved-username trigger/function — apply AFTER deploying code that no longer uses `websites`)
 
 ### Production Release Order
-1. Apply additive database migrations first (`npm run db:apply -- --confirm-ref <prod-ref>`).
-2. Deploy application code that no longer reads or writes dropped tables (`public.websites`).
-3. Only after the new application code is live in production, apply destructive drop migrations such as `0010_remove_public_side.sql`.
+1. **Additive migrations BEFORE deploy**: Apply additive schema changes (such as `0011_document_status.sql` or any later `ADD COLUMN` / `CREATE TABLE` migration) to production *before* deploying application code that reads/writes the new schema:
+   ```bash
+   npm run db:apply -- --confirm-ref <prod-ref>
+   npm run db:verify
+   ```
+   *(If you are releasing `0010_remove_public_side.sql` + `0011_document_status.sql` together from an older baseline, apply additive `0011` first or ensure zero running code still queries `public.websites` before running `0010`.)*
+2. **Deploy application code**: Deploy the new build to Vercel once additive migrations are live.
+3. **Drop migrations AFTER deploy**: Only *after* the new application code is live and no old deployment is serving traffic, apply destructive drop migrations (such as `0010_remove_public_side.sql` dropping `public.websites` and reserved-username triggers/functions, or any later `DROP` migration).
+4. **Post-deploy verify**: Run `npm run check:legal` and `npm run db:verify` against the target environment.
 
 ### Account Export Format (`exportVersion: "3"`)
 - `/api/account/export` outputs `exportVersion: "3"`, adding `documents[].status` (`"draft"` or `"ready"`) following migration `0011_document_status.sql`. (`exportVersion: "2"` removed the legacy `website` key).
