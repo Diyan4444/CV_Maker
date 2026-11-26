@@ -729,76 +729,62 @@ export function EditorSkeleton() {
   );
 }
 
-/** Onboarding Skeleton matching OnboardingPage layout */
+/** Onboarding Skeleton matching Phase 8C OnboardingPage layout */
 export function OnboardingSkeleton() {
   return (
     <div
       role="region"
       aria-label="Loading onboarding"
-      className="min-h-screen flex flex-col p-4 sm:p-8"
+      className="min-h-screen flex flex-col pb-28"
     >
       <HonestyNotifier />
       {/* Header Skeleton */}
-      <div className="max-w-4xl mx-auto w-full mb-6">
-        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl px-6 py-4 shadow-sm flex items-center justify-between">
+      <div className="max-w-4xl mx-auto w-full pt-4 sm:pt-8 px-4 sm:px-8 mb-6">
+        <div className="bg-[#FFFDF9] border border-[#E7DDD0] rounded-xl px-5 sm:px-6 py-4 shadow-sm flex items-center justify-between">
           <SkeletonBlock className="h-7 w-32" />
           <SkeletonBlock className="h-5 w-24" />
         </div>
       </div>
 
-      <main className="max-w-2xl w-full mx-auto my-6 bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-8 sm:p-10 shadow-sm relative z-10 space-y-8">
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 text-xs">
-          <SkeletonBlock className="h-4 w-36" />
-          <SkeletonBlock className="h-4 w-4" />
-          <SkeletonBlock className="h-4 w-36" />
-        </div>
-
-        {/* Wizard Question & Card Grid */}
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <SkeletonBlock className="h-7 w-56" />
-            <SkeletonBlock className="h-4 w-80" />
+      <main className="max-w-2xl w-full mx-auto px-4 sm:px-0 flex-1 space-y-6 relative z-10">
+        {/* Hero & 2 Specimen Cards */}
+        <div className="space-y-4">
+          <div className="space-y-2 px-1">
+            <SkeletonBlock className="h-8 w-64" />
+            <SkeletonBlock className="h-4 w-80 max-w-full" />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="border border-[#6B6B6B] rounded-lg p-4 space-y-3">
-                <SkeletonBlock className="h-5 w-5 rounded" />
-                <SkeletonBlock className="h-4 w-24" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="bg-[#FFFDF9] border border-[#E7DDD0] rounded-xl p-4 space-y-3">
+                <SkeletonBlock className="h-56 w-full rounded-lg" />
                 <SkeletonBlock className="h-3 w-36" />
+                <SkeletonBlock className="h-5 w-28" />
+                <SkeletonBlock className="h-3.5 w-48" />
               </div>
             ))}
           </div>
+        </div>
 
-          {/* Dropdown Selectors Skeleton */}
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <SkeletonBlock className="h-3.5 w-48" />
-              <SkeletonBlock className="h-10 w-full rounded-md" />
-            </div>
-            <div className="space-y-2">
-              <SkeletonBlock className="h-3.5 w-40" />
-              <SkeletonBlock className="h-10 w-full rounded-md" />
-            </div>
-            <div className="space-y-2">
-              <SkeletonBlock className="h-3.5 w-52" />
-              <SkeletonBlock className="h-10 w-full rounded-md" />
-            </div>
-          </div>
+        {/* 01 Your background */}
+        <div className="bg-[#FFFDF9] border border-[#E7DDD0] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <SkeletonBlock className="h-6 w-44" />
+          <SkeletonBlock className="h-11 w-full rounded-lg" />
+          <SkeletonBlock className="h-11 w-full rounded-lg" />
+        </div>
 
-          {/* Purposes Skeleton */}
-          <div className="space-y-2 pt-2">
-            <SkeletonBlock className="h-3.5 w-44" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[1, 2, 3, 4].map((i) => (
-                <SkeletonBlock key={i} className="h-9 w-full rounded-md" />
-              ))}
-            </div>
-          </div>
+        {/* 02 Where are you right now? */}
+        <div className="bg-[#FFFDF9] border border-[#E7DDD0] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <SkeletonBlock className="h-6 w-48" />
+          <SkeletonBlock className="h-11 w-full rounded-lg" />
+        </div>
 
-          <div className="flex justify-end items-center pt-4 border-t border-[#6B6B6B]">
-            <SkeletonBlock className="h-10 w-28 rounded-md" />
+        {/* 03 What are you working toward? */}
+        <div className="bg-[#FFFDF9] border border-[#E7DDD0] rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
+          <SkeletonBlock className="h-6 w-52" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <SkeletonBlock key={i} className="h-11 w-full rounded-lg" />
+            ))}
           </div>
         </div>
       </main>

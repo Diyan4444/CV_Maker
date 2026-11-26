@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { FieldConfig, FormFieldValue } from '@/config/onboarding/types';
+import { Combobox } from '@/components/ui/Combobox';
+import { WARM_TOKENS } from '@/styles/tokens';
 import { X, Plus } from 'lucide-react';
 
 interface GenericFormEngineProps {
@@ -47,13 +49,14 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
             <div className="flex items-baseline justify-between">
               <label
                 htmlFor={field.id}
-                className="text-xs font-semibold uppercase tracking-wider text-[var(--text)]"
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: WARM_TOKENS.ink }}
               >
                 {field.label}
                 {field.required ? (
-                  <span className="text-red-500 ml-1">*</span>
+                  <span className="ml-1" style={{ color: WARM_TOKENS.accentStrong }}>*</span>
                 ) : (
-                  <span className="text-[var(--text-muted)] font-normal lowercase ml-1">
+                  <span className="font-normal lowercase ml-1" style={{ color: WARM_TOKENS.muted }}>
                     (optional)
                   </span>
                 )}
@@ -61,7 +64,7 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
             </div>
 
             {field.helperText && (
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: WARM_TOKENS.muted }}>
                 {field.helperText}
               </p>
             )}
@@ -75,11 +78,16 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
                   value={stringVal}
                   placeholder={field.placeholder || ''}
                   onChange={(e) => onChange(field.id, e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                  style={{
+                    backgroundColor: WARM_TOKENS.surface,
+                    borderColor: WARM_TOKENS.borderDefault,
+                    color: WARM_TOKENS.ink,
+                  }}
                 />
                 {field.suggestions && field.suggestions.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    <span className="text-[11px] text-[var(--text-muted)] self-center mr-1">
+                    <span className="text-[11px] self-center mr-1" style={{ color: WARM_TOKENS.muted }}>
                       Suggestions:
                     </span>
                     {field.suggestions.map((sug) => (
@@ -87,7 +95,12 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
                         key={sug}
                         type="button"
                         onClick={() => onChange(field.id, sug)}
-                        className="text-[11px] px-2 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--surface)] text-[var(--text)] transition-colors"
+                        className="text-[11px] min-h-[32px] px-2.5 py-1 rounded-md border transition-colors hover:bg-[#F8F4ED]"
+                        style={{
+                          backgroundColor: WARM_TOKENS.surface1,
+                          borderColor: WARM_TOKENS.borderSubtle,
+                          color: WARM_TOKENS.ink,
+                        }}
                       >
                         {sug}
                       </button>
@@ -104,7 +117,12 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
                 value={stringVal}
                 placeholder={field.placeholder || ''}
                 onChange={(e) => onChange(field.id, e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                style={{
+                  backgroundColor: WARM_TOKENS.surface,
+                  borderColor: WARM_TOKENS.borderDefault,
+                  color: WARM_TOKENS.ink,
+                }}
               />
             )}
 
@@ -115,24 +133,44 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
                 value={stringVal}
                 placeholder={field.placeholder || 'https://...'}
                 onChange={(e) => onChange(field.id, e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
+                className="w-full min-h-[44px] px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                style={{
+                  backgroundColor: WARM_TOKENS.surface,
+                  borderColor: WARM_TOKENS.borderDefault,
+                  color: WARM_TOKENS.ink,
+                }}
               />
             )}
 
             {field.type === 'select' && (
-              <select
-                id={field.id}
-                value={stringVal}
-                onChange={(e) => onChange(field.id, e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-sm focus:border-[var(--accent)] transition-colors"
-              >
-                <option value="">Select option...</option>
-                {field.options?.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
+              (field.options?.length ?? 0) >= 8 ? (
+                <Combobox
+                  id={field.id}
+                  value={stringVal}
+                  onChange={(val) => onChange(field.id, val)}
+                  options={(field.options || []).map((opt) => ({ value: opt, label: opt }))}
+                  placeholder="Search or select..."
+                />
+              ) : (
+                <select
+                  id={field.id}
+                  value={stringVal}
+                  onChange={(e) => onChange(field.id, e.target.value)}
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                  style={{
+                    backgroundColor: WARM_TOKENS.surface,
+                    borderColor: WARM_TOKENS.borderDefault,
+                    color: WARM_TOKENS.ink,
+                  }}
+                >
+                  <option value="">Select option...</option>
+                  {field.options?.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              )
             )}
 
             {field.type === 'tags' && (
@@ -151,14 +189,24 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
                         handleAddTag(field.id);
                       }
                     }}
-                    className="flex-1 px-3.5 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] text-xs focus:border-[var(--accent)] transition-colors"
+                    className="flex-1 min-h-[44px] px-3.5 py-2 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                    style={{
+                      backgroundColor: WARM_TOKENS.surface,
+                      borderColor: WARM_TOKENS.borderDefault,
+                      color: WARM_TOKENS.ink,
+                    }}
                   />
                   <button
                     type="button"
                     onClick={() => handleAddTag(field.id)}
-                    className="px-3 py-2 rounded-md bg-[var(--surface-alt)] border border-[var(--border)] text-[var(--text)] text-xs font-medium hover:bg-[var(--surface)] transition-colors flex items-center gap-1"
+                    className="min-h-[44px] px-3.5 py-2 rounded-lg border text-xs font-semibold hover:bg-[#F8F4ED] transition-colors flex items-center gap-1"
+                    style={{
+                      backgroundColor: WARM_TOKENS.surface1,
+                      borderColor: WARM_TOKENS.borderDefault,
+                      color: WARM_TOKENS.ink,
+                    }}
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add
+                    <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Add
                   </button>
                 </div>
 
@@ -167,7 +215,12 @@ export function GenericFormEngine({ fields, values, onChange }: GenericFormEngin
                     {rawVal.map((tag: string) => (
                       <span
                         key={tag}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[var(--surface-alt)] text-[var(--text)] text-xs border border-[var(--border)]"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs border"
+                        style={{
+                          backgroundColor: WARM_TOKENS.surface2,
+                          borderColor: WARM_TOKENS.borderSubtle,
+                          color: WARM_TOKENS.ink,
+                        }}
                       >
                         {tag}
                         <button

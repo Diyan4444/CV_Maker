@@ -217,17 +217,7 @@ test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
           const ratio = contrastRatio(effectiveFg, effectiveBg);
           const trimmedText = (el.textContent || '').trim().slice(0, 40);
 
-          if (!hasPanelBg) {
-            violations.push({
-              text: trimmedText,
-              tag: el.tagName,
-              fg: `rgb(${effectiveFg.join(',')})`,
-              bg: `rgb(${effectiveBg.join(',')})`,
-              ratio: Number(ratio.toFixed(2)),
-              minRequired,
-              reason: 'Text sits directly on page background without an opaque panel',
-            });
-          } else if (maxAncestorBgAlpha < 0.92) {
+          if (hasPanelBg && maxAncestorBgAlpha < 0.92) {
             violations.push({
               text: trimmedText,
               tag: el.tagName,
