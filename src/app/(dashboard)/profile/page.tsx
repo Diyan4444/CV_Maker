@@ -15,7 +15,7 @@ import {
 } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { MasterProfileEditor } from './MasterProfileEditor';
-import { AppHeader } from '@/components/navigation/AppHeader';
+import { AppShell } from '@/components/navigation/AppShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,18 +85,15 @@ export default async function ProfilePage() {
     .orderBy(customSections.orderIndex);
 
   return (
-    <div className="min-h-screen flex flex-col p-4 sm:p-8">
-      {/* Top Navigation Panel with Mobile Disclosure Menu */}
-      <AppHeader currentPath="/profile" />
-
+    <AppShell userEmail={user.email || ''} currentPath="/profile">
       {/* Main Content */}
-      <main className="flex-1 max-w-5xl mx-auto w-full space-y-6">
+      <main className="w-full space-y-6">
         {/* Page Title & Instructions Panel (All text inside solid panel) */}
-        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#0B0B0B]">
+        <div className="bg-[#FFFDF9] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#24221F]">
             Master Profile
           </h1>
-          <p className="text-xs sm:text-sm text-[#333333] mt-1.5 leading-relaxed">
+          <p className="text-xs sm:text-sm text-[#706A63] mt-1.5 leading-relaxed max-w-[70ch]">
             Single normalized source of truth for all your career and academic facts. Changes made here can be reused across all your resumes and CVs.
           </p>
         </div>
@@ -114,6 +111,6 @@ export default async function ProfilePage() {
           initialCustomSections={customSectionRows}
         />
       </main>
-    </div>
+    </AppShell>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   DocumentMeta,
   DocumentSection,
+  DocumentStatus,
   TemplateId,
   BaseEntry,
   HeaderContent,
@@ -69,6 +70,7 @@ function normalizeMeta(m: any): DocumentMeta {
     title: m.title || '',
     type: m.type || 'resume',
     templateId: m.templateId || m.template_id || 'ats_single_column',
+    status: m.status === 'ready' ? 'ready' : 'draft',
     accentColor: m.accentColor || m.accent_color || '#0B0B0B',
     targetRole: m.targetRole ?? m.target_role ?? null,
     targetCompany: m.targetCompany ?? m.target_company ?? null,
@@ -357,6 +359,7 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
               templateId: sentMeta.templateId,
               accentColor: sentMeta.accentColor,
               targetRole: sentMeta.targetRole,
+              status: sentMeta.status || 'draft',
             },
             sections: sentSections.map((s, idx) => {
               let contentPayload: SectionContent = s.content;
@@ -1055,6 +1058,24 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 <option value="ats_single_column">ATS Single Column</option>
                 <option value="modern_professional">Modern Professional</option>
                 <option value="academic_cv">Academic CV</option>
+              </select>
+            </div>
+
+            {/* Document Status Selector */}
+            <div className="flex items-center gap-1 text-xs font-semibold flex-shrink-0">
+              <select
+                id="document-status-picker"
+                aria-label="Document Status"
+                value={meta.status || 'draft'}
+                onChange={(e) => {
+                  const updated = { ...meta, status: e.target.value as DocumentStatus };
+                  setMeta(updated);
+                  pushHistory(updated, sections);
+                }}
+                className="px-2 py-1 min-h-[44px] sm:min-h-0 sm:h-8 rounded-md border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs focus:border-[#800021] focus:ring-1 focus:ring-[#800021]"
+              >
+                <option value="draft">Draft</option>
+                <option value="ready">Ready</option>
               </select>
             </div>
 

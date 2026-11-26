@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
         templateId,
         accentColor,
         targetRole,
+        status: 'draft',
         version: 1,
         schemaVersion: '1.0.0',
         isArchived: false,

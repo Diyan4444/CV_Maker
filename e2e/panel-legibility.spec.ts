@@ -96,33 +96,68 @@ test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
       await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(300);
 
-      // Walk all visible text elements in the DOM
+      // Walk all visible text elements in the DOM and compute effective opaque background + WCAG contrast
       const auditResult = await page.evaluate(() => {
-        // Allowed solid backgrounds:
-        // Panels: #FFFFFF (rgb(255, 255, 255)), #F1F7F7 (rgb(241, 247, 247)), #FFE4D8 (rgb(255, 228, 216))
-        // Primary Buttons: #800021 (rgb(128, 0, 33)), #881144 (rgb(136, 17, 68))
-        const allowedBackgrounds = new Set([
-          'rgb(255, 255, 255)',
-          'rgb(241, 247, 247)',
-          'rgb(255, 228, 216)',
-          'rgb(128, 0, 33)',
-          'rgb(136, 17, 68)',
-        ]);
+        function parseRgba(colorStr: string): [number, number, number, number] | null {
+          const match = colorStr.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/i);
+          if (!match) return null;
+          return [
+            Number(match[1]),
+            Number(match[2]),
+            Number(match[3]),
+            match[4] !== undefined ? Number(match[4]) : 1,
+          ];
+        }
 
-        const violations: Array<{ text: string; tag: string; nearestBg: string; opacity: string }> = [];
+        function compositeOver(fg: [number, number, number, number], bg: [number, number, number]): [number, number, number] {
+          const a = fg[3];
+          return [
+            Math.round(fg[0] * a + bg[0] * (1 - a)),
+            Math.round(fg[1] * a + bg[1] * (1 - a)),
+            Math.round(fg[2] * a + bg[2] * (1 - a)),
+          ];
+        }
+
+        function relativeLuminance([r, g, b]: [number, number, number]): number {
+          const toLinear = (c: number) => {
+            const s = c / 255;
+            return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+          };
+          return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+        }
+
+        function contrastRatio(c1: [number, number, number], c2: [number, number, number]): number {
+          const l1 = relativeLuminance(c1);
+          const l2 = relativeLuminance(c2);
+          const lighter = Math.max(l1, l2);
+          const darker = Math.min(l1, l2);
+          return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        const violations: Array<{
+          text: string;
+          tag: string;
+          fg: string;
+          bg: string;
+          ratio: number;
+          minRequired: number;
+          reason: string;
+        }> = [];
 
         function isVisible(el: HTMLElement) {
           const rect = el.getBoundingClientRect();
           const style = window.getComputedStyle(el);
+          if (style.position === 'fixed' && style.clip === 'rect(0px, 0px, 0px, 0px)') return false;
+          if (el.classList.contains('sr-only')) return false;
           return (
-            rect.width > 0 &&
-            rect.height > 0 &&
+            rect.width > 1 &&
+            rect.height > 1 &&
             style.visibility !== 'hidden' &&
-            style.display !== 'none'
+            style.display !== 'none' &&
+            parseFloat(style.opacity || '1') > 0
           );
         }
 
-        // Get all elements containing direct text content
         const walker = document.createTreeWalker(
           document.body,
           NodeFilter.SHOW_ELEMENT,
@@ -134,7 +169,6 @@ test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
           const el = node as HTMLElement;
           if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'CANVAS') continue;
 
-          // Check if this element contains immediate non-whitespace text
           let hasDirectText = false;
           for (let i = 0; i < el.childNodes.length; i++) {
             const child = el.childNodes[i];
@@ -144,42 +178,74 @@ test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
             }
           }
 
-          if (!hasDirectText) continue;
-          if (!isVisible(el)) continue;
+          if (!hasDirectText || !isVisible(el)) continue;
 
-          // Walk up ancestors to find nearest element with a non-transparent background
+          // Collect ancestor chain from document.body down to el
+          const chain: HTMLElement[] = [];
           let curr: HTMLElement | null = el;
-          let foundBg: string | null = null;
-          let foundOpacity = '1';
-
-          while (curr && curr !== document.body && curr !== document.documentElement) {
-            const cs = window.getComputedStyle(curr);
-            const bg = cs.backgroundColor;
-
-            // Transparent is rgba(0, 0, 0, 0)
-            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-              foundBg = bg;
-              foundOpacity = cs.opacity;
-              break;
-            }
+          while (curr && curr !== document.documentElement) {
+            chain.unshift(curr);
             curr = curr.parentElement;
           }
 
+          // Composite non-transparent backgrounds top-down starting from warm page (#EFE8DE)
+          let effectiveBg: [number, number, number] = [239, 232, 222];
+          let hasPanelBg = false;
+          let maxAncestorBgAlpha = 0;
+
+          for (const ancestor of chain) {
+            const cs = window.getComputedStyle(ancestor);
+            const parsedBg = parseRgba(cs.backgroundColor);
+            if (parsedBg && parsedBg[3] > 0) {
+              effectiveBg = compositeOver(parsedBg, effectiveBg);
+              if (ancestor !== document.body) {
+                hasPanelBg = true;
+                maxAncestorBgAlpha = Math.max(maxAncestorBgAlpha, parsedBg[3]);
+              }
+            }
+          }
+
+          const elStyle = window.getComputedStyle(el);
+          const parsedFg = parseRgba(elStyle.color);
+          if (!parsedFg) continue;
+          const effectiveFg = compositeOver(parsedFg, effectiveBg);
+
+          const fontSizePx = parseFloat(elStyle.fontSize || '16');
+          const fontWeight = parseInt(elStyle.fontWeight || '400', 10) || 400;
+          const isLargeText = fontSizePx >= 24 || (fontSizePx >= 18.66 && fontWeight >= 700);
+          const minRequired = isLargeText ? 3.0 : 4.5;
+          const ratio = contrastRatio(effectiveFg, effectiveBg);
           const trimmedText = (el.textContent || '').trim().slice(0, 40);
 
-          if (!foundBg) {
+          if (!hasPanelBg) {
             violations.push({
               text: trimmedText,
               tag: el.tagName,
-              nearestBg: 'none (sits on page background)',
-              opacity: '1',
+              fg: `rgb(${effectiveFg.join(',')})`,
+              bg: `rgb(${effectiveBg.join(',')})`,
+              ratio: Number(ratio.toFixed(2)),
+              minRequired,
+              reason: 'Text sits directly on page background without an opaque panel',
             });
-          } else if (!allowedBackgrounds.has(foundBg)) {
+          } else if (maxAncestorBgAlpha < 0.92) {
             violations.push({
               text: trimmedText,
               tag: el.tagName,
-              nearestBg: foundBg,
-              opacity: foundOpacity,
+              fg: `rgb(${effectiveFg.join(',')})`,
+              bg: `rgb(${effectiveBg.join(',')})`,
+              ratio: Number(ratio.toFixed(2)),
+              minRequired,
+              reason: `Panel background alpha ${maxAncestorBgAlpha.toFixed(2)} is below 0.92`,
+            });
+          } else if (ratio < minRequired) {
+            violations.push({
+              text: trimmedText,
+              tag: el.tagName,
+              fg: `rgb(${effectiveFg.join(',')})`,
+              bg: `rgb(${effectiveBg.join(',')})`,
+              ratio: Number(ratio.toFixed(2)),
+              minRequired,
+              reason: `Contrast ${ratio.toFixed(2)}:1 is below WCAG ${minRequired}:1`,
             });
           }
         }
@@ -189,7 +255,7 @@ test.describe.serial('Panel Legibility & Background Isolation Audit', () => {
 
       expect(
         auditResult,
-        `Found ${auditResult.length} text elements not inside an approved opaque panel on ${pagePath}: ${JSON.stringify(auditResult, null, 2)}`
+        `Found ${auditResult.length} legibility/contrast violations on ${pagePath}: ${JSON.stringify(auditResult, null, 2)}`
       ).toHaveLength(0);
 
       await context.close();

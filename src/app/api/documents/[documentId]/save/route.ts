@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthUser, createClient } from '@/lib/supabase/server';
-import { validateSectionContent } from '@/lib/documents/schemas';
-import { SectionContent } from '@/lib/documents/types';
+import { validateSectionContent, DocumentStatusSchema } from '@/lib/documents/schemas';
+import { SectionContent, DocumentStatus } from '@/lib/documents/types';
 import { randomUUID } from 'crypto';
 
 interface RouteContext {
@@ -15,6 +15,7 @@ interface SaveDocumentPayload {
     templateId?: string;
     accentColor?: string;
     targetRole?: string | null;
+    status?: DocumentStatus;
   };
   sections: Array<{
     id?: string;
@@ -148,6 +149,17 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     const now = new Date();
     const nextVersion = currentDoc.version + 1;
     const updatedMeta = body.meta || {};
+    let nextStatus = currentDoc.status || 'draft';
+    if (updatedMeta.status !== undefined) {
+      const parsedStatus = DocumentStatusSchema.safeParse(updatedMeta.status);
+      if (!parsedStatus.success) {
+        return NextResponse.json(
+          { error: 'Invalid document status. Must be "draft" or "ready".' },
+          { status: 400 }
+        );
+      }
+      nextStatus = parsedStatus.data;
+    }
 
     // 4. Update document metadata and increment version
     const { error: updateDocErr } = await supabase
@@ -162,6 +174,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
               ? String(updatedMeta.targetRole).slice(0, 200)
               : null
             : currentDoc.target_role,
+        status: nextStatus,
         version: nextVersion,
         updated_at: now.toISOString(),
       })

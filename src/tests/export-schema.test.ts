@@ -25,9 +25,9 @@ describe('Export Schema & Excluded Columns', () => {
     }
   });
 
-  it('validates a complete, valid v2 export payload', () => {
+  it('validates a complete, valid v3 export payload', () => {
     const validPayload = {
-      exportVersion: '2',
+      exportVersion: '3',
       exportedAt: '2026-11-24T00:00:00.000Z',
       account: {
         id: '00000000-0000-0000-0000-000000000001',
@@ -80,7 +80,7 @@ describe('Export Schema & Excluded Columns', () => {
     };
 
     const parsed = AccountExportDataSchema.parse(validPayload);
-    expect(parsed.exportVersion).toBe('2');
+    expect(parsed.exportVersion).toBe('3');
     expect(parsed.account.email).toBe('user@example.com');
     expect(parsed.documents).toHaveLength(1);
     expect(parsed.documents[0].sections).toHaveLength(1);

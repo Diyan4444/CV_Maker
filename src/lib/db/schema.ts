@@ -222,6 +222,7 @@ export const documents = pgTable('documents', {
   templateId: varchar('template_id', { length: 100 }).notNull(), // 'ats_single_column' | 'modern_professional' | 'academic_cv'
   accentColor: varchar('accent_color', { length: 20 }).default('#1A1A1A').notNull(),
   targetRole: varchar('target_role', { length: 200 }),
+  status: text('status').default('draft').notNull(), // 'draft' | 'ready'
   isArchived: boolean('is_archived').default(false).notNull(),
   schemaVersion: varchar('schema_version', { length: 20 }).default('1.0.0').notNull(),
   version: integer('version').default(1).notNull(),

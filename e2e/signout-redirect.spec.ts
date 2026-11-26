@@ -126,17 +126,15 @@ test.describe('Sign-out 303 redirect & session clearing (Desktop & Mobile)', () 
         }
       });
 
-      if (width < 640) {
-        const menuBtn = page.locator('button[aria-label="Toggle navigation menu"]');
-        await menuBtn.click();
-        const signOutBtn = page.locator('#mobile-nav-menu button[type="submit"]:has-text("Sign out")');
+      if (width < 768) {
+        const signOutBtn = page.locator('header form[action="/auth/signout"] button[type="submit"]').first();
         await expect(signOutBtn).toBeVisible();
         await Promise.all([
           page.waitForURL(/\/login/),
           signOutBtn.click(),
         ]);
       } else {
-        const signOutBtn = page.locator('header form[action="/auth/signout"] button[type="submit"]').first();
+        const signOutBtn = page.locator('aside form[action="/auth/signout"] button[type="submit"]').first();
         await expect(signOutBtn).toBeVisible();
         await Promise.all([
           page.waitForURL(/\/login/),

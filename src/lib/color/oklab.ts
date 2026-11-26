@@ -129,6 +129,22 @@ export function oklabToRgb(lab: OKLab): RGB {
 }
 
 /**
+ * Mixes two hex colors in OKLab color space (t = 0 -> hexA, t = 1 -> hexB).
+ */
+export function mixHexOklab(hexA: string, hexB: string, t: number): string {
+  const labA = rgbToOklab(hexToRgb(hexA));
+  const labB = rgbToOklab(hexToRgb(hexB));
+  const clamped = Math.max(0, Math.min(1, t));
+  return rgbToHex(
+    oklabToRgb({
+      L: labA.L + (labB.L - labA.L) * clamped,
+      a: labA.a + (labB.a - labA.a) * clamped,
+      b: labA.b + (labB.b - labA.b) * clamped,
+    })
+  );
+}
+
+/**
  * Computes perceived lightness (OKLab L) for a hex color.
  */
 export function getHexLightness(hex: string): number {

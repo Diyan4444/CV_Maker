@@ -113,25 +113,20 @@ test.describe.serial('Phase 6A: Account Settings, Export, Deletion, Privacy & Sc
     await page.waitForURL('**/settings');
     await expect(page.locator('h1')).toContainText('Account & Settings');
 
-    // Dashboard footer links check
-    await page.goto('/dashboard');
-    const footerExportLink = page.locator('footer a[href="/api/account/export"]');
-    await expect(footerExportLink).toBeVisible();
+    // Settings export & privacy link check
+    const settingsExportLink = page.locator('a[href="/api/account/export"]').first();
+    await expect(settingsExportLink).toBeVisible();
 
-    const footerPrivacyLink = page.locator('footer a[href="/privacy"]');
-    await expect(footerPrivacyLink).toBeVisible();
-    await footerPrivacyLink.click();
+    const settingsPrivacyLink = page.locator('a[href="/privacy"]').first();
+    await expect(settingsPrivacyLink).toBeVisible();
+    await settingsPrivacyLink.click();
     await page.waitForURL('**/privacy');
     await expect(page.locator('h1')).toContainText('Privacy & Data Rights');
 
-    // Mobile menu check (390px)
+    // Mobile bottom nav check (390px)
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/dashboard');
-    const mobileMenuBtn = page.locator('button[aria-label="Toggle navigation menu"]');
-    await expect(mobileMenuBtn).toBeVisible();
-    await mobileMenuBtn.click();
-
-    const mobileSettingsLink = page.locator('#mobile-nav-menu a[href="/settings"]');
+    const mobileSettingsLink = page.locator('nav[aria-label="Mobile Navigation"] a[href="/settings"]');
     await expect(mobileSettingsLink).toBeVisible();
     await mobileSettingsLink.click();
     await page.waitForURL('**/settings');
@@ -161,7 +156,7 @@ test.describe.serial('Phase 6A: Account Settings, Export, Deletion, Privacy & Sc
 
     const parsed = AccountExportDataSchema.parse(json);
     expect(parsed.account.email).toBe(testEmail);
-    expect(parsed.exportVersion).toBe('2');
+    expect(parsed.exportVersion).toBe('3');
   });
 
   /* --------------------------------------------------------------------------

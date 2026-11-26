@@ -56,8 +56,8 @@ Quillfolio employs an atomic, checksum-verified migration runner in `scripts/app
 2. Deploy application code that no longer reads or writes dropped tables (`public.websites`).
 3. Only after the new application code is live in production, apply destructive drop migrations such as `0010_remove_public_side.sql`.
 
-### Account Export Format (`exportVersion: "2"`)
-- `/api/account/export` outputs `exportVersion: "2"`, which removes the legacy `website` key following removal of the public website feature.
+### Account Export Format (`exportVersion: "3"`)
+- `/api/account/export` outputs `exportVersion: "3"`, adding `documents[].status` (`"draft"` or `"ready"`) following migration `0011_document_status.sql`. (`exportVersion: "2"` removed the legacy `website` key).
 
 #### How to Deploy to an Empty Supabase Project:
 1. Create a new Supabase project in the Supabase Dashboard.

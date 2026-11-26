@@ -4,6 +4,7 @@
  */
 
 export type DocumentType = 'resume' | 'cv';
+export type DocumentStatus = 'draft' | 'ready';
 export type TemplateId = 'ats_single_column' | 'modern_professional' | 'academic_cv';
 
 export interface DocumentMeta {
@@ -12,6 +13,7 @@ export interface DocumentMeta {
   user_id?: string;
   title: string;
   type: DocumentType;
+  status?: DocumentStatus;
   templateId?: TemplateId;
   template_id?: TemplateId;
   accentColor?: string;

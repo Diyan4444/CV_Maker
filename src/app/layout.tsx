@@ -5,6 +5,7 @@ import { PRODUCT_NAME } from '@/config/app';
 import { ColorField } from '@/components/canvas/ColorField';
 import { NavigationProgressBar } from '@/components/navigation/NavigationProgressBar';
 import { ToastProvider } from '@/components/ui/ToastProvider';
+import { WARM_CSS_VARIABLES } from '@/styles/tokens';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -18,7 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${dmSans.variable}`}
+      style={WARM_CSS_VARIABLES as React.CSSProperties}
+    >
       <body className="antialiased min-h-screen relative">
         {/* Navigation Top Progress Bar */}
         <Suspense fallback={null}>

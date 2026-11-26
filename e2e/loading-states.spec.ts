@@ -201,18 +201,17 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
     ).toBeLessThanOrEqual(hTolerance);
   };
 
-  const clickNavLink = async (page: any, name: string) => {
-    const isMobile = (page.viewportSize()?.width ?? 1440) < 640;
+  const clickNavLink = async (page: any, href: string) => {
+    const isMobile = (page.viewportSize()?.width ?? 1440) < 768;
     if (isMobile) {
-      const toggleBtn = page.locator('button[aria-label="Toggle navigation menu"]');
-      await toggleBtn.waitFor({ state: 'visible', timeout: 10000 });
-      await toggleBtn.click();
-      const mobileLink = page.locator(`#mobile-nav-menu a:has-text("${name}")`).first();
-      await mobileLink.waitFor({ state: 'visible', timeout: 5000 });
+      const mobileLink = page.locator(`nav[aria-label="Mobile Navigation"] a[href="${href}"]`).first();
+      await mobileLink.waitFor({ state: 'visible', timeout: 10000 });
       await mobileLink.click();
       return;
     }
-    await page.getByRole('link', { name }).first().click();
+    const desktopLink = page.locator(`aside a[href="${href}"]`).first();
+    await desktopLink.waitFor({ state: 'visible', timeout: 10000 });
+    await desktopLink.click();
   };
 
   // --------------------------------------------------------------------------
@@ -230,13 +229,13 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await page.goto('/profile');
       await page.waitForSelector('main', { timeout: 15000 });
 
-      // Delay dashboard RSC navigation payload by 800ms
+      // Delay dashboard RSC navigation payload by 1200ms
       await page.route('**/dashboard**', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 1200));
         await route.continue();
       });
 
-      await clickNavLink(page, 'Dashboard');
+      await clickNavLink(page, '/dashboard');
 
       // (a) Assert loader / skeleton is visible within <= 150ms
       const skeleton = page.locator('[aria-label="Loading dashboard"]').first();
@@ -276,13 +275,13 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await page.goto('/dashboard');
       await page.waitForSelector('main', { timeout: 15000 });
 
-      // Delay profile RSC navigation payload by 800ms
+      // Delay profile RSC navigation payload by 1200ms
       await page.route('**/profile**', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 1200));
         await route.continue();
       });
 
-      await clickNavLink(page, 'Master Profile');
+      await clickNavLink(page, '/profile');
 
       // (a) Assert loader / skeleton is visible within <= 150ms
       const skeleton = page.locator('[aria-label="Loading profile"]').first();
@@ -317,17 +316,28 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await applyCookies(context);
       await page.setViewportSize({ width, height: 900 });
 
+      // Prevent prefetch from caching /onboarding before click, then delay real RSC navigation by 800ms
+      let delayOnboarding = false;
+      await page.route('**/onboarding**', async (route) => {
+        if (!delayOnboarding && route.request().headers()['next-router-prefetch']) {
+          await route.abort();
+          return;
+        }
+        if (delayOnboarding) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+        }
+        await route.continue();
+      });
+
       // Start at /dashboard
       await page.goto('/dashboard');
       await page.waitForSelector('main', { timeout: 15000 });
 
-      // Delay onboarding RSC navigation payload by 800ms
-      await page.route('**/onboarding**', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        await route.continue();
-      });
+      delayOnboarding = true;
 
-      const onboardingLink = page.getByRole('link', { name: 'Create Document' }).first();
+      const onboardingLink = page.locator(
+        width < 768 ? 'header a[href="/onboarding"]' : 'aside a[href="/onboarding"]'
+      ).first();
       await expect(onboardingLink).toBeVisible();
       await onboardingLink.click();
 
@@ -420,7 +430,7 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await route.continue();
     });
 
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    const dashboardLink = page.locator('aside a[href="/dashboard"]').first();
     await dashboardLink.click();
 
     // Verify skeleton appears within 150ms
@@ -449,7 +459,7 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await route.continue();
     });
 
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    const dashboardLink = page.locator('aside a[href="/dashboard"]').first();
     await dashboardLink.click();
 
     // Verify skeleton appears within 150ms
@@ -477,7 +487,7 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.goto('/profile');
-    await page.waitForSelector('text=Master Profile');
+    await page.waitForSelector('h1:has-text("Master Profile")');
 
     // Delay dashboard client navigation
     await page.route('**/dashboard**', async (route) => {
@@ -485,7 +495,7 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await route.continue();
     });
 
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    const dashboardLink = page.locator('aside a[href="/dashboard"]').first();
     await expect(dashboardLink).toBeVisible();
     await dashboardLink.click();
 
@@ -538,10 +548,10 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
   }) => {
     await applyCookies(context);
     await page.goto('/dashboard');
-    await page.waitForSelector('text=Your Documents');
+    await page.waitForSelector('h1:has-text("Documents")');
 
     // Open create modal
-    const newDocBtn = page.getByRole('button', { name: 'New Document' }).first();
+    const newDocBtn = page.getByRole('button', { name: /New document/i }).first();
     await newDocBtn.click();
     await page.waitForSelector('#create-modal-title');
 

@@ -106,29 +106,35 @@ test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () =>
         await page.goto(pagePath, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(500);
 
-        // Check toggle button
-        const toggleBtn = page.locator('button[aria-controls="mobile-nav-menu"]');
-        await expect(toggleBtn).toBeVisible();
-        await expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
+        // Check mobile bottom tab bar and compact header
+        const bottomNav = page.locator('nav[aria-label="Mobile Navigation"]');
+        await expect(bottomNav).toBeVisible();
 
-        // Check that mobile-nav-menu is not present initially
-        const menu = page.locator('#mobile-nav-menu');
-        await expect(menu).not.toBeVisible();
+        const docsLink = bottomNav.locator('a[href="/dashboard"]');
+        const profileLink = bottomNav.locator('a[href="/profile"]');
+        const settingsLink = bottomNav.locator('a[href="/settings"]');
 
-        // Click toggle button to open (retry on click if needed to ensure hydration handled)
-        await toggleBtn.click();
-        await expect(toggleBtn).toHaveAttribute('aria-expanded', 'true');
-        await expect(menu).toBeVisible();
+        await expect(docsLink).toBeVisible();
+        await expect(profileLink).toBeVisible();
+        await expect(settingsLink).toBeVisible();
 
-        // Verify all 3 navigation links exist inside the dropdown
-        await expect(menu.getByRole('link', { name: /dashboard/i })).toBeVisible();
-        await expect(menu.getByRole('link', { name: /master profile/i })).toBeVisible();
-        await expect(menu.getByRole('link', { name: /settings/i })).toBeVisible();
+        // Active route indicator
+        if (pagePath === '/dashboard') {
+          await expect(docsLink).toHaveAttribute('aria-current', 'page');
+        } else if (pagePath === '/profile') {
+          await expect(profileLink).toHaveAttribute('aria-current', 'page');
+        }
 
-        // Close menu
-        await toggleBtn.click();
-        await expect(toggleBtn).toHaveAttribute('aria-expanded', 'false');
-        await expect(menu).not.toBeVisible();
+        // Minimum 44px touch target height on bottom tab bar links
+        for (const link of [docsLink, profileLink, settingsLink]) {
+          const box = await link.boundingBox();
+          expect(box).not.toBeNull();
+          expect(box!.height).toBeGreaterThanOrEqual(44);
+        }
+
+        // Compact top bar has New action and Sign out button
+        await expect(page.locator('header a[href="/onboarding"]')).toBeVisible();
+        await expect(page.locator('header button[aria-label="Sign out"]')).toBeVisible();
 
         await context.close();
       });

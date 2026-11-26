@@ -9,15 +9,34 @@ import {
   getRecipeForPathname,
 } from '@/config/backgrounds';
 import { createWebGLRenderer, WebGLRenderer } from '@/lib/color/webgl-engine';
+import { WORKSPACE_BACKGROUND, WorkspaceBackgroundMode } from '@/config/app';
+import { WARM_TOKENS } from '@/styles/tokens';
 
 interface ColorFieldProps {
   /** Optional override for gallery previews */
   forcedRecipeId?: string;
+  forcedBackgroundMode?: WorkspaceBackgroundMode;
   className?: string;
 }
 
-export function ColorField({ forcedRecipeId, className = '' }: ColorFieldProps) {
+export function ColorField({
+  forcedRecipeId,
+  forcedBackgroundMode,
+  className = '',
+}: ColorFieldProps) {
   const pathname = usePathname() || '/';
+  const bgMode = forcedBackgroundMode ?? WORKSPACE_BACKGROUND;
+
+  if (bgMode === 'warm') {
+    return (
+      <div
+        data-colorfield-warm-bg
+        aria-hidden="true"
+        className={`fixed inset-0 -z-10 pointer-events-none ${className}`}
+        style={{ backgroundColor: WARM_TOKENS.page }}
+      />
+    );
+  }
   
   // Resolve active recipe
   const targetRecipe = forcedRecipeId

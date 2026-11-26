@@ -120,12 +120,12 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Document count badge shows 0 / 20 documents used
-    const countBadge = page.getByText(/20 documents used/);
+    // Document count badge shows 0 of 20
+    const countBadge = page.getByText('0 of 20');
     await expect(countBadge).toBeVisible();
 
     // Click "+ New Document"
-    const newDocBtn = page.getByRole('button', { name: /New Document/i });
+    const newDocBtn = page.getByRole('button', { name: /New Document/i }).first();
     await expect(newDocBtn).toBeVisible();
     await newDocBtn.click();
 
@@ -619,22 +619,25 @@ test.describe.serial('Document Engine & Editor Lifecycle', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
-    // Click Delete button on document card
-    const deleteBtn = page.locator(`button[aria-label="Delete document"]`).first();
-    await expect(deleteBtn).toBeVisible({ timeout: 15000 });
+    // Open row menu and click Delete
+    const menuBtn = page.locator('button[aria-label^="Actions for "]').first();
+    await expect(menuBtn).toBeVisible({ timeout: 15000 });
+    await menuBtn.click();
+    const deleteBtn = page.getByRole('menuitem', { name: 'Delete' });
+    await expect(deleteBtn).toBeVisible();
     await deleteBtn.click();
 
     // Delete confirmation modal appears
-    await expect(page.getByText('Delete Document?')).toBeVisible();
-    await expect(page.getByText('All tailored sections and custom edits in this document will be lost')).toBeVisible();
+    await expect(page.locator('#delete-modal-title')).toBeVisible();
+    await expect(page.getByText(/This document will be permanently removed/i)).toBeVisible();
 
-    // Click "Yes, Delete"
-    const confirmDeleteBtn = page.getByRole('button', { name: /Yes, Delete/i });
+    // Click "Delete Permanently"
+    const confirmDeleteBtn = page.getByRole('button', { name: /Delete Permanently/i });
     await expect(confirmDeleteBtn).toBeVisible();
     await confirmDeleteBtn.click();
 
     // Modal dismissed and document list reflects deletion
-    await expect(page.getByText('Delete Document?')).not.toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('0 / 20 documents used')).toBeVisible();
+    await expect(page.locator('#delete-modal-title')).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('0 of 20')).toBeVisible();
   });
 });

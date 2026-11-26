@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
       title,
       accentColor,
       targetRole,
+      status: 'draft',
       version: 1,
       createdAt: now,
       updatedAt: now,

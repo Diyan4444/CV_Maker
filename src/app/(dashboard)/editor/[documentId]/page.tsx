@@ -53,6 +53,7 @@ export default async function EditorPage({
       accentColor: doc.accent_color || doc.accentColor || '#0B0B0B',
       targetRole: doc.target_role ?? doc.targetRole ?? null,
       targetCompany: doc.target_company ?? doc.targetCompany ?? null,
+      status: doc.status === 'ready' ? 'ready' : 'draft',
       version: doc.version,
       schemaVersion: doc.schema_version || '1.0.0',
       createdAt: doc.created_at,

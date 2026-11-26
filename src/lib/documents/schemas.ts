@@ -3,6 +3,8 @@ import { FIELD_LIMITS } from '@/lib/validation/field-limits';
 
 export const MAX_SECTION_PAYLOAD_BYTES = FIELD_LIMITS.sectionContentBytes; // 64KB DB limit
 
+export const DocumentStatusSchema = z.enum(['draft', 'ready']);
+
 export const BaseEntrySchema = z.object({
   id: z.string().uuid(),
   sourceId: z.string().uuid().nullable().optional(),

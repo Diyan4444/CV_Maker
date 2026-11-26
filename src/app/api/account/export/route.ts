@@ -94,7 +94,7 @@ export async function GET() {
     const dateStr = now.toISOString().split('T')[0];
 
     const exportPayload = {
-      exportVersion: '2',
+      exportVersion: '3',
       exportedAt: now.toISOString(),
       account: {
         id: user.id,

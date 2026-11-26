@@ -133,7 +133,7 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
     await page.waitForSelector('main', { timeout: 15000 });
 
     // Click link to current route (/dashboard)
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    const dashboardLink = page.locator('aside a[href="/dashboard"]').first();
     await expect(dashboardLink).toBeVisible();
     await dashboardLink.click();
 
@@ -173,7 +173,7 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
     });
 
     // Initiate navigation to /dashboard
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    const dashboardLink = page.locator('aside a[href="/dashboard"]').first();
     await dashboardLink.click();
 
     // Trigger browser back while navigation is in-flight
@@ -204,7 +204,7 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
 
     // Attempt navigation while offline
-    const profileLink = page.getByRole('link', { name: 'Master Profile' }).first();
+    const profileLink = page.locator('aside a[href="/profile"]').first();
     await profileLink.click({ force: true }).catch(() => {});
 
     // Recover network
@@ -278,7 +278,7 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
       }
     });
 
-    const profileLink = page.getByRole('link', { name: 'Master Profile' }).first();
+    const profileLink = page.locator('aside a[href="/profile"]').first();
     await profileLink.click().catch(() => {});
 
     // Within 2 seconds of error state, overlay must not intercept clicks
@@ -297,8 +297,8 @@ test.describe.serial('NavigationProgressBar & Transition Overlay Safety Invarian
     await page.waitForSelector('main', { timeout: 15000 });
 
     // Rapidly click between available navigation links
-    const profileLink = page.getByRole('link', { name: 'Master Profile' }).first();
-    const dashboardLink = page.getByRole('link', { name: 'Dashboard' }).first();
+    const profileLink = page.locator('aside a[href="/profile"]').first();
+    const dashboardLink = page.locator('aside a[href="/dashboard"]').first();
 
     await profileLink.click();
     await page.waitForTimeout(50);
