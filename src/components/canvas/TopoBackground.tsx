@@ -22,6 +22,8 @@ uniform vec2 u_res;
 uniform vec2 u_cursor;
 uniform float u_glow;
 uniform float u_radius;
+uniform float u_bgScale;
+uniform float u_poolScale;
 uniform vec3 u_base;
 uniform vec3 u_teal;
 uniform vec3 u_slate;
@@ -74,9 +76,9 @@ void main() {
   float gauss = exp(-dist2 / (2.0 * r2));
   h += u_glow * 0.085 * gauss;
 
-  vec3 bg = mix(u_base, u_teal, smoothstep(0.25, 0.75, region) * 0.65);
-  bg = mix(bg, u_slate, smoothstep(0.35, 0.85, uv.x * 0.6 + uv.y * 0.4) * 0.55);
-  bg = mix(bg, u_plum, smoothstep(0.55, 0.95, 1.0 - region) * 0.45);
+  vec3 bg = mix(u_base, u_teal, smoothstep(0.22, 0.78, region) * 0.72 * u_poolScale);
+  bg = mix(bg, u_slate, smoothstep(0.32, 0.86, uv.x * 0.6 + uv.y * 0.4) * 0.64 * u_poolScale);
+  bg = mix(bg, u_plum, smoothstep(0.52, 0.94, 1.0 - region) * 0.52 * u_poolScale);
 
   float levels = 24.0;
   float scaled = h * levels;
@@ -86,7 +88,7 @@ void main() {
 
   float lvlNorm = clamp(floor(scaled) / levels, 0.0, 1.0);
   vec3 lineCol = mix(u_cLow, u_cHigh, lvlNorm);
-  float lineAlpha = mix(0.08, 0.22, lvlNorm);
+  float lineAlpha = clamp(mix(0.42, 0.68, lvlNorm) * u_bgScale, 0.18, 0.9);
 
   vec3 col = mix(bg, lineCol, line * lineAlpha);
   col = mix(col, u_glowCol, gauss * u_glow * 0.08);
@@ -135,8 +137,16 @@ export function TopoBackground({
 
     const coarseOrNoHover = !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const motionOff = document.documentElement.dataset.motion === 'off';
-    const isStatic = forceStatic || isEditorRoute || coarseOrNoHover || reducedMotion || motionOff;
+    const htmlMotion = document.documentElement.dataset.motion;
+    const motionOff = htmlMotion === 'off' || (htmlMotion !== 'on' && reducedMotion);
+    const isStatic = forceStatic || isEditorRoute || coarseOrNoHover || motionOff;
+
+    const getBgScales = () => {
+      const lvl = document.documentElement.dataset.bgLevel;
+      if (lvl === 'subtle') return { bgScale: 0.65, poolScale: 0.75 };
+      if (lvl === 'strong') return { bgScale: 1.45, poolScale: 1.3 };
+      return { bgScale: 1.0, poolScale: 1.0 };
+    };
 
     const gl = canvas.getContext('webgl2', {
       alpha: false,
@@ -169,6 +179,8 @@ export function TopoBackground({
     let uCursor: WebGLUniformLocation | null = null;
     let uGlow: WebGLUniformLocation | null = null;
     let uRadius: WebGLUniformLocation | null = null;
+    let uBgScale: WebGLUniformLocation | null = null;
+    let uPoolScale: WebGLUniformLocation | null = null;
 
     if (gl) {
       const vs = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
@@ -192,6 +204,8 @@ export function TopoBackground({
             uCursor = gl.getUniformLocation(program, 'u_cursor');
             uGlow = gl.getUniformLocation(program, 'u_glow');
             uRadius = gl.getUniformLocation(program, 'u_radius');
+            uBgScale = gl.getUniformLocation(program, 'u_bgScale');
+            uPoolScale = gl.getUniformLocation(program, 'u_poolScale');
 
             const setVec3 = (name: string, hex: string) => {
               const u = gl.getUniformLocation(program!, name);
@@ -242,11 +256,13 @@ export function TopoBackground({
       }
       const glowingSet = new Set(nearIndices.slice(0, 2).map((n) => n.idx));
 
+      const { bgScale } = getBgScales();
       icons.forEach((ic, idx) => {
         const el = iconRefs.current[idx];
         if (!el) return;
+        const scaledIdle = Math.min(0.85, ic.idleOpacity * bgScale);
         if (!glowActive) {
-          el.style.opacity = String(ic.idleOpacity);
+          el.style.opacity = scaledIdle.toFixed(3);
           el.style.transform = 'translate3d(0px, 0px, 0)';
           el.style.filter = 'none';
           return;
@@ -257,7 +273,7 @@ export function TopoBackground({
         const dy = spring.y - iy;
         const dist = Math.hypot(dx, dy);
         const prox = Math.max(0, 1 - dist / 160) * spring.glow;
-        const opacity = ic.idleOpacity + (0.55 - ic.idleOpacity) * prox;
+        const opacity = scaledIdle + (Math.min(0.9, 0.6 * bgScale) - scaledIdle) * prox;
         const tx = Math.max(-6, Math.min(6, (dx / Math.max(w, 1)) * 28 * ic.depth * spring.glow));
         const ty = Math.max(-6, Math.min(6, (dy / Math.max(h, 1)) * 28 * ic.depth * spring.glow));
         el.style.opacity = opacity.toFixed(3);
@@ -267,6 +283,7 @@ export function TopoBackground({
     };
 
     const renderFrame = () => {
+      const { bgScale, poolScale } = getBgScales();
       if (gl && program) {
         const w = Math.max(1, Math.floor(window.innerWidth * dpr));
         const h = Math.max(1, Math.floor(window.innerHeight * dpr));
@@ -280,6 +297,8 @@ export function TopoBackground({
         gl.uniform2f(uCursor, spring.x * dpr, spring.y * dpr);
         gl.uniform1f(uGlow, isStatic ? 0 : spring.glow);
         gl.uniform1f(uRadius, 180 * dpr);
+        if (uBgScale) gl.uniform1f(uBgScale, bgScale);
+        if (uPoolScale) gl.uniform1f(uPoolScale, poolScale);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       }
       updateIcons();
@@ -348,7 +367,14 @@ export function TopoBackground({
     window.addEventListener('resize', onResize);
     document.addEventListener('visibilitychange', onVisibility);
 
+    const attrObserver = new MutationObserver(() => renderFrame());
+    attrObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-bg-level'],
+    });
+
     return () => {
+      attrObserver.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
       if (idleTimeout) clearTimeout(idleTimeout);
       if (resizeTimeout) clearTimeout(resizeTimeout);
@@ -442,7 +468,6 @@ export function TopoBackground({
               height: `${ic.sizePx}px`,
               color: ic.color,
               opacity: ic.idleOpacity,
-              willChange: 'transform, opacity',
             }}
           >
             <svg width={ic.sizePx} height={ic.sizePx} aria-hidden="true">

@@ -20,6 +20,7 @@ import {
   customSections,
 } from '@/lib/db/schema';
 import { count, eq } from 'drizzle-orm';
+import { getBackgroundGroupLabel } from '@/config/onboarding/departments';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ async function fetchProfileSummary(
 
   return {
     hasProfile: Boolean(profile),
-    backgroundGroup: profile?.background_group || null,
+    backgroundGroup: getBackgroundGroupLabel(profile?.background_group) || null,
     specialization: profile?.specialization || null,
     sections: [
       { key: 'education', label: 'Education', count: counts.education, href: '/profile#education' },

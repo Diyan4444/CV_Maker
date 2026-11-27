@@ -164,13 +164,15 @@ test.describe.serial('Phase 8D: Settings Redesign, User ID Eye, Export Tile, Ani
     const page = await ctx.newPage();
     await page.goto('/settings');
 
-    const toggle = page.getByRole('switch', { name: 'Animations' });
-    await expect(toggle).toHaveAttribute('aria-checked', 'true');
-    await expect(toggle).toContainText('On');
+    const animGroup = page.getByRole('radiogroup', { name: 'Animations' });
+    const onBtn = animGroup.getByRole('radio', { name: 'On' });
+    const offBtn = animGroup.getByRole('radio', { name: 'Off' });
+    const sysBtn = animGroup.getByRole('radio', { name: 'Follow system' });
+    await expect(sysBtn).toHaveAttribute('aria-checked', 'true');
 
-    await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
-    await expect(toggle).toContainText('Off');
+    await offBtn.click();
+    await expect(offBtn).toHaveAttribute('aria-checked', 'true');
+    await expect(onBtn).toHaveAttribute('aria-checked', 'false');
 
     const motionAttr = await page.evaluate(() => document.documentElement.dataset.motion);
     expect(motionAttr).toBe('off');
@@ -183,7 +185,7 @@ test.describe.serial('Phase 8D: Settings Redesign, User ID Eye, Export Tile, Ani
 
     // Reload persists Off state
     await page.reload();
-    await expect(page.getByRole('switch', { name: 'Animations' })).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByRole('radiogroup', { name: 'Animations' }).getByRole('radio', { name: 'Off' })).toHaveAttribute('aria-checked', 'true');
     expect(await page.evaluate(() => document.documentElement.dataset.motion)).toBe('off');
 
     await ctx.close();

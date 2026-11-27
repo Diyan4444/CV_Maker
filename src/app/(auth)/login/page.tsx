@@ -7,6 +7,9 @@ import { safeNextPath } from '@/lib/navigation/safe-redirect';
 import { mapLoginError } from '@/lib/auth/login-error-map';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { PublicFooter } from '@/components/public/PublicFooter';
+import { FloatCard } from '@/components/ui/FloatCard';
+import { GlassPanel } from '@/components/ui/GlassPanel';
+import { GLASS_TOKENS } from '@/styles/tokens';
 import { Mail, ArrowRight, Loader2 } from 'lucide-react';
 
 function LoginForm() {
@@ -129,20 +132,21 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between relative text-[#0B0B0B]">
+    <div className="min-h-screen flex flex-col justify-between relative" style={{ color: GLASS_TOKENS.fg }}>
       {/* Shared Public Header */}
       <div className="pt-4 sm:pt-8">
         <PublicHeader />
       </div>
 
       {/* Main Authentication Card Panel */}
-      <main className="max-w-md w-full mx-auto px-4 sm:px-0 my-auto py-8">
-        <div className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-2xl p-6 sm:p-10 shadow-md">
+      <main className="relative z-10 max-w-md w-full mx-auto px-4 sm:px-0 my-auto py-8">
+        <FloatCard floatIndex={1}>
+        <GlassPanel variant="frosted" className="p-6 sm:p-10">
         <div className="mb-6">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0B] tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: GLASS_TOKENS.fg }}>
             Sign in
           </h1>
-          <p className="text-xs sm:text-sm text-[#333333] mt-1.5 leading-relaxed">
+          <p className="text-xs sm:text-sm mt-1.5 leading-relaxed" style={{ color: GLASS_TOKENS.fgMuted }}>
             One master profile for your Resume and Academic CV.
           </p>
         </div>
@@ -165,11 +169,11 @@ function LoginForm() {
           onClick={handleGoogleSignIn}
           disabled={loading}
           aria-busy={loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] hover:bg-[#F1F7F7] font-semibold text-xs transition-colors mb-5 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 min-h-[44px]"
+          className="btn-glass-secondary w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg font-semibold text-xs transition-colors mb-5 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] min-h-[44px]"
         >
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin text-[#800021]" aria-hidden="true" />
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: GLASS_TOKENS.accentOnGlass }} aria-hidden="true" />
               <span>Connecting to Google...</span>
             </>
           ) : (
@@ -198,19 +202,19 @@ function LoginForm() {
         </button>
 
         <div className="relative mb-5 flex items-center justify-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-[#6B6B6B]"></div>
-          </div>
-          <span className="relative bg-[#FFFFFF] px-3 text-[11px] font-bold text-[#6B6B6B] uppercase tracking-wider">
+          <div className="w-full border-t glass-divider"></div>
+          <span className="px-3 text-[11px] font-bold uppercase tracking-wider shrink-0" style={{ color: GLASS_TOKENS.fgMuted }}>
             Or with email
           </span>
+          <div className="w-full border-t glass-divider"></div>
         </div>
 
         <form onSubmit={handleEmailSignIn} className="space-y-4">
           <div>
             <label
               htmlFor="email"
-              className="block text-xs font-semibold uppercase tracking-wider text-[#0B0B0B] mb-1.5"
+              className="block text-xs font-semibold uppercase tracking-wider mb-1.5"
+              style={{ color: GLASS_TOKENS.fg }}
             >
               Email Address
             </label>
@@ -222,7 +226,7 @@ function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@university.edu or you@work.com"
                 required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-[#6B6B6B] bg-[#FFFFFF] text-[#0B0B0B] text-xs placeholder:text-[#6B6B6B] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-[#6B6B6B] bg-[#FFFDF9] text-[#24221F] text-xs placeholder:text-[#6B6B6B] focus:outline-none focus:ring-2 focus:ring-[#800021] transition-colors"
               />
               <Mail className="w-4 h-4 text-[#6B6B6B] absolute right-3.5 top-3.5 pointer-events-none" />
             </div>
@@ -232,7 +236,7 @@ function LoginForm() {
             type="submit"
             disabled={loading}
             aria-busy={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-semibold text-xs shadow-xs hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors disabled:opacity-50 min-h-[44px]"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-semibold text-xs shadow-xs hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] transition-colors disabled:opacity-50 min-h-[44px]"
           >
             {loading ? (
               <>
@@ -248,10 +252,11 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="mt-6 text-[11px] text-center text-[#333333] leading-relaxed">
+        <p className="mt-6 text-[11px] text-center leading-relaxed" style={{ color: GLASS_TOKENS.fgMuted }}>
           By signing in, you agree to store your career and academic facts securely. We never use your profile data to train public models.
         </p>
-        </div>
+        </GlassPanel>
+        </FloatCard>
       </main>
 
       {/* Shared Public Footer */}

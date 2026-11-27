@@ -21,9 +21,10 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { DocumentStatus, DocumentType, TemplateId } from '@/lib/documents/types';
-import { WARM_TOKENS } from '@/styles/tokens';
+import { WARM_TOKENS, GLASS_TOKENS } from '@/styles/tokens';
 import { useToast } from '@/components/ui/ToastProvider';
 import { FloatCard } from '@/components/ui/FloatCard';
+import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Emph } from '@/components/ui/Emph';
 
 export interface DocumentItem {
@@ -331,34 +332,28 @@ export function DashboardDocumentList({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pt-2">
       {/* Main Documents Surface */}
       <FloatCard
         as="section"
         floatIndex={1}
         aria-labelledby="documents-heading"
-        className="rounded-xl overflow-visible shadow-sm"
-        style={{ backgroundColor: WARM_TOKENS.surface }}
+        className="relative z-20 overflow-visible"
       >
+        <GlassPanel variant="frosted" allowOverflow>
         {/* Title Row */}
-        <div
-          className="px-4 sm:px-6 py-5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-          style={{ borderColor: WARM_TOKENS.borderSubtle }}
-        >
+        <div className="px-4 sm:px-6 py-5 border-b glass-divider flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-baseline gap-3 flex-wrap">
             <h1
               id="documents-heading"
               className="font-display text-2xl sm:text-3xl font-bold tracking-tight"
-              style={{ color: WARM_TOKENS.ink }}
+              style={{ color: GLASS_TOKENS.fg }}
             >
               <Emph headingKey="dashboard" />
             </h1>
             <span
-              className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
-              style={{
-                backgroundColor: isCapReached ? WARM_TOKENS.accentSoft : WARM_TOKENS.surface2,
-                color: isCapReached ? WARM_TOKENS.accentStrong : WARM_TOKENS.ink,
-              }}
+              className="glass-tile text-xs font-semibold px-2.5 py-0.5 rounded-full"
+              style={{ color: GLASS_TOKENS.fg }}
             >
               {totalDocs} of 20
             </span>
@@ -368,7 +363,7 @@ export function DashboardDocumentList({
             type="button"
             onClick={() => handleOpenCreate('resume')}
             disabled={isCapReached}
-            className="min-h-[44px] px-4 py-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-2 transition-colors motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-h-[44px] px-4 py-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-2 transition-colors motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: WARM_TOKENS.primary,
               color: WARM_TOKENS.primaryText,
@@ -380,13 +375,7 @@ export function DashboardDocumentList({
         </div>
 
         {/* Search & Status Filter Bar */}
-        <div
-          className="px-4 sm:px-6 py-3 border-b flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
-          style={{
-            backgroundColor: WARM_TOKENS.surface1,
-            borderColor: WARM_TOKENS.borderSubtle,
-          }}
-        >
+        <div className="px-4 sm:px-6 py-3 border-b glass-divider flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
             <Search
               className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -430,18 +419,18 @@ export function DashboardDocumentList({
         {/* Document Rows */}
         {docs.length === 0 ? (
           <div className="py-16 px-6 text-center space-y-3">
-            <FileText className="w-10 h-10 mx-auto" style={{ color: WARM_TOKENS.muted }} aria-hidden="true" />
-            <h2 className="font-display text-lg font-bold" style={{ color: WARM_TOKENS.ink }}>
+            <FileText className="w-10 h-10 mx-auto" style={{ color: GLASS_TOKENS.fgMuted }} aria-hidden="true" />
+            <h2 className="font-display text-lg font-bold" style={{ color: GLASS_TOKENS.fg }}>
               No documents yet
             </h2>
-            <p className="text-xs sm:text-sm max-w-[54ch] mx-auto leading-relaxed" style={{ color: WARM_TOKENS.muted }}>
+            <p className="text-xs sm:text-sm max-w-[54ch] mx-auto leading-relaxed" style={{ color: GLASS_TOKENS.fgMuted }}>
               Create a targeted resume or academic CV from your master profile facts. Each document keeps its own layout, order, and status.
             </p>
             <div className="pt-2">
               <button
                 type="button"
                 onClick={() => handleOpenCreate('resume')}
-                className="min-h-[44px] px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
+                className="min-h-[44px] px-5 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
                 style={{
                   backgroundColor: WARM_TOKENS.primary,
                   color: WARM_TOKENS.primaryText,
@@ -499,19 +488,16 @@ export function DashboardDocumentList({
                   key={doc.id}
                   role="listitem"
                   data-doc-row={doc.id}
-                  className="group relative px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 transition-colors motion-reduce:transition-none [@media(hover:hover)]:hover:bg-[#FCF9F4] focus-within:bg-[#FCF9F4]"
+                  className="group relative px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 transition-colors motion-reduce:transition-none [@media(hover:hover)]:hover:bg-[rgba(255,253,249,0.08)] focus-within:bg-[rgba(255,253,249,0.08)]"
                 >
                   {/* Primary clickable link area */}
                   <Link
                     href={`/editor/${doc.id}`}
-                    className="flex-1 min-w-0 flex items-center gap-3.5 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                    className="flex-1 min-w-0 flex items-center gap-3.5 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
                   >
                     <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: WARM_TOKENS.surface2,
-                        color: WARM_TOKENS.accentStrong,
-                      }}
+                      className="glass-tile w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ color: GLASS_TOKENS.accentOnGlass }}
                     >
                       {doc.type === 'cv' ? (
                         <GraduationCap className="w-4 h-4" aria-hidden="true" />
@@ -522,24 +508,26 @@ export function DashboardDocumentList({
 
                     <div className="flex-1 min-w-0 grid grid-cols-1 lg:grid-cols-12 gap-1 lg:gap-4 items-center">
                       <div className="lg:col-span-5 min-w-0">
-                        <div className="text-sm font-semibold truncate group-hover:underline" style={{ color: WARM_TOKENS.ink }}>
+                        <div className="text-sm font-semibold truncate group-hover:underline" style={{ color: GLASS_TOKENS.fg }}>
                           {doc.title}
                         </div>
                         {doc.target_role && (
-                          <div className="text-xs truncate" style={{ color: WARM_TOKENS.muted }}>
+                          <div className="text-xs truncate" style={{ color: GLASS_TOKENS.fgMuted }}>
                             {doc.target_role}
                           </div>
                         )}
                       </div>
 
-                      <div className="lg:col-span-3 text-xs truncate" style={{ color: WARM_TOKENS.muted }}>
+                      <div className="lg:col-span-3 text-xs truncate" style={{ color: GLASS_TOKENS.fgMuted }}>
                         {templateName}
                       </div>
 
                       <div className="lg:col-span-2 flex items-center">
                         <span
                           data-status-pill={status}
-                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border"
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                            isReady ? '' : 'glass-tile'
+                          }`}
                           style={
                             isReady
                               ? {
@@ -548,9 +536,7 @@ export function DashboardDocumentList({
                                   borderColor: WARM_TOKENS.readyText,
                                 }
                               : {
-                                  backgroundColor: WARM_TOKENS.surface2,
-                                  color: WARM_TOKENS.ink,
-                                  borderColor: WARM_TOKENS.borderSubtle,
+                                  color: GLASS_TOKENS.fg,
                                 }
                           }
                         >
@@ -565,7 +551,7 @@ export function DashboardDocumentList({
 
                       <div
                         className="lg:col-span-2 text-xs lg:text-right"
-                        style={{ color: WARM_TOKENS.muted }}
+                        style={{ color: GLASS_TOKENS.fgMuted }}
                         title={exactDate}
                         suppressHydrationWarning
                       >
@@ -660,6 +646,7 @@ export function DashboardDocumentList({
             })}
           </div>
         )}
+        </GlassPanel>
       </FloatCard>
 
       {/* Master Profile Summary (Kept as bordered card per Phase 8B spec) */}
@@ -918,22 +905,18 @@ export function MasterProfileSummaryCard({
       as="section"
       floatIndex={2}
       aria-labelledby="master-profile-summary-heading"
-      className="rounded-xl border p-5 sm:p-6 shadow-sm space-y-4"
-      style={{
-        backgroundColor: WARM_TOKENS.surface,
-        borderColor: WARM_TOKENS.borderDefault,
-      }}
     >
+      <GlassPanel variant="frosted" className="p-5 sm:p-6 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h2
             id="master-profile-summary-heading"
             className="font-display text-lg font-bold"
-            style={{ color: WARM_TOKENS.ink }}
+            style={{ color: GLASS_TOKENS.fg }}
           >
             Your master profile
           </h2>
-          <p className="text-xs mt-0.5 max-w-[70ch]" style={{ color: WARM_TOKENS.muted }}>
+          <p className="text-xs mt-0.5 max-w-[70ch]" style={{ color: GLASS_TOKENS.fgMuted }}>
             {profileSummary.hasProfile
               ? `${profileSummary.backgroundGroup || 'Background configured'}${profileSummary.specialization ? ` · ${profileSummary.specialization}` : ''}`
               : 'Complete onboarding to set up your reusable master profile.'}
@@ -941,8 +924,8 @@ export function MasterProfileSummaryCard({
         </div>
         <Link
           href={profileSummary.hasProfile ? '/profile' : '/onboarding'}
-          className="min-h-[44px] inline-flex items-center gap-1.5 text-xs font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded px-1"
-          style={{ color: WARM_TOKENS.accentStrong }}
+          className="min-h-[44px] inline-flex items-center gap-1.5 text-xs font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] rounded px-1"
+          style={{ color: GLASS_TOKENS.accentOnGlass }}
         >
           <span>{profileSummary.hasProfile ? 'Edit master profile' : 'Set up profile'}</span>
           <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -953,27 +936,27 @@ export function MasterProfileSummaryCard({
         {profileSummary.sections.map((sec) => (
           <div
             key={sec.key}
-            className="rounded-lg p-3 flex items-center justify-between gap-2"
-            style={{ backgroundColor: WARM_TOKENS.surface2 }}
+            className="glass-tile rounded-lg p-3 flex items-center justify-between gap-2"
           >
             <div className="min-w-0">
-              <div className="text-xs font-semibold truncate" style={{ color: WARM_TOKENS.ink }}>
+              <div className="text-xs font-semibold truncate" style={{ color: GLASS_TOKENS.fg }}>
                 {sec.label}
               </div>
-              <div className="text-xs font-bold mt-0.5" style={{ color: WARM_TOKENS.muted }}>
+              <div className="text-xs font-bold mt-0.5" style={{ color: GLASS_TOKENS.fgMuted }}>
                 {sec.count}
               </div>
             </div>
             <Link
               href={profileSummary.hasProfile ? sec.href : '/onboarding'}
-              className="min-h-[44px] px-2 inline-flex items-center text-xs font-semibold hover:underline shrink-0 focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
-              style={{ color: WARM_TOKENS.accentStrong }}
+              className="min-h-[44px] px-2 inline-flex items-center text-xs font-semibold hover:underline shrink-0 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] rounded"
+              style={{ color: GLASS_TOKENS.accentOnGlass }}
             >
               {sec.count === 0 ? 'Add' : 'View'}
             </Link>
           </div>
         ))}
       </div>
+      </GlassPanel>
     </FloatCard>
   );
 }

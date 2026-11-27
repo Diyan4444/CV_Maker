@@ -89,65 +89,53 @@ test.describe.serial('Phase 8G Cross-Browser Verification (Chromium, Firefox, We
     );
   }
 
-  test('landing, login, and fallbacks (no WebGL2, no backdrop-filter, reduced motion)', async ({
-    page,
-  }) => {
-    // Emulate no WebGL2 + no backdrop-filter
-    await page.addInitScript(() => {
-      const origGetContext = HTMLCanvasElement.prototype.getContext;
-      (HTMLCanvasElement.prototype as any).getContext = function (type: string, ...args: any[]) {
-        if (type === 'webgl2') return null;
-        return origGetContext.apply(this, [type, ...args] as any);
-      };
-      if (typeof CSS !== 'undefined' && CSS.supports) {
-        const origSupports = CSS.supports.bind(CSS);
-        (CSS as any).supports = (prop: any, val?: any) => {
-          if (String(prop).includes('backdrop-filter')) return false;
-          return val !== undefined ? origSupports(prop, val) : origSupports(prop);
-        };
-      }
-    });
-
+  test('1. Landing page renders with glass on', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#hero-heading')).toBeVisible();
     const heroOpacity = await page.locator('#hero').evaluate((el) => getComputedStyle(el).opacity);
     expect(heroOpacity).toBe('1');
+  });
 
+  test('2. Login page renders', async ({ page }) => {
     await page.goto('/login', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('form')).toBeVisible();
   });
 
-  test('dashboard template chooser, settings, onboarding, and editor load/edit/save/preview', async ({
-    page,
-    context,
-  }) => {
+  test('3. Dashboard template chooser renders with glass on', async ({ page, context }) => {
     if (!supabaseUrl || supabaseUrl.includes('placeholder')) test.skip();
-
     await addCookies(context);
-
-    // Onboarding renders
-    await page.goto('/onboarding', { waitUntil: 'domcontentloaded' });
-    await expect(
-      page.getByRole('heading', { name: 'What are you building first?' })
-    ).toBeVisible();
-
-    // Settings renders
-    await page.goto('/settings', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: /Account & Settings/i })).toBeVisible();
-
-    // Dashboard + template chooser modal with specimen thumbnails
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /New Document/i }).first().click();
     await expect(page.getByRole('heading', { name: /Create New Document/i })).toBeVisible();
     await expect(page.locator('img[alt*="specimen preview"]').first()).toBeVisible();
+  });
 
+  test('4. Settings page renders with glass on and interface controls', async ({ page, context }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) test.skip();
+    await addCookies(context);
+    await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: /Account & Settings/i })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Glass' })).toBeVisible();
+  });
+
+  test('5. Onboarding wizard renders', async ({ page, context }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) test.skip();
+    await addCookies(context);
+    await page.goto('/onboarding', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'What are you building first?' })).toBeVisible();
+  });
+
+  test('6. Editor load, edit, save and live preview', async ({ page, context }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) test.skip();
+    await addCookies(context);
+    await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /New Document/i }).first().click();
     await page.fill('#doc-title', 'Cross Browser Resume');
     await page.getByRole('button', { name: /Create & Open/i }).click();
     await page.waitForURL(/\/editor\/[a-f0-9-]+/, { timeout: 30000 });
     docId = page.url().split('/editor/')[1].split('?')[0];
     expect(docId).toBeTruthy();
 
-    // Editor load, edit, save, preview
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.locator('#pdf-preview-canvas-container canvas').first()).toBeVisible({
       timeout: 30000,
@@ -156,5 +144,44 @@ test.describe.serial('Phase 8G Cross-Browser Verification (Chromium, Firefox, We
     await titleInput.fill('Cross Browser Edited');
     await page.locator('#toolbar-btn-save').click();
     await expect(page.locator('#save-status-slot')).toContainText('Saved', { timeout: 15000 });
+  });
+
+  test('7. Fallback: no WebGL2 renders static background', async ({ page }) => {
+    await page.addInitScript(() => {
+      const origGetContext = HTMLCanvasElement.prototype.getContext;
+      (HTMLCanvasElement.prototype as any).getContext = function (type: string, ...args: any[]) {
+        if (type === 'webgl2') return null;
+        return origGetContext.apply(this, [type, ...args] as any);
+      };
+    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-topo-fallback="true"]')).toBeVisible();
+  });
+
+  test('8. Fallback: no backdrop-filter (solid) on landing, dashboard and settings', async ({
+    page,
+    context,
+  }) => {
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.setItem('quillfolio_glass', 'solid');
+      } catch {}
+    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('html')).toHaveAttribute('data-glass', 'solid');
+
+    if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
+      await addCookies(context);
+      await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveAttribute('data-glass', 'solid');
+      await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveAttribute('data-glass', 'solid');
+    }
+  });
+
+  test('9. Fallback: reduced motion disables float animations', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'off');
   });
 });

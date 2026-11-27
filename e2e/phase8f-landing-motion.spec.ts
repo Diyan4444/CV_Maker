@@ -107,7 +107,7 @@ test.describe('Phase 8F: Landing Redesign, ScrollReveal, Overscroll & Motion', (
     // Scroll through sections and capture 1440px screenshots
     const sectionIds = ['hero', 'how-it-works', 'templates', 'backgrounds', 'faq'];
     for (const id of sectionIds) {
-      await page.locator(`#${id}`).scrollIntoViewIfNeeded();
+      await page.locator(`#${id}`).evaluate((el) => el.scrollIntoView({ behavior: 'instant', block: 'center' }));
       await page.waitForTimeout(550);
       await page.screenshot({ path: `${ARTIFACT_DIR}/phase8f_1440_${id}.png` });
     }

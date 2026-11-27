@@ -11,8 +11,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const ARTIFACT_DIR = 'C:/Users/Diyan/.gemini/antigravity/brain/0476a383-8a86-41cb-a552-ce7ab883faf8';
-
 test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS Diagnostics', () => {
   let adminClient: ReturnType<typeof createClient>;
   let testUserId = '';
@@ -110,15 +108,13 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     );
   }
 
-  test('verifies section headers, drag/keyboard/menu reordering, collapse, editing highlight, empty states, import+undo, ATS grouping+jump, and responsive screenshots', async ({
+  test('1. Section headers omit type badge and show Hidden from PDF only when hidden', async ({
     page,
     context,
   }) => {
     if (!supabaseUrl || supabaseUrl.includes('placeholder')) test.skip();
-
     await addSessionCookies(context);
 
-    // Create document (before adding projects to master profile so projects starts empty on doc!)
     const createRes = await page.request.post('/api/documents/create', {
       data: {
         type: 'resume',
@@ -131,8 +127,6 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     const created = await createRes.json();
     createdDocId = created.documentId;
 
-    // Now seed a project in master profile AFTER document creation so Import from Master Profile has 1 project to import,
-    // while certifications remains empty!
     await (adminClient as any).from('projects').insert({
       profile_id: profileId,
       title: 'FLOW-MATIC Compiler',
@@ -145,20 +139,33 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     await page.goto(`/editor/${createdDocId}`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#pdf-preview-canvas-container canvas').first()).toBeVisible({ timeout: 20000 });
 
-    // 1. Section headers: no section-type badge; Hidden from PDF only when hidden
     const expSec = page.locator('[data-section-type="experience"]');
     await expect(expSec).toBeVisible();
     await expect(expSec.getByText('Hidden from PDF')).toHaveCount(0);
+  });
 
-    // 2. Editing highlight: focus input inside Experience section
+  test('2. Editing focus highlight shows 3px accent border', async ({ page, context }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder') || !createdDocId) test.skip();
+    await addSessionCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#pdf-preview-canvas-container canvas').first()).toBeVisible({ timeout: 20000 });
+
+    const expSec = page.locator('[data-section-type="experience"]');
     const expFirstInput = expSec.locator('input').first();
     await expFirstInput.focus();
     await expect(expSec).toHaveAttribute('data-editing', 'true');
     const borderLeftW = await expSec.evaluate((el) => getComputedStyle(el).borderLeftWidth);
     expect(borderLeftW).toBe('3px');
-    await page.screenshot({ path: `${ARTIFACT_DIR}/phase8e2_1440_editing_highlight.png` });
+  });
 
-    // 3. Expand / collapse
+  test('3. Section expand/collapse sets aria-expanded and inert', async ({ page, context }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder') || !createdDocId) test.skip();
+    await addSessionCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`, { waitUntil: 'domcontentloaded' });
+
+    const expSec = page.locator('[data-section-type="experience"]');
     const expId = await expSec.getAttribute('id');
     expect(expId).toBeTruthy();
     const collapseBtn = page.locator(`[data-testid="collapse-btn-${expId}"]`);
@@ -167,8 +174,15 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     await expect(page.locator(`#section-body-${expId}`)).toHaveAttribute('inert', '');
     await collapseBtn.click();
     await expect(collapseBtn).toHaveAttribute('aria-expanded', 'true');
+  });
 
-    // 4. Reordering: Keyboard Alt+ArrowDown on drag handle + Overflow menu Move up
+  test('4. Keyboard Alt+ArrowDown, menu Move up, pointer drag & reload persistence', async ({ page, context }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder') || !createdDocId) test.skip();
+    await addSessionCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#pdf-preview-canvas-container canvas').first()).toBeVisible({ timeout: 20000 });
+
     const initialOrder = await page.locator('[data-section-type]').evaluateAll((els) =>
       els.map((el) => el.getAttribute('data-section-type'))
     );
@@ -184,7 +198,6 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     );
     expect(afterAltDownOrder).not.toEqual(initialOrder);
 
-    // Overflow menu Move up
     await page.locator(`[data-testid="section-menu-btn-${eduId}"]`).click();
     await page.getByRole('menuitem', { name: 'Move up' }).click();
     const afterMenuUpOrder = await page.locator('[data-section-type]').evaluateAll((els) =>
@@ -192,7 +205,6 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     );
     expect(afterMenuUpOrder).toEqual(initialOrder);
 
-    // Drag and drop with pointer on drag handle
     const sumSec = page.locator('[data-section-type="summary"]');
     const sumId = await sumSec.getAttribute('id');
     const sumHandleBox = await page.locator(`[data-testid="drag-handle-${sumId}"]`).boundingBox();
@@ -205,7 +217,6 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
       await page.waitForTimeout(200);
     }
 
-    // Save & reload persistence of reordered sections
     await page.locator('#toolbar-btn-save').click();
     await expect(page.locator('#save-status-slot')).toContainText('Saved', { timeout: 15000 });
     const savedOrder = await page.locator('[data-section-type]').evaluateAll((els) =>
@@ -216,15 +227,21 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
       els.map((el) => el.getAttribute('data-section-type'))
     );
     expect(reloadedOrder).toEqual(savedOrder);
+  });
 
-    // 5. Empty states & Import from Master Profile (success + undo + empty master)
-    // Scroll to Projects (which is empty in this doc)
+  test('5. Empty states, import from master profile + undo, and empty master profile link', async ({
+    page,
+    context,
+  }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder') || !createdDocId) test.skip();
+    await addSessionCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`, { waitUntil: 'domcontentloaded' });
+
     const projEmpty = page.locator('[data-testid="empty-state-projects"]');
     await projEmpty.scrollIntoViewIfNeeded();
     await expect(projEmpty).toBeVisible();
-    await page.screenshot({ path: `${ARTIFACT_DIR}/phase8e2_1440_empty_state.png` });
 
-    // Import project -> toast + Undo -> re-import
     await page.locator('[data-testid="empty-import-projects"]').click();
     await expect(page.locator('#import-success-toast')).toContainText('Imported 1 entry', { timeout: 10000 });
     await page.locator('#import-toast-undo-btn').click();
@@ -232,7 +249,6 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
     await page.locator('[data-testid="empty-import-projects"]').click();
     await expect(page.locator('#import-success-toast')).toContainText('Imported 1 entry');
 
-    // Empty master profile section (Certifications) -> disabled + explanation + /profile link
     const certImportBtn = page.locator('[data-testid="empty-import-certifications"]');
     if (await certImportBtn.isVisible()) {
       await certImportBtn.scrollIntoViewIfNeeded();
@@ -243,32 +259,33 @@ test.describe.serial('Phase 8E-2 Section Headers, Reordering, Empty States & ATS
         page.locator('[data-testid="empty-no-master-certifications"] a[href="/profile"]')
       ).toBeVisible();
     }
+  });
 
-    // 6. ATS Readiness grouping & Go to section focus jump
+  test('6. ATS Readiness grouping, jump-to-section & mobile 390px/320px overflow', async ({
+    page,
+    context,
+  }) => {
+    if (!supabaseUrl || supabaseUrl.includes('placeholder') || !createdDocId) test.skip();
+    await addSessionCookies(context);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/editor/${createdDocId}`, { waitUntil: 'domcontentloaded' });
+
     await page.locator('#right-tab-ats').click();
     const atsPanel = page.locator('#ats-readiness-panel');
     await expect(atsPanel.getByRole('heading', { name: 'ATS Readiness' })).toBeVisible();
     await expect(atsPanel.getByText('Review your document before downloading.')).toBeVisible();
     await expect(page.locator('[data-testid="ats-group-pass"]')).toBeVisible();
-    await page.screenshot({ path: `${ARTIFACT_DIR}/phase8e2_1440_ats_panel.png` });
 
-    // Collapse header section, then click Go to section from ATS -> expands & focuses first input
     const headerSec = page.locator('[data-section-type="header"]');
     const headerId = await headerSec.getAttribute('id');
     await page.locator(`[data-testid="collapse-btn-${headerId}"]`).click();
     await page.locator('[data-testid="ats-check-contact_details"] button').click();
     await expect(page.locator(`[data-testid="collapse-btn-${headerId}"]`)).toHaveAttribute('aria-expanded', 'true');
 
-    // 7. Mobile 390x844 & 320x700 overflow + screenshots
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(200);
     const overflow390 = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow390).toBe(false);
-    await page.screenshot({ path: `${ARTIFACT_DIR}/phase8e2_390_sections.png` });
-
-    await page.locator('#mobile-ats-tab-btn').click();
-    await page.waitForTimeout(150);
-    await page.screenshot({ path: `${ARTIFACT_DIR}/phase8e2_390_ats.png` });
 
     await page.setViewportSize({ width: 320, height: 700 });
     await page.waitForTimeout(150);

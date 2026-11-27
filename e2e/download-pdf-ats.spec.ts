@@ -400,7 +400,7 @@ test.describe('Phase 4: PDF Download & ATS Readiness Checks E2E', () => {
     await expect(panel.getByText('Automated checks, not a guarantee')).toBeVisible();
 
     // All-pass verification
-    await expect(panel.getByText('look good')).toBeVisible();
+    await expect(panel.locator('span', { hasText: 'look good' })).toBeVisible();
 
     // Screenshot 1: 1440px all-pass
     await page.screenshot({

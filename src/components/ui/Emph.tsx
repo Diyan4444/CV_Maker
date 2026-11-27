@@ -77,7 +77,7 @@ export function Emph({ headingKey, onDark = false }: EmphProps) {
       {entry.before}
       <em
         className={`font-display italic font-semibold ${
-          onDark ? 'text-[#F7CBCA]' : 'text-[#9E4857]'
+          onDark ? 'text-[#F7CBCA]' : 'text-[var(--glass-accent)]'
         }`}
       >
         {entry.emph}

@@ -1301,13 +1301,19 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         </div>
       )}
       {/* Top Application Bar */}
-      <header ref={headerRef} className="bg-[#FFFDF9] border-b border-[#D8D0C5] px-3 sm:px-4 py-2 sm:py-2.5 shadow-xs sticky top-0 z-30">
+      <header
+        ref={headerRef}
+        data-glass-panel="true"
+        data-glass-variant="dense"
+        className="glass-panel border-b glass-divider px-3 sm:px-4 py-2 sm:py-2.5 sticky top-0 z-30"
+        style={{ borderRadius: 0 }}
+      >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-2">
           {/* Back & Document Title (Row 1 on mobile) */}
           <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
             <Link
               href="/dashboard"
-              className="min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-8 sm:h-8 p-2.5 sm:p-1.5 rounded-md border border-[#6B6B6B] hover:bg-[#F1F7F7] text-[#0B0B0B] transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] flex items-center justify-center flex-shrink-0"
+              className="btn-glass-secondary min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-8 sm:h-8 p-2.5 sm:p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] flex items-center justify-center flex-shrink-0"
               title="Return to Dashboard"
               aria-label="Return to Dashboard"
             >
@@ -1325,10 +1331,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                     setMeta(updated);
                     pushHistory(updated, sections);
                   }}
-                  className="font-display font-bold text-sm sm:text-base text-[#0B0B0B] border border-transparent hover:border-[#6B6B6B] focus:border-[#800021] rounded px-1.5 py-1 sm:py-0.5 w-full sm:w-44 lg:w-56 truncate transition-colors"
+                  className="font-display font-bold text-sm sm:text-base bg-[#FFFDF9] text-[#24221F] border border-[#D8D0C5] focus:border-[#800021] rounded px-1.5 py-1 sm:py-0.5 w-full sm:w-44 lg:w-56 truncate transition-colors"
                   placeholder="Document Title"
                 />
-                <span className="hidden xl:inline text-[11px] text-[#333333] whitespace-nowrap">
+                <span className="hidden xl:inline text-[11px] text-[#FFFDF9] whitespace-nowrap">
                   v{meta.version}
                 </span>
               </div>
@@ -1633,8 +1639,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
         <nav
           aria-label="Editor sections"
           id="editor-icon-rail"
-          style={{ top: 'calc(var(--toolbar-h, 57px) + 12px)' }}
-          className="hidden md:flex flex-col gap-1.5 w-14 xl:w-16 flex-shrink-0 sticky bg-[#FFFDF9] border border-[#D8D0C5] rounded-xl p-1.5 z-10"
+          data-glass-panel="true"
+          data-glass-variant="dense"
+          style={{ top: 'calc(var(--toolbar-h, 57px) + 12px)', borderRadius: '16px' }}
+          className="glass-panel hidden md:flex flex-col gap-1.5 w-14 xl:w-16 flex-shrink-0 sticky p-1.5 z-10"
         >
           {(
             [
@@ -1654,10 +1662,10 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
                 onClick={() => setActiveRailTab(tab.id)}
                 aria-current={isActive ? 'page' : undefined}
                 aria-label={tab.label}
-                className={`w-full min-h-[48px] px-1 py-2 rounded-lg flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] ${
+                className={`w-full min-h-[48px] px-1 py-2 rounded-lg flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] ${
                   isActive
                     ? 'bg-[#800021] text-[#FFFFFF]'
-                    : 'text-[#24221F] hover:bg-[#EFE8DE]'
+                    : 'text-[#FFFDF9] hover:bg-[rgba(255,253,249,0.14)]'
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />

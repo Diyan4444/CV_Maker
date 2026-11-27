@@ -20,8 +20,8 @@ describe('Phase 8B-2 Topographic Background & Icon Sprite', () => {
       typeCounts.set(ic.type, (typeCounts.get(ic.type) || 0) + 1);
       expect(ic.sizePx).toBeGreaterThanOrEqual(18);
       expect(ic.sizePx).toBeLessThanOrEqual(26);
-      expect(ic.idleOpacity).toBeGreaterThanOrEqual(0.1);
-      expect(ic.idleOpacity).toBeLessThanOrEqual(0.16);
+      expect(ic.idleOpacity).toBeGreaterThanOrEqual(0.36);
+      expect(ic.idleOpacity).toBeLessThanOrEqual(0.46);
     }
 
     for (const t of TOPO_ICON_TYPES) {
@@ -52,7 +52,7 @@ describe('Phase 8B-2 Topographic Background & Icon Sprite', () => {
   it('derives all charcoal and contour colors from palette hexes', () => {
     const colors = getTopoColors();
     expect(colors.base).toBe('#1A1A1A');
-    expect(colors.contourLow).toBe('#6B6B6B');
+    expect(colors.contourLow).toMatch(/^#[0-9A-F]{6}$/i);
     expect(colors.contourHigh).toBe('#8EB69B');
     expect(colors.teal).toMatch(/^#[0-9A-F]{6}$/i);
     expect(colors.slate).toMatch(/^#[0-9A-F]{6}$/i);

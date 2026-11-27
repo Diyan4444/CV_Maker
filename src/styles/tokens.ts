@@ -1,4 +1,30 @@
-import { mixHexOklab } from '@/lib/color/oklab';
+import { mixHexOklab, hexToRgb } from '@/lib/color/oklab';
+
+function srgbToLinear(c: number): number {
+  const v = c / 255;
+  return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+}
+
+function contrastRatioHex(hexA: string, hexB: string): number {
+  const l1 = relativeLuminance(hexA);
+  const l2 = relativeLuminance(hexB);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+function computeAccentOnGlass(worstCaseGlassBgHex: string): string {
+  for (let i = 1; i <= 40; i++) {
+    const candidate = mixHexOklab('#9E4857', '#FFFDF9', i / 40);
+    if (contrastRatioHex(candidate, worstCaseGlassBgHex) >= 4.55) {
+      return candidate;
+    }
+  }
+  return '#FFFDF9';
+}
 
 /**
  * Base Warm Editorial Design Tokens (Phase 8B)
@@ -56,6 +82,25 @@ export const ON_DARK_TOKENS = {
   onDarkMuted: mixHexOklab(BASE_TOKENS.page, '#6B6B6B', 0.35),
 } as const;
 
+const WORST_CASE_GLASS_BG = mixHexOklab(
+  mixHexOklab('#1A1A1A', '#243A66', 0.2),
+  BASE_TOKENS.surface,
+  0.32
+);
+
+export const GLASS_TOKENS = {
+  fg: BASE_TOKENS.surface,
+  fgMuted: mixHexOklab(BASE_TOKENS.page, '#6B6B6B', 0.03),
+  accentOnGlass: computeAccentOnGlass(WORST_CASE_GLASS_BG),
+  rimColor: 'rgba(255, 253, 249, 0.28)',
+  rimBright: 'rgba(255, 253, 249, 0.44)',
+  dividerOnGlass: 'rgba(255, 253, 249, 0.12)',
+  dividerOnPaper: 'rgba(36, 34, 31, 0.12)',
+  fallbackBg: 'rgba(36, 34, 31, 0.88)',
+  tileBg: 'rgba(255, 253, 249, 0.10)',
+  tileBgHover: 'rgba(255, 253, 249, 0.16)',
+} as const;
+
 export const WARM_TOKENS = {
   ...BASE_TOKENS,
   ...SURFACE_MIXTURES,
@@ -86,4 +131,14 @@ export const WARM_CSS_VARIABLES: Record<string, string> = {
   '--warm-primary-text': WARM_TOKENS.primaryText,
   '--warm-ready-text': WARM_TOKENS.readyText,
   '--warm-ready-bg': WARM_TOKENS.readyBg,
+  '--glass-fg': GLASS_TOKENS.fg,
+  '--glass-fg-muted': GLASS_TOKENS.fgMuted,
+  '--glass-accent': GLASS_TOKENS.accentOnGlass,
+  '--glass-rim': GLASS_TOKENS.rimColor,
+  '--glass-rim-bright': GLASS_TOKENS.rimBright,
+  '--glass-divider': GLASS_TOKENS.dividerOnGlass,
+  '--paper-divider': GLASS_TOKENS.dividerOnPaper,
+  '--glass-fallback-bg': GLASS_TOKENS.fallbackBg,
+  '--glass-tile-bg': GLASS_TOKENS.tileBg,
+  '--glass-tile-bg-hover': GLASS_TOKENS.tileBgHover,
 };

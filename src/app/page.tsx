@@ -56,7 +56,7 @@ const SPECIMENS = [
     id: 'ats_single_column',
     label: 'ATS SINGLE COLUMN',
     title: 'ATS Single Column',
-    borderClass: 'border-l-[#800021]',
+    borderClass: 'border-l-[var(--glass-accent)]',
     description:
       'Linear single-column reading order designed for standard applicant tracking parsers and recruiter screening.',
     image: '/landing/ats_single_column.png',
@@ -66,7 +66,7 @@ const SPECIMENS = [
     id: 'modern_professional',
     label: 'MODERN PROFESSIONAL',
     title: 'Modern Professional',
-    borderClass: 'border-l-[#9E4857]',
+    borderClass: 'border-l-[var(--glass-accent)]',
     description:
       'Clean hierarchy with subtle accent bars and balanced spacing for industry engineering and management roles.',
     image: '/landing/modern_professional.png',
@@ -76,7 +76,7 @@ const SPECIMENS = [
     id: 'academic_cv',
     label: 'ACADEMIC CV',
     title: 'Academic CV',
-    borderClass: 'border-l-[#235347]',
+    borderClass: 'border-l-[#8EB69B]',
     description:
       'Serif typography structured for multi-page academic dossiers, publications, grants, and teaching records.',
     image: '/landing/academic_cv.png',
@@ -113,7 +113,7 @@ const FAQ_ITEMS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col justify-between relative text-[#24221F] font-sans selection:bg-[#FFE4D8] selection:text-[#800021]">
+    <div className="min-h-screen flex flex-col justify-between relative text-[#FFFDF9] font-sans selection:bg-[#FFE4D8] selection:text-[var(--glass-accent)]">
       {/* Skip to Content Accessible Link */}
       <a
         href="#main-content"
@@ -132,16 +132,16 @@ export default function LandingPage() {
       >
         {/* HERO SECTION (Above the fold: never hidden) */}
         <section id="hero" aria-labelledby="hero-heading">
-          <div className="landing-glass border border-[#D8D0C5] rounded-2xl p-6 sm:p-12 shadow-sm">
+          <div className="landing-glass border glass-divider rounded-2xl p-6 sm:p-12 shadow-sm">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-7 space-y-6">
                 <h1
                   id="hero-heading"
-                  className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#24221F] leading-[1.15]"
+                  className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#FFFDF9] leading-[1.15]"
                 >
                   A resume builder for people who do the{' '}
                   <span className="relative inline-block">
-                    <em className="font-display italic text-[#9E4857] font-semibold">real</em>
+                    <em className="font-display italic text-[var(--glass-accent)] font-semibold">real</em>
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 120 14"
@@ -151,7 +151,7 @@ export default function LandingPage() {
                       <path
                         d="M 2 9 Q 34 3, 64 8 T 118 6"
                         fill="none"
-                        stroke="#9E4857"
+                        stroke="var(--glass-accent)"
                         strokeWidth="2.5"
                         strokeLinecap="round"
                       />
@@ -160,7 +160,7 @@ export default function LandingPage() {
                   work.
                 </h1>
 
-                <p className="text-base sm:text-xl text-[#24221F] max-w-[70ch] leading-relaxed">
+                <p className="text-base sm:text-xl text-[#FFFDF9] max-w-[70ch] leading-relaxed">
                   Build one master profile, then shape it into a resume or an academic CV.
                 </p>
 
@@ -177,18 +177,18 @@ export default function LandingPage() {
                   </Link>
                   <Link
                     href="/login"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] bg-[#FFFDF9] border border-[#D8D0C5] text-[#24221F] hover:bg-[#EFE8DE] font-semibold text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] btn-glass-secondary font-semibold text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors"
                   >
-                    <LogIn className="w-4 h-4 text-[#800021]" aria-hidden="true" />
+                    <LogIn className="w-4 h-4 text-[var(--glass-accent)]" aria-hidden="true" />
                     <span>Sign in</span>
                   </Link>
                 </div>
 
-                <div className="pt-4 border-t border-[#D8D0C5] space-y-2 max-w-[70ch]">
-                  <p className="text-xs text-[#24221F]">
+                <div className="pt-4 border-t glass-divider space-y-2 max-w-[70ch]">
+                  <p className="text-xs text-[#FFFDF9]">
                     <strong>Self-Serve Data Rights:</strong> Complete JSON export and instant one-click account deletion at any time.
                   </p>
-                  <p className="text-xs text-[#706A63]">
+                  <p className="text-xs text-[var(--glass-fg-muted)]">
                     Plain limitations: Documents export exclusively as standard PDF files. Non-Latin scripts are not rendered in PDFs yet. ATS checks are rule-based structural heuristics, not a score or a guarantee.
                   </p>
                 </div>
@@ -196,11 +196,11 @@ export default function LandingPage() {
 
               <div className="lg:col-span-5">
                 <FloatCard floatIndex={0}>
-                  <div className="card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#9E4857] rounded-xl p-6 shadow-xs space-y-4">
-                    <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-[#800021]">
+                  <div className="card-lift-inner glass-tile border-l-4 border-l-[var(--glass-accent)] rounded-xl p-6 shadow-xs space-y-4">
+                    <span className="inline-block text-[11px] font-semibold uppercase tracking-wider text-[var(--glass-accent)]">
                       SINGLE-COLUMN A4 SPECIMEN
                     </span>
-                    <div className="relative w-full aspect-[3/4] max-h-[380px] rounded-lg overflow-hidden border border-[#D8D0C5] bg-[#FFFFFF]">
+                    <div className="relative w-full aspect-[3/4] max-h-[380px] rounded-lg overflow-hidden border glass-divider bg-[#FFFFFF]">
                       <Image
                         src="/landing/ats_single_column.png"
                         alt="ATS Single Column Resume Specimen for Alex Example"
@@ -210,7 +210,7 @@ export default function LandingPage() {
                         priority
                       />
                     </div>
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-[#706A63]">
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-[var(--glass-fg-muted)]">
                       SAMPLE WITH FICTIONAL DATA &middot; SELECTABLE VECTOR TEXT
                     </p>
                   </div>
@@ -227,19 +227,19 @@ export default function LandingPage() {
             aria-labelledby="how-it-works-heading"
             className="scroll-mt-[calc(var(--header-h,84px)+16px)]"
           >
-            <div className="landing-glass border border-[#D8D0C5] rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
+            <div className="landing-glass border glass-divider rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-4 space-y-3">
-                  <span className="font-mono text-xs font-bold text-[#800021]">01</span>
+                  <span className="font-mono text-xs font-bold text-[var(--glass-accent)]">01</span>
                   <h2
                     id="how-it-works-heading"
-                    className="font-display text-2xl sm:text-4xl font-bold text-[#24221F]"
+                    className="font-display text-2xl sm:text-4xl font-bold text-[#FFFDF9]"
                   >
                     <Emph headingKey="how_it_works" />
                   </h2>
                 </div>
                 <div className="lg:col-span-8 space-y-3 max-w-[70ch]">
-                  <p className="text-sm sm:text-base text-[#24221F] leading-relaxed">
+                  <p className="text-sm sm:text-base text-[#FFFDF9] leading-relaxed">
                     Your{' '}
                     <HighlightShape variant="pill" fill="accentSoft" rotate={-1.8}>
                       master profile
@@ -252,14 +252,14 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <ScrollReveal staggerIndex={1} className="md:col-span-4">
                   <FloatCard floatIndex={1}>
-                    <div className="card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#800021] rounded-xl p-6 space-y-3 h-full">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#800021]">
+                    <div className="card-lift-inner glass-tile border-l-4 border-l-[var(--glass-accent)] rounded-xl p-6 space-y-3 h-full">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--glass-accent)]">
                         STEP 01 &middot; MASTER PROFILE
                       </span>
-                      <h3 className="font-display text-lg font-bold text-[#24221F]">
+                      <h3 className="font-display text-lg font-bold text-[#FFFDF9]">
                         Maintain one source of truth
                       </h3>
-                      <p className="text-xs sm:text-sm text-[#706A63] leading-relaxed max-w-[70ch]">
+                      <p className="text-xs sm:text-sm text-[var(--glass-fg-muted)] leading-relaxed max-w-[70ch]">
                         Store degrees, roles, publications, and skills once in structured PostgreSQL tables with row-level security.
                       </p>
                     </div>
@@ -268,14 +268,14 @@ export default function LandingPage() {
 
                 <ScrollReveal staggerIndex={2} className="md:col-span-4">
                   <FloatCard floatIndex={2}>
-                    <div className="card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#9E4857] rounded-xl p-6 space-y-3 h-full">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#800021]">
+                    <div className="card-lift-inner glass-tile border-l-4 border-l-[var(--glass-accent)] rounded-xl p-6 space-y-3 h-full">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--glass-accent)]">
                         STEP 02 &middot; ISOLATED COPIES
                       </span>
-                      <h3 className="font-display text-lg font-bold text-[#24221F]">
+                      <h3 className="font-display text-lg font-bold text-[#FFFDF9]">
                         Shape each target document
                       </h3>
-                      <p className="text-xs sm:text-sm text-[#706A63] leading-relaxed max-w-[70ch]">
+                      <p className="text-xs sm:text-sm text-[var(--glass-fg-muted)] leading-relaxed max-w-[70ch]">
                         Reorder sections, hide irrelevant entries, adjust A4 typography and margins, and import missing items on demand.
                       </p>
                     </div>
@@ -284,14 +284,14 @@ export default function LandingPage() {
 
                 <ScrollReveal staggerIndex={3} className="md:col-span-4">
                   <FloatCard floatIndex={3}>
-                    <div className="card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#235347] rounded-xl p-6 space-y-3 h-full">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#235347]">
+                    <div className="card-lift-inner glass-tile border-l-4 border-l-[#8EB69B] rounded-xl p-6 space-y-3 h-full">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8EB69B]">
                         STEP 03 &middot; PDF &amp; CHECKS
                       </span>
-                      <h3 className="font-display text-lg font-bold text-[#24221F]">
+                      <h3 className="font-display text-lg font-bold text-[#FFFDF9]">
                         Verify before downloading
                       </h3>
-                      <p className="text-xs sm:text-sm text-[#706A63] leading-relaxed max-w-[70ch]">
+                      <p className="text-xs sm:text-sm text-[var(--glass-fg-muted)] leading-relaxed max-w-[70ch]">
                         Inspect the live A4 canvas alongside 13 deterministic ATS readiness checks that verify extracted PDF text order.
                       </p>
                     </div>
@@ -309,19 +309,19 @@ export default function LandingPage() {
             aria-labelledby="templates-heading"
             className="scroll-mt-[calc(var(--header-h,84px)+16px)]"
           >
-            <div className="landing-glass border border-[#D8D0C5] rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
+            <div className="landing-glass border glass-divider rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-4 space-y-3">
-                  <span className="font-mono text-xs font-bold text-[#800021]">02</span>
+                  <span className="font-mono text-xs font-bold text-[var(--glass-accent)]">02</span>
                   <h2
                     id="templates-heading"
-                    className="font-display text-2xl sm:text-4xl font-bold text-[#24221F]"
+                    className="font-display text-2xl sm:text-4xl font-bold text-[#FFFDF9]"
                   >
                     <Emph headingKey="templates" />
                   </h2>
                 </div>
                 <div className="lg:col-span-8 max-w-[70ch]">
-                  <p className="text-sm sm:text-base text-[#24221F] leading-relaxed">
+                  <p className="text-sm sm:text-base text-[#FFFDF9] leading-relaxed">
                     Every specimen below is rendered directly to{' '}
                     <HighlightShape variant="ribbon" fill="readyBg" rotate={1.6}>
                       A4 vector PDF
@@ -336,12 +336,12 @@ export default function LandingPage() {
                   <ScrollReveal key={spec.id} staggerIndex={idx + 1} className="md:col-span-4">
                     <FloatCard floatIndex={idx + 4}>
                       <div
-                        className={`card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 ${spec.borderClass} rounded-xl p-6 space-y-4 h-full flex flex-col`}
+                        className={`card-lift-inner glass-tile border-l-4 ${spec.borderClass} rounded-xl p-6 space-y-4 h-full flex flex-col`}
                       >
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#800021]">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--glass-accent)]">
                           {spec.label}
                         </span>
-                        <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden border border-[#D8D0C5] bg-[#FFFFFF]">
+                        <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden border glass-divider bg-[#FFFFFF]">
                           <Image
                             src={spec.image}
                             alt={spec.alt}
@@ -351,10 +351,10 @@ export default function LandingPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <h3 className="font-display text-lg font-bold text-[#24221F]">
+                          <h3 className="font-display text-lg font-bold text-[#FFFDF9]">
                             {spec.title}
                           </h3>
-                          <p className="text-xs sm:text-sm text-[#706A63] leading-relaxed">
+                          <p className="text-xs sm:text-sm text-[var(--glass-fg-muted)] leading-relaxed">
                             {spec.description}
                           </p>
                         </div>
@@ -374,19 +374,19 @@ export default function LandingPage() {
             aria-labelledby="backgrounds-heading"
             className="scroll-mt-[calc(var(--header-h,84px)+16px)]"
           >
-            <div className="landing-glass border border-[#D8D0C5] rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
+            <div className="landing-glass border glass-divider rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-4 space-y-3">
-                  <span className="font-mono text-xs font-bold text-[#800021]">03</span>
+                  <span className="font-mono text-xs font-bold text-[var(--glass-accent)]">03</span>
                   <h2
                     id="backgrounds-heading"
-                    className="font-display text-2xl sm:text-4xl font-bold text-[#24221F]"
+                    className="font-display text-2xl sm:text-4xl font-bold text-[#FFFDF9]"
                   >
                     <Emph headingKey="backgrounds" />
                   </h2>
                 </div>
                 <div className="lg:col-span-8 max-w-[70ch]">
-                  <p className="text-sm sm:text-base text-[#24221F] leading-relaxed">
+                  <p className="text-sm sm:text-base text-[#FFFDF9] leading-relaxed">
                     Onboarding adapts section defaults to your background group, or lets you choose Other (type your own) for custom fields.
                   </p>
                 </div>
@@ -400,14 +400,14 @@ export default function LandingPage() {
                     className={idx < 2 ? 'lg:col-span-6' : 'lg:col-span-4'}
                   >
                     <FloatCard floatIndex={idx + 7}>
-                      <div className="card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#9E4857] rounded-xl p-6 space-y-2 h-full">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#800021]">
+                      <div className="card-lift-inner glass-tile border-l-4 border-l-[var(--glass-accent)] rounded-xl p-6 space-y-2 h-full">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--glass-accent)]">
                           DISCIPLINE 0{idx + 1}
                         </span>
-                        <h3 className="font-display text-base font-bold text-[#24221F]">
+                        <h3 className="font-display text-base font-bold text-[#FFFDF9]">
                           {group.label}
                         </h3>
-                        <p className="text-xs text-[#706A63] leading-relaxed">
+                        <p className="text-xs text-[var(--glass-fg-muted)] leading-relaxed">
                           {group.specializations.slice(0, 4).join(' · ')}
                           {group.specializations.length > 4 ? ' · Other (type your own)' : ''}
                         </p>
@@ -427,19 +427,19 @@ export default function LandingPage() {
             aria-labelledby="faq-heading"
             className="scroll-mt-[calc(var(--header-h,84px)+16px)]"
           >
-            <div className="landing-glass border border-[#D8D0C5] rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
+            <div className="landing-glass border glass-divider rounded-2xl p-6 sm:p-10 shadow-sm space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-4 space-y-3">
-                  <span className="font-mono text-xs font-bold text-[#800021]">04</span>
+                  <span className="font-mono text-xs font-bold text-[var(--glass-accent)]">04</span>
                   <h2
                     id="faq-heading"
-                    className="font-display text-2xl sm:text-4xl font-bold text-[#24221F]"
+                    className="font-display text-2xl sm:text-4xl font-bold text-[#FFFDF9]"
                   >
                     <Emph headingKey="faq" />
                   </h2>
                 </div>
                 <div className="lg:col-span-8 max-w-[70ch]">
-                  <p className="text-sm sm:text-base text-[#24221F] leading-relaxed">
+                  <p className="text-sm sm:text-base text-[#FFFDF9] leading-relaxed">
                     What Quillfolio does today, what it{' '}
                     <HighlightShape variant="hexagon" fill="blush" rotate={-1.6}>
                       does not do
@@ -452,14 +452,14 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                 {FAQ_ITEMS.map((item, idx) => (
                   <ScrollReveal key={item.tag} staggerIndex={idx + 1} className="md:col-span-6">
-                    <div className="card-lift-inner bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#235347] rounded-xl p-6 space-y-2 h-full">
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#235347]">
+                    <div className="card-lift-inner glass-tile border-l-4 border-l-[#8EB69B] rounded-xl p-6 space-y-2 h-full">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8EB69B]">
                         {item.tag}
                       </span>
-                      <h3 className="font-display text-base font-bold text-[#24221F]">
+                      <h3 className="font-display text-base font-bold text-[#FFFDF9]">
                         {item.question}
                       </h3>
-                      <p className="text-xs sm:text-sm text-[#706A63] leading-relaxed max-w-[70ch]">
+                      <p className="text-xs sm:text-sm text-[var(--glass-fg-muted)] leading-relaxed max-w-[70ch]">
                         {item.answer}
                       </p>
                     </div>
@@ -473,43 +473,43 @@ export default function LandingPage() {
         {/* 05. PLANNED */}
         <ScrollReveal>
           <section id="coming-next" aria-labelledby="planned-heading">
-            <div className="landing-glass border border-[#D8D0C5] rounded-2xl p-6 sm:p-10 shadow-sm">
+            <div className="landing-glass border glass-divider rounded-2xl p-6 sm:p-10 shadow-sm">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                 <div className="lg:col-span-4 space-y-3">
-                  <span className="font-mono text-xs font-bold text-[#800021]">05</span>
+                  <span className="font-mono text-xs font-bold text-[var(--glass-accent)]">05</span>
                   <h2
                     id="planned-heading"
-                    className="font-display text-2xl sm:text-3xl font-bold text-[#24221F]"
+                    className="font-display text-2xl sm:text-3xl font-bold text-[#FFFDF9]"
                   >
                     Planned: More templates
                   </h2>
                 </div>
                 <div className="lg:col-span-8">
-                  <div className="bg-[#FFFDF9] border border-[#D8D0C5] border-l-4 border-l-[#9E4857] rounded-xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="glass-tile border-l-4 border-l-[var(--glass-accent)] rounded-xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-2 max-w-[70ch]">
-                      <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#800021]">
+                      <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--glass-accent)]">
                         <Layers className="w-3.5 h-3.5" aria-hidden="true" />
                         COMING NEXT
                       </span>
-                      <p className="text-xs sm:text-sm text-[#24221F] leading-relaxed">
+                      <p className="text-xs sm:text-sm text-[#FFFDF9] leading-relaxed">
                         Additional single-column resume and academic CV layouts are planned while keeping all existing PDF and ATS guarantees intact.
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-[#706A63]">
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--glass-fg-muted)]">
                       <span className="inline-flex items-center gap-1">
-                        <ShieldCheck className="w-4 h-4 text-[#235347]" aria-hidden="true" />
+                        <ShieldCheck className="w-4 h-4 text-[#8EB69B]" aria-hidden="true" />
                         <span>RLS isolated</span>
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Download className="w-4 h-4 text-[#235347]" aria-hidden="true" />
+                        <Download className="w-4 h-4 text-[#8EB69B]" aria-hidden="true" />
                         <span>JSON export</span>
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Trash2 className="w-4 h-4 text-[#235347]" aria-hidden="true" />
+                        <Trash2 className="w-4 h-4 text-[#8EB69B]" aria-hidden="true" />
                         <span>Instant delete</span>
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-[#235347]" aria-hidden="true" />
+                        <CheckCircle2 className="w-4 h-4 text-[#8EB69B]" aria-hidden="true" />
                         <span>A4 PDF</span>
                       </span>
                     </div>

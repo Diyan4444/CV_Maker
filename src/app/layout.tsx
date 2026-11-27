@@ -8,6 +8,7 @@ import { ToastProvider } from '@/components/ui/ToastProvider';
 import { MotionInitializer } from '@/components/ui/MotionInitializer';
 import { OverscrollController } from '@/components/ui/OverscrollController';
 import { WARM_CSS_VARIABLES } from '@/styles/tokens';
+import { getInterfaceBootScript } from '@/lib/preferences/interface';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -25,7 +26,11 @@ export default function RootLayout({
       lang="en"
       className={`${fraunces.variable} ${dmSans.variable}`}
       style={WARM_CSS_VARIABLES as React.CSSProperties}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: getInterfaceBootScript() }} />
+      </head>
       <body className="antialiased min-h-screen relative">
         <MotionInitializer />
         {/* Navigation Top Progress Bar */}

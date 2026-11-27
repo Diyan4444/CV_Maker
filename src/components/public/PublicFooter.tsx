@@ -3,17 +3,24 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { PRODUCT_NAME } from '@/config/app';
 import { OPERATOR_NAME, CONTACT_EMAIL } from '@/config/legal';
+import { GLASS_TOKENS } from '@/styles/tokens';
 
 export function PublicFooter() {
   return (
-    <footer className="mt-16 sm:mt-24 border-t border-[#D8D0C5] bg-[#FFFDF9] py-8 px-4 sm:px-8 text-[#24221F]">
+    <footer
+      data-glass-panel="true"
+      data-glass-variant="frosted"
+      className="glass-panel mt-16 sm:mt-24 border-t glass-divider py-8 px-4 sm:px-8"
+      style={{ borderRadius: 0, color: GLASS_TOKENS.fg }}
+    >
       <div className="max-w-[1680px] mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
-          <span className="font-display font-bold text-sm text-[#24221F]">{PRODUCT_NAME}</span>
+          <span className="font-display font-bold text-sm" style={{ color: GLASS_TOKENS.fg }}>{PRODUCT_NAME}</span>
           <span aria-hidden="true">&bull;</span>
           <Link
             href="/privacy"
-            className="group text-[#24221F] hover:text-[#800021] min-h-[44px] inline-flex items-center gap-1 underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded-xs"
+            className="group min-h-[44px] inline-flex items-center gap-1 underline focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] rounded-xs"
+            style={{ color: GLASS_TOKENS.fg }}
           >
             <span>Privacy &amp; Data Rights</span>
             <ArrowRight
@@ -24,11 +31,12 @@ export function PublicFooter() {
         </div>
 
         <div className="text-center sm:text-right space-y-1">
-          <p className="font-semibold text-[#24221F]">Built by {OPERATOR_NAME}</p>
+          <p className="font-semibold" style={{ color: GLASS_TOKENS.fg }}>Built by {OPERATOR_NAME}</p>
           <p>
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="text-[#800021] hover:text-[#881144] min-h-[44px] inline-flex items-center underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded-xs"
+              className="min-h-[44px] inline-flex items-center underline focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] rounded-xs"
+              style={{ color: GLASS_TOKENS.accentOnGlass }}
             >
               {CONTACT_EMAIL}
             </a>

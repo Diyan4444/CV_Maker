@@ -17,6 +17,9 @@ import { eq, desc } from 'drizzle-orm';
 import { MasterProfileEditor } from './MasterProfileEditor';
 import { AppShell } from '@/components/navigation/AppShell';
 import { Emph } from '@/components/ui/Emph';
+import { FloatCard } from '@/components/ui/FloatCard';
+import { GlassPanel } from '@/components/ui/GlassPanel';
+import { GLASS_TOKENS } from '@/styles/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,16 +66,18 @@ export default async function ProfilePage() {
   return (
     <AppShell userEmail={user.email || ''} currentPath="/profile">
       {/* Main Content */}
-      <main className="w-full min-w-0 overflow-x-clip space-y-6">
-        {/* Page Title & Instructions Panel (All text inside solid panel) */}
-        <div className="bg-[#FFFDF9] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 shadow-sm">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#24221F]">
-            <Emph headingKey="profile" />
-          </h1>
-          <p className="text-xs sm:text-sm text-[#706A63] mt-1.5 leading-relaxed max-w-[70ch]">
-            Single normalized source of truth for all your career and academic facts. Changes made here can be reused across all your resumes and CVs.
-          </p>
-        </div>
+      <main className="w-full min-w-0 space-y-7 pt-2">
+        {/* Page Title & Instructions Panel */}
+        <FloatCard floatIndex={1}>
+          <GlassPanel variant="frosted" className="p-6 sm:p-8">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: GLASS_TOKENS.fg }}>
+              <Emph headingKey="profile" />
+            </h1>
+            <p className="text-xs sm:text-sm mt-1.5 leading-relaxed max-w-[70ch]" style={{ color: GLASS_TOKENS.fgMuted }}>
+              Single normalized source of truth for all your career and academic facts. Changes made here can be reused across all your resumes and CVs.
+            </p>
+          </GlassPanel>
+        </FloatCard>
 
         {/* Master Profile Modular Editor */}
         <MasterProfileEditor

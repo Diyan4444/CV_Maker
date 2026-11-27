@@ -254,8 +254,8 @@ test.describe.serial('Phase 8B-2: TopoBackground, Icons, FloatCard & Screenshots
     for (const ic of iconInfo) {
       expect(ic.w).toBeGreaterThanOrEqual(18);
       expect(ic.w).toBeLessThanOrEqual(26);
-      expect(ic.opacity).toBeGreaterThanOrEqual(0.09);
-      expect(ic.opacity).toBeLessThanOrEqual(0.17);
+      expect(ic.opacity).toBeGreaterThanOrEqual(0.34);
+      expect(ic.opacity).toBeLessThanOrEqual(0.48);
     }
   });
 
@@ -304,7 +304,8 @@ test.describe.serial('Phase 8B-2: TopoBackground, Icons, FloatCard & Screenshots
     }
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
-    expect(maxY - minY).toBeLessThanOrEqual(4.5);
+    expect(maxY - minY).toBeGreaterThanOrEqual(5);
+    expect(maxY - minY).toBeLessThanOrEqual(16);
 
     // Pause on hover (use mouse.move onto card since Playwright hover() waits for stability before moving)
     const hoverBox = await card.boundingBox();

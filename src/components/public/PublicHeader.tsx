@@ -157,7 +157,7 @@ export function PublicHeader() {
         {/* Wordmark */}
         <Link
           href="/"
-          className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#24221F] min-h-[44px] inline-flex items-center focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 rounded-md"
+          className="font-display text-xl sm:text-2xl font-bold tracking-tight text-[#FFFDF9] min-h-[44px] inline-flex items-center focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] rounded-md"
         >
           {PRODUCT_NAME}
         </Link>
@@ -167,7 +167,7 @@ export function PublicHeader() {
           ref={navRef}
           aria-label="Main Navigation"
           onMouseLeave={() => moveIndicatorTo(activeHref)}
-          className="hidden md:flex items-center gap-6 relative"
+          className="hidden md:flex items-center md:gap-2 lg:gap-6 relative min-w-0"
         >
           {NAV_LINKS.map((link) => (
             <Link
@@ -179,8 +179,8 @@ export function PublicHeader() {
               onMouseEnter={() => moveIndicatorTo(link.href)}
               onFocus={() => moveIndicatorTo(link.href)}
               onBlur={() => moveIndicatorTo(activeHref)}
-              className={`text-sm font-medium min-h-[44px] inline-flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 rounded-md px-2 ${
-                activeHref === link.href ? 'text-[#800021]' : 'text-[#24221F] hover:text-[#800021]'
+              className={`text-xs lg:text-sm font-medium min-h-[44px] inline-flex items-center whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] rounded-md px-1.5 lg:px-2 ${
+                activeHref === link.href ? 'text-[var(--glass-accent)]' : 'text-[#FFFDF9] hover:text-[var(--glass-accent)]'
               }`}
             >
               {link.label}
@@ -192,7 +192,7 @@ export function PublicHeader() {
             id="nav-active-indicator"
             aria-hidden="true"
             style={{ width: '1px', opacity: 0 }}
-            className="hidden lg:block pointer-events-none absolute bottom-1 left-0 h-[2px] bg-[#9E4857]"
+            className="hidden lg:block pointer-events-none absolute bottom-1 left-0 h-[2px] bg-[var(--glass-accent)]"
           />
         </nav>
 
@@ -200,9 +200,9 @@ export function PublicHeader() {
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-semibold text-[#24221F] bg-[#FFFDF9] border border-[#D8D0C5] rounded-lg hover:bg-[#EFE8DE] focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors"
+            className="btn-glass-secondary inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] transition-colors"
           >
-            <LogIn className="w-4 h-4 text-[#800021]" aria-hidden="true" />
+            <LogIn className="w-4 h-4 text-[var(--glass-accent)]" aria-hidden="true" />
             Sign in
           </Link>
           <Link
@@ -230,7 +230,7 @@ export function PublicHeader() {
             aria-expanded={mobileMenuOpen}
             aria-label="Toggle navigation menu"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border border-[#D8D0C5] bg-[#FFFDF9] text-[#24221F] hover:bg-[#EFE8DE] focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2"
+            className="btn-glass-secondary min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -241,7 +241,7 @@ export function PublicHeader() {
       {mobileMenuOpen && (
         <div
           id="mobile-nav-menu"
-          className="md:hidden border-t border-[#D8D0C5] bg-[#FFFDF9] px-4 py-4 space-y-2"
+          className="md:hidden border-t glass-divider px-4 py-4 space-y-2 text-[#FFFDF9]"
         >
           <nav aria-label="Mobile Navigation" className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (

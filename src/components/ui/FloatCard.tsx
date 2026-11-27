@@ -45,8 +45,10 @@ export function FloatCard({
   useEffect(() => {
     const checkMotion = () => {
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const htmlOff = document.documentElement.dataset.motion === 'off';
-      setMotionAllowed(FLOAT.enabled && !disabled && !isEditorRoute && !reduced && !htmlOff);
+      const htmlMotion = document.documentElement.dataset.motion;
+      const htmlFloat = document.documentElement.dataset.float;
+      const motionOn = htmlMotion === 'on' ? true : htmlMotion === 'off' ? false : !reduced;
+      setMotionAllowed(FLOAT.enabled && !disabled && !isEditorRoute && motionOn && htmlFloat !== 'off');
     };
     checkMotion();
 
@@ -56,11 +58,11 @@ export function FloatCard({
     const attrObserver = new MutationObserver(checkMotion);
     attrObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-motion'],
+      attributeFilter: ['data-motion', 'data-float'],
     });
 
     const checkDialogs = () => {
-      setDialogOpen(Boolean(document.querySelector('[role="dialog"][aria-modal="true"]')));
+      setDialogOpen(Boolean(document.querySelector('[role="dialog"][aria-modal="true"], [role="menu"]')));
     };
     checkDialogs();
     const bodyObserver = new MutationObserver(checkDialogs);
@@ -108,7 +110,7 @@ export function FloatCard({
   }, [id, motionAllowed]);
 
   const isAnimating = wantsAnimation && slotGranted;
-  const durationSec = 7 + ((floatIndex * 1.1) % 3); // 7.0s .. 10.0s
+  const durationSec = 6 + ((floatIndex * 1.1) % 3); // 6.0s .. 9.0s
   const delaySec = -((floatIndex * 1.7) % durationSec);
 
   const Tag = as as React.ElementType;

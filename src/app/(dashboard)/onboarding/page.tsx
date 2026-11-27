@@ -15,7 +15,8 @@ import { FormFieldValue } from '@/config/onboarding/types';
 import { GenericFormEngine } from '@/components/forms/GenericFormEngine';
 import { Combobox } from '@/components/ui/Combobox';
 import { FloatCard } from '@/components/ui/FloatCard';
-import { WARM_TOKENS, ON_DARK_TOKENS } from '@/styles/tokens';
+import { GlassPanel } from '@/components/ui/GlassPanel';
+import { WARM_TOKENS, ON_DARK_TOKENS, GLASS_TOKENS } from '@/styles/tokens';
 import {
   ArrowRight,
   ArrowLeft,
@@ -227,150 +228,118 @@ export default function OnboardingPage() {
               <div
                 role="radiogroup"
                 aria-labelledby="building-first-heading"
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-7 pt-2"
               >
                 {/* Resume Card */}
                 <FloatCard floatIndex={0}>
-                  <button
-                    ref={resumeRadioRef}
-                    type="button"
-                    role="radio"
-                    aria-checked={outputType === 'resume'}
-                    tabIndex={outputType === 'resume' ? 0 : -1}
-                    onClick={() => setOutputType('resume')}
-                    onKeyDown={handleRadioKeyDown}
-                    className={`w-full h-full rounded-xl border p-4 text-left flex flex-col gap-3 transition-[transform,box-shadow,border-color] duration-150 motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 ${
-                      outputType === 'resume' ? 'border-l-4 shadow-md' : 'shadow-sm'
-                    }`}
-                    style={{
-                      backgroundColor: WARM_TOKENS.surface,
-                      borderColor:
-                        outputType === 'resume' ? WARM_TOKENS.primary : WARM_TOKENS.borderSubtle,
-                      borderLeftColor:
-                        outputType === 'resume' ? WARM_TOKENS.primary : WARM_TOKENS.borderSubtle,
-                    }}
-                  >
-                    <div
-                      className="w-full rounded-lg border overflow-hidden p-2 flex items-center justify-center"
-                      style={{
-                        backgroundColor: WARM_TOKENS.surface1,
-                        borderColor: WARM_TOKENS.borderSubtle,
-                      }}
+                  <GlassPanel variant="frosted" accentBorder={outputType === 'resume'} className="h-full">
+                    <button
+                      ref={resumeRadioRef}
+                      type="button"
+                      role="radio"
+                      aria-checked={outputType === 'resume'}
+                      tabIndex={outputType === 'resume' ? 0 : -1}
+                      onClick={() => setOutputType('resume')}
+                      onKeyDown={handleRadioKeyDown}
+                      className="w-full h-full p-4 text-left flex flex-col gap-3 transition-[transform,box-shadow] duration-150 motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
                     >
-                      <Image
-                        src="/landing/ats_single_column.png"
-                        alt="Miniature preview of the ATS Single Column resume specimen"
-                        width={240}
-                        height={310}
-                        className="w-full max-w-[170px] h-auto rounded shadow-xs"
-                      />
-                    </div>
-                    <div className="space-y-1 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className="text-[10px] font-semibold uppercase tracking-widest"
-                            style={{ color: WARM_TOKENS.muted }}
-                          >
-                            SAMPLE WITH FICTIONAL DATA
-                          </span>
-                          {outputType === 'resume' && (
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: WARM_TOKENS.accentSoft,
-                                color: WARM_TOKENS.accentStrong,
-                              }}
-                            >
-                              <Check className="w-3 h-3" aria-hidden="true" />
-                              Selected
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          className="font-display font-bold text-base mt-1"
-                          style={{ color: WARM_TOKENS.ink }}
-                        >
-                          Resume
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: WARM_TOKENS.muted }}>
-                          1-page, ATS-optimized layout for industry roles
-                        </p>
+                      <div className="glass-tile w-full rounded-lg overflow-hidden p-2 flex items-center justify-center">
+                        <Image
+                          src="/landing/ats_single_column.png"
+                          alt="Miniature preview of the ATS Single Column resume specimen"
+                          width={240}
+                          height={310}
+                          className="w-full max-w-[170px] h-auto rounded shadow-xs"
+                        />
                       </div>
-                    </div>
-                  </button>
+                      <div className="space-y-1 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className="text-[10px] font-semibold uppercase tracking-widest"
+                              style={{ color: GLASS_TOKENS.fgMuted }}
+                            >
+                              SAMPLE WITH FICTIONAL DATA
+                            </span>
+                            {outputType === 'resume' && (
+                              <span
+                                className="glass-tile inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ color: GLASS_TOKENS.accentOnGlass }}
+                              >
+                                <Check className="w-3 h-3" aria-hidden="true" />
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className="font-display font-bold text-base mt-1"
+                            style={{ color: GLASS_TOKENS.fg }}
+                          >
+                            Resume
+                          </div>
+                          <p className="text-xs mt-0.5" style={{ color: GLASS_TOKENS.fgMuted }}>
+                            1-page, ATS-optimized layout for industry roles
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </GlassPanel>
                 </FloatCard>
 
                 {/* Academic CV Card */}
                 <FloatCard floatIndex={1}>
-                  <button
-                    ref={cvRadioRef}
-                    type="button"
-                    role="radio"
-                    aria-checked={outputType === 'cv'}
-                    tabIndex={outputType === 'cv' ? 0 : -1}
-                    onClick={() => setOutputType('cv')}
-                    onKeyDown={handleRadioKeyDown}
-                    className={`w-full h-full rounded-xl border p-4 text-left flex flex-col gap-3 transition-[transform,box-shadow,border-color] duration-150 motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 ${
-                      outputType === 'cv' ? 'border-l-4 shadow-md' : 'shadow-sm'
-                    }`}
-                    style={{
-                      backgroundColor: WARM_TOKENS.surface,
-                      borderColor:
-                        outputType === 'cv' ? WARM_TOKENS.primary : WARM_TOKENS.borderSubtle,
-                      borderLeftColor:
-                        outputType === 'cv' ? WARM_TOKENS.primary : WARM_TOKENS.borderSubtle,
-                    }}
-                  >
-                    <div
-                      className="w-full rounded-lg border overflow-hidden p-2 flex items-center justify-center"
-                      style={{
-                        backgroundColor: WARM_TOKENS.surface1,
-                        borderColor: WARM_TOKENS.borderSubtle,
-                      }}
+                  <GlassPanel variant="frosted" accentBorder={outputType === 'cv'} className="h-full">
+                    <button
+                      ref={cvRadioRef}
+                      type="button"
+                      role="radio"
+                      aria-checked={outputType === 'cv'}
+                      tabIndex={outputType === 'cv' ? 0 : -1}
+                      onClick={() => setOutputType('cv')}
+                      onKeyDown={handleRadioKeyDown}
+                      className="w-full h-full p-4 text-left flex flex-col gap-3 transition-[transform,box-shadow] duration-150 motion-reduce:transition-none [@media(hover:hover)]:hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
                     >
-                      <Image
-                        src="/landing/academic_cv.png"
-                        alt="Miniature preview of the Academic CV specimen"
-                        width={240}
-                        height={310}
-                        className="w-full max-w-[170px] h-auto rounded shadow-xs"
-                      />
-                    </div>
-                    <div className="space-y-1 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className="text-[10px] font-semibold uppercase tracking-widest"
-                            style={{ color: WARM_TOKENS.muted }}
-                          >
-                            SAMPLE WITH FICTIONAL DATA
-                          </span>
-                          {outputType === 'cv' && (
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: WARM_TOKENS.accentSoft,
-                                color: WARM_TOKENS.accentStrong,
-                              }}
-                            >
-                              <Check className="w-3 h-3" aria-hidden="true" />
-                              Selected
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          className="font-display font-bold text-base mt-1"
-                          style={{ color: WARM_TOKENS.ink }}
-                        >
-                          Academic CV
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: WARM_TOKENS.muted }}>
-                          Multi-page scholarly dossier for research &amp; publications
-                        </p>
+                      <div className="glass-tile w-full rounded-lg overflow-hidden p-2 flex items-center justify-center">
+                        <Image
+                          src="/landing/academic_cv.png"
+                          alt="Miniature preview of the Academic CV specimen"
+                          width={240}
+                          height={310}
+                          className="w-full max-w-[170px] h-auto rounded shadow-xs"
+                        />
                       </div>
-                    </div>
-                  </button>
+                      <div className="space-y-1 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className="text-[10px] font-semibold uppercase tracking-widest"
+                              style={{ color: GLASS_TOKENS.fgMuted }}
+                            >
+                              SAMPLE WITH FICTIONAL DATA
+                            </span>
+                            {outputType === 'cv' && (
+                              <span
+                                className="glass-tile inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ color: GLASS_TOKENS.accentOnGlass }}
+                              >
+                                <Check className="w-3 h-3" aria-hidden="true" />
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className="font-display font-bold text-base mt-1"
+                            style={{ color: GLASS_TOKENS.fg }}
+                          >
+                            Academic CV
+                          </div>
+                          <p className="text-xs mt-0.5" style={{ color: GLASS_TOKENS.fgMuted }}>
+                            Multi-page scholarly dossier for research &amp; publications
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </GlassPanel>
                 </FloatCard>
               </div>
             </section>

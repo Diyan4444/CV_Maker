@@ -5,13 +5,24 @@ import Link from 'next/link';
 import { safeNextPath } from '@/lib/navigation/safe-redirect';
 import { useToast } from '@/components/ui/ToastProvider';
 import { FloatCard } from '@/components/ui/FloatCard';
+import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Emph } from '@/components/ui/Emph';
 import { EXPORT_DATA_CATEGORIES } from '@/lib/account/export-schema';
 import {
-  applyMotionPreference,
-  getInitialMotionEnabled,
-} from '@/components/ui/MotionInitializer';
-import { WARM_TOKENS, ON_DARK_TOKENS } from '@/styles/tokens';
+  type AnimationPref,
+  type FloatPref,
+  type GlassPref,
+  type BgLevelPref,
+  readStoredAnimationsPref,
+  readStoredFloatPref,
+  readStoredGlassPref,
+  readStoredBgLevelPref,
+  setAnimationsPreference,
+  setFloatPreference,
+  setGlassPreference,
+  setBgLevelPreference,
+} from '@/lib/preferences/interface';
+import { WARM_TOKENS, ON_DARK_TOKENS, GLASS_TOKENS } from '@/styles/tokens';
 import {
   Shield,
   Download,
@@ -59,8 +70,11 @@ export function SettingsClient({ user }: SettingsClientProps) {
   const [revealedUserId, setRevealedUserId] = useState<string | null>(null);
   const [loadingUserId, setLoadingUserId] = useState(false);
 
-  // Interface Animations toggle
-  const [animationsOn, setAnimationsOn] = useState<boolean>(true);
+  // Interface preferences
+  const [animationsPref, setAnimationsPref] = useState<AnimationPref>('system');
+  const [floatPref, setFloatPref] = useState<FloatPref>('normal');
+  const [glassPref, setGlassPref] = useState<GlassPref>('auto');
+  const [bgLevelPref, setBgLevelPref] = useState<BgLevelPref>('normal');
   const [activeSection, setActiveSection] = useState<string>('account-info');
 
   // Delete account modal state
@@ -75,7 +89,12 @@ export function SettingsClient({ user }: SettingsClientProps) {
   const isSubmittingRef = useRef(false);
 
   useEffect(() => {
-    queueMicrotask(() => setAnimationsOn(getInitialMotionEnabled()));
+    queueMicrotask(() => {
+      setAnimationsPref(readStoredAnimationsPref());
+      setFloatPref(readStoredFloatPref());
+      setGlassPref(readStoredGlassPref());
+      setBgLevelPref(readStoredBgLevelPref());
+    });
   }, []);
 
   const handleToggleUserId = async () => {
@@ -100,10 +119,24 @@ export function SettingsClient({ user }: SettingsClientProps) {
     }
   };
 
-  const handleToggleAnimations = () => {
-    const next = !animationsOn;
-    setAnimationsOn(next);
-    applyMotionPreference(next);
+  const handleSelectAnimations = (pref: AnimationPref) => {
+    setAnimationsPref(pref);
+    setAnimationsPreference(pref);
+  };
+
+  const handleSelectFloat = (pref: FloatPref) => {
+    setFloatPref(pref);
+    setFloatPreference(pref);
+  };
+
+  const handleSelectGlass = (pref: GlassPref) => {
+    setGlassPref(pref);
+    setGlassPreference(pref);
+  };
+
+  const handleSelectBgLevel = (pref: BgLevelPref) => {
+    setBgLevelPref(pref);
+    setBgLevelPreference(pref);
   };
 
   const openDeleteModal = useCallback(() => {
@@ -256,17 +289,15 @@ export function SettingsClient({ user }: SettingsClientProps) {
       </div>
 
       {/* Two-Column Layout: Left Sub-Nav + Right Content Panel */}
-      <div className="flex flex-col md:flex-row items-start gap-6">
-        {/* Sub-Navigation: wrapping list on < 768px, sticky left column on >= 768px */}
-        <nav
+      <div className="flex flex-col lg:flex-row items-start gap-6">
+        {/* Sub-Navigation: wrapping list on < 1024px, sticky left column on >= 1024px */}
+        <GlassPanel
+          as="nav"
+          variant="frosted"
           aria-label="Settings sections"
-          className="w-full md:w-56 shrink-0 rounded-xl border p-2 shadow-sm md:sticky md:top-6"
-          style={{
-            backgroundColor: WARM_TOKENS.surface,
-            borderColor: WARM_TOKENS.borderSubtle,
-          }}
+          className="w-full lg:w-56 shrink-0 p-2 lg:sticky lg:top-6"
         >
-          <ul className="flex flex-wrap md:flex-col gap-1.5">
+          <ul className="flex flex-wrap lg:flex-col gap-1.5">
             {SUBNAV_ITEMS.map((item) => {
               const active = activeSection === item.id;
               return (
@@ -275,10 +306,10 @@ export function SettingsClient({ user }: SettingsClientProps) {
                     href={`#${item.id}`}
                     onClick={() => setActiveSection(item.id)}
                     aria-current={active ? 'location' : undefined}
-                    className="min-h-[44px] px-3 py-2 rounded-lg text-xs font-semibold flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021]"
+                    className="min-h-[44px] px-3 py-2 rounded-lg text-xs font-semibold flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
                     style={{
-                      backgroundColor: active ? WARM_TOKENS.accentSoft : 'transparent',
-                      color: active ? WARM_TOKENS.accentStrong : WARM_TOKENS.ink,
+                      backgroundColor: active ? GLASS_TOKENS.tileBgHover : 'transparent',
+                      color: active ? GLASS_TOKENS.accentOnGlass : GLASS_TOKENS.fg,
                     }}
                   >
                     {item.label}
@@ -287,40 +318,34 @@ export function SettingsClient({ user }: SettingsClientProps) {
               );
             })}
           </ul>
-        </nav>
+        </GlassPanel>
 
         {/* Right Content Panel */}
-        <div className="flex-1 w-full min-w-0 space-y-6">
+        <div className="flex-1 w-full min-w-0 space-y-7 pt-2">
           {/* 1. ACCOUNT INFORMATION */}
           <FloatCard
             as="section"
             id="account-info"
             floatIndex={1}
             aria-labelledby="section-account-title"
-            className="rounded-xl border shadow-sm overflow-hidden scroll-mt-20"
-            style={{
-              backgroundColor: WARM_TOKENS.surface,
-              borderColor: WARM_TOKENS.borderSubtle,
-            }}
+            className="scroll-mt-20"
           >
-            <div
-              className="px-5 sm:px-6 py-4 border-b flex items-center gap-2.5"
-              style={{ borderColor: WARM_TOKENS.borderSubtle }}
-            >
-              <Shield className="w-4 h-4 shrink-0" style={{ color: WARM_TOKENS.accentStrong }} aria-hidden="true" />
-              <h2 id="section-account-title" className="font-display text-lg font-bold" style={{ color: WARM_TOKENS.ink }}>
-                Account information
-              </h2>
-            </div>
+            <GlassPanel variant="frosted">
+              <div className="px-5 sm:px-6 py-4 border-b glass-divider flex items-center gap-2.5">
+                <Shield className="w-4 h-4 shrink-0" style={{ color: GLASS_TOKENS.accentOnGlass }} aria-hidden="true" />
+                <h2 id="section-account-title" className="font-display text-lg font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                  Account information
+                </h2>
+              </div>
 
-            <div className="divide-y" style={{ borderColor: WARM_TOKENS.borderSubtle }}>
+              <div className="divide-y glass-divider">
               {/* Email Row */}
               <div className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="min-w-0 space-y-0.5">
-                  <div className="text-xs font-bold" style={{ color: WARM_TOKENS.ink }}>
+                  <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
                     Email
                   </div>
-                  <div className="text-xs sm:text-sm break-all" style={{ color: WARM_TOKENS.muted }}>
+                  <div className="text-xs sm:text-sm break-all" style={{ color: GLASS_TOKENS.fgMuted }}>
                     {user.email}
                   </div>
                 </div>
@@ -342,10 +367,10 @@ export function SettingsClient({ user }: SettingsClientProps) {
               {/* Account Created Row */}
               <div className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="space-y-0.5">
-                  <div className="text-xs font-bold" style={{ color: WARM_TOKENS.ink }}>
+                  <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
                     Account created
                   </div>
-                  <div className="text-xs sm:text-sm" style={{ color: WARM_TOKENS.muted }}>
+                  <div className="text-xs sm:text-sm" style={{ color: GLASS_TOKENS.fgMuted }}>
                     {formattedDate}
                   </div>
                 </div>
@@ -354,19 +379,19 @@ export function SettingsClient({ user }: SettingsClientProps) {
               {/* User ID Row with Eye Toggle */}
               <div className="px-5 sm:px-6 py-4 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="text-xs font-bold" style={{ color: WARM_TOKENS.ink }}>
+                  <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
                     User ID
                   </div>
                   {revealedUserId ? (
                     <div
                       data-testid="revealed-user-id"
                       className="font-mono text-xs break-all select-all"
-                      style={{ color: WARM_TOKENS.ink }}
+                      style={{ color: GLASS_TOKENS.fg }}
                     >
                       {revealedUserId}
                     </div>
                   ) : (
-                    <div className="text-xs sm:text-sm tracking-wider" style={{ color: WARM_TOKENS.muted }}>
+                    <div className="text-xs sm:text-sm tracking-wider" style={{ color: GLASS_TOKENS.fgMuted }}>
                       <span aria-hidden="true">{MASKED_UUID_BULLETS}</span>
                       <span className="sr-only">User ID hidden</span>
                     </div>
@@ -379,78 +404,66 @@ export function SettingsClient({ user }: SettingsClientProps) {
                   disabled={loadingUserId}
                   aria-pressed={Boolean(revealedUserId)}
                   aria-label={revealedUserId ? 'Hide user ID' : 'Show user ID'}
-                  className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg border transition-colors hover:bg-[#F8F4ED] focus:outline-none focus:ring-2 focus:ring-[#800021] shrink-0"
-                  style={{
-                    backgroundColor: WARM_TOKENS.surface,
-                    borderColor: WARM_TOKENS.borderDefault,
-                    color: WARM_TOKENS.ink,
-                  }}
+                  className="btn-glass-secondary min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] shrink-0"
                 >
                   {loadingUserId ? (
-                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  ) : revealedUserId ? (
-                    <EyeOff className="w-4 h-4" aria-hidden="true" />
-                  ) : (
-                    <Eye className="w-4 h-4" aria-hidden="true" />
-                  )}
-                </button>
-              </div>
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                ) : revealedUserId ? (
+                  <EyeOff className="w-4 h-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="w-4 h-4" aria-hidden="true" />
+                )}
+              </button>
             </div>
-          </FloatCard>
+          </div>
+        </GlassPanel>
+      </FloatCard>
 
-          {/* 2. SIGN-IN METHODS */}
-          <FloatCard
-            as="section"
-            id="sign-in-methods"
-            floatIndex={2}
-            aria-labelledby="section-signin-title"
-            className="rounded-xl border shadow-sm overflow-hidden scroll-mt-20"
-            style={{
-              backgroundColor: WARM_TOKENS.surface,
-              borderColor: WARM_TOKENS.borderSubtle,
-            }}
-          >
-            <div
-              className="px-5 sm:px-6 py-4 border-b flex items-center gap-2.5"
-              style={{ borderColor: WARM_TOKENS.borderSubtle }}
-            >
-              <Mail className="w-4 h-4 shrink-0" style={{ color: WARM_TOKENS.accentStrong }} aria-hidden="true" />
-              <h2 id="section-signin-title" className="font-display text-lg font-bold" style={{ color: WARM_TOKENS.ink }}>
-                Sign-in methods
-              </h2>
-            </div>
+      {/* 2. SIGN-IN METHODS */}
+      <FloatCard
+        as="section"
+        id="sign-in-methods"
+        floatIndex={2}
+        aria-labelledby="section-signin-title"
+        className="scroll-mt-20"
+      >
+        <GlassPanel variant="frosted">
+          <div className="px-5 sm:px-6 py-4 border-b glass-divider flex items-center gap-2.5">
+            <Mail className="w-4 h-4 shrink-0" style={{ color: GLASS_TOKENS.accentOnGlass }} aria-hidden="true" />
+            <h2 id="section-signin-title" className="font-display text-lg font-bold" style={{ color: GLASS_TOKENS.fg }}>
+              Sign-in methods
+            </h2>
+          </div>
 
-            <div className="divide-y" style={{ borderColor: WARM_TOKENS.borderSubtle }}>
-              {user.providers.map((provider) => (
-                <div
-                  key={provider}
-                  data-testid={`signin-provider-${provider}`}
-                  className="px-5 sm:px-6 py-4 flex items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="text-xs font-bold" style={{ color: WARM_TOKENS.ink }}>
-                      {PROVIDER_LABELS[provider] || provider}
-                    </div>
-                    <div className="text-xs" style={{ color: WARM_TOKENS.muted }}>
-                      Linked authentication method
-                    </div>
+          <div className="divide-y glass-divider">
+            {user.providers.map((provider) => (
+              <div
+                key={provider}
+                data-testid={`signin-provider-${provider}`}
+                className="px-5 sm:px-6 py-4 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                    {PROVIDER_LABELS[provider] || provider}
                   </div>
-                  <span
-                    className="px-2.5 py-1 rounded-full text-xs font-semibold"
-                    style={{
-                      backgroundColor: WARM_TOKENS.surface2,
-                      color: WARM_TOKENS.ink,
-                    }}
-                  >
-                    Linked
-                  </span>
+                  <div className="text-xs" style={{ color: GLASS_TOKENS.fgMuted }}>
+                    Linked authentication method
+                  </div>
                 </div>
-              ))}
-              <div className="px-5 sm:px-6 py-3.5 text-xs" style={{ color: WARM_TOKENS.muted }}>
-                The same verified email address opens the same Quillfolio account.
+                <span
+                  className="glass-tile px-2.5 py-1 rounded-full text-xs font-semibold"
+                  style={{ color: GLASS_TOKENS.fg }}
+                >
+                  Linked
+                </span>
               </div>
+            ))}
+            <div className="px-5 sm:px-6 py-3.5 text-xs" style={{ color: GLASS_TOKENS.fgMuted }}>
+              The same verified email address opens the same Quillfolio account.
             </div>
-          </FloatCard>
+          </div>
+        </GlassPanel>
+      </FloatCard>
 
           {/* 3. DATA & PORTABILITY */}
           <FloatCard
@@ -458,57 +471,48 @@ export function SettingsClient({ user }: SettingsClientProps) {
             id="data-portability"
             floatIndex={3}
             aria-labelledby="section-data-title"
-            className="rounded-xl border p-5 sm:p-6 shadow-sm space-y-5 scroll-mt-20"
-            style={{
-              backgroundColor: WARM_TOKENS.surface,
-              borderColor: WARM_TOKENS.borderSubtle,
-            }}
+            className="scroll-mt-20"
           >
-            <div>
-              <h2 id="section-data-title" className="font-display text-lg font-bold" style={{ color: WARM_TOKENS.ink }}>
-                Your data, always yours.
-              </h2>
-              <p className="text-xs sm:text-sm mt-0.5" style={{ color: WARM_TOKENS.muted }}>
-                Download a complete copy of your Quillfolio data.
-              </p>
-            </div>
-
-            <div
-              className="rounded-xl border p-4 sm:p-5 space-y-4"
-              style={{
-                backgroundColor: WARM_TOKENS.surface1,
-                borderColor: WARM_TOKENS.borderSubtle,
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-bold" style={{ color: WARM_TOKENS.ink }}>
-                  Complete JSON archive
-                </span>
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                  style={{
-                    backgroundColor: WARM_TOKENS.readyBg,
-                    color: WARM_TOKENS.readyText,
-                  }}
-                >
-                  Available
-                </span>
+            <GlassPanel variant="frosted" className="p-5 sm:p-6 space-y-5">
+              <div>
+                <h2 id="section-data-title" className="font-display text-lg font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                  Your data, always yours.
+                </h2>
+                <p className="text-xs sm:text-sm mt-0.5" style={{ color: GLASS_TOKENS.fgMuted }}>
+                  Download a complete copy of your Quillfolio data.
+                </p>
               </div>
+
+              <div className="glass-tile rounded-xl p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                    Complete JSON archive
+                  </span>
+                  <span
+                    className="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                    style={{
+                      backgroundColor: WARM_TOKENS.readyBg,
+                      color: WARM_TOKENS.readyText,
+                    }}
+                  >
+                    Available
+                  </span>
+                </div>
 
               <ul
                 data-testid="export-categories-list"
                 className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"
-                style={{ color: WARM_TOKENS.ink }}
+                style={{ color: GLASS_TOKENS.fg }}
               >
                 {EXPORT_DATA_CATEGORIES.map((cat) => (
                   <li key={cat.key} data-export-key={cat.key} className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" style={{ color: WARM_TOKENS.readyText }} aria-hidden="true" />
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" style={{ color: GLASS_TOKENS.accentOnGlass }} aria-hidden="true" />
                     <span>{cat.label}</span>
                   </li>
                 ))}
               </ul>
 
-              <p className="text-xs leading-relaxed" style={{ color: WARM_TOKENS.muted }}>
+              <p className="text-xs leading-relaxed" style={{ color: GLASS_TOKENS.fgMuted }}>
                 Generated on demand directly from your database records; no archive copy is stored on the server.
               </p>
 
@@ -526,18 +530,19 @@ export function SettingsClient({ user }: SettingsClientProps) {
                 <span>Download my data</span>
               </a>
 
-              <div className="flex items-center justify-between gap-2 pt-1 text-[11px]" style={{ color: WARM_TOKENS.muted }}>
+              <div className="flex items-center justify-between gap-2 pt-1 text-[11px]" style={{ color: GLASS_TOKENS.fgMuted }}>
                 <span>JSON &middot; Machine-readable archive</span>
                 <Link
                   href="/privacy"
                   className="inline-flex items-center gap-1 font-semibold hover:underline min-h-[44px]"
-                  style={{ color: WARM_TOKENS.accentStrong }}
+                  style={{ color: GLASS_TOKENS.accentOnGlass }}
                 >
                   <span>Privacy &amp; Data Rights</span>
                   <ExternalLink className="w-3 h-3" aria-hidden="true" />
                 </Link>
               </div>
             </div>
+          </GlassPanel>
           </FloatCard>
 
           {/* 4. INTERFACE */}
@@ -546,48 +551,189 @@ export function SettingsClient({ user }: SettingsClientProps) {
             id="interface"
             floatIndex={4}
             aria-labelledby="section-interface-title"
-            className="rounded-xl border shadow-sm overflow-hidden scroll-mt-20"
-            style={{
-              backgroundColor: WARM_TOKENS.surface,
-              borderColor: WARM_TOKENS.borderSubtle,
-            }}
+            className="scroll-mt-20"
           >
-            <div
-              className="px-5 sm:px-6 py-4 border-b flex items-center gap-2.5"
-              style={{ borderColor: WARM_TOKENS.borderSubtle }}
-            >
-              <Sparkles className="w-4 h-4 shrink-0" style={{ color: WARM_TOKENS.accentStrong }} aria-hidden="true" />
-              <h2 id="section-interface-title" className="font-display text-lg font-bold" style={{ color: WARM_TOKENS.ink }}>
-                Interface
-              </h2>
-            </div>
-
-            <div className="px-5 sm:px-6 py-4 flex items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold" style={{ color: WARM_TOKENS.ink }}>
-                  Animations
-                </div>
-                <div className="text-xs" style={{ color: WARM_TOKENS.muted }}>
-                  Controls floating cards, cursor-reactive background effects, and overscroll behavior.
-                </div>
+            <GlassPanel variant="frosted">
+              <div className="px-5 sm:px-6 py-4 border-b glass-divider flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 shrink-0" style={{ color: GLASS_TOKENS.accentOnGlass }} aria-hidden="true" />
+                <h2 id="section-interface-title" className="font-display text-lg font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                  Interface
+                </h2>
               </div>
 
-              <button
-                type="button"
-                role="switch"
-                aria-checked={animationsOn}
-                aria-label="Animations"
-                onClick={handleToggleAnimations}
-                className="min-w-[84px] min-h-[44px] px-3.5 rounded-lg border text-xs font-semibold inline-flex items-center justify-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-[#800021] shrink-0"
-                style={{
-                  backgroundColor: animationsOn ? WARM_TOKENS.primary : WARM_TOKENS.surface2,
-                  color: animationsOn ? WARM_TOKENS.primaryText : WARM_TOKENS.ink,
-                  borderColor: animationsOn ? WARM_TOKENS.primary : WARM_TOKENS.borderDefault,
-                }}
-              >
-                <span>{animationsOn ? 'On' : 'Off'}</span>
-              </button>
-            </div>
+              <div className="divide-y glass-divider">
+                {/* Animations */}
+                <div className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                      Animations
+                    </div>
+                    <div className="text-xs" style={{ color: GLASS_TOKENS.fgMuted }}>
+                      &ldquo;On&rdquo; overrides the OS reduced-motion setting for decorative effects only.
+                    </div>
+                  </div>
+                  <div role="radiogroup" aria-label="Animations" className="flex flex-wrap gap-1.5 shrink-0">
+                    {(
+                      [
+                        { id: 'system', label: 'Follow system' },
+                        { id: 'on', label: 'On' },
+                        { id: 'off', label: 'Off' },
+                      ] as const
+                    ).map((opt) => {
+                      const active = animationsPref === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => handleSelectAnimations(opt.id)}
+                          className={`min-w-[44px] min-h-[44px] px-3 rounded-lg text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] ${
+                            active ? '' : 'btn-glass-secondary'
+                          }`}
+                          style={
+                            active
+                              ? { backgroundColor: WARM_TOKENS.primary, color: WARM_TOKENS.primaryText }
+                              : undefined
+                          }
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Float */}
+                <div className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                      Float
+                    </div>
+                    <div className="text-xs" style={{ color: GLASS_TOKENS.fgMuted }}>
+                      Vertical motion amplitude on floating cards (0, 8, 14, or 22 px).
+                    </div>
+                  </div>
+                  <div role="radiogroup" aria-label="Float" className="flex flex-wrap gap-1.5 shrink-0">
+                    {(
+                      [
+                        { id: 'off', label: 'Off' },
+                        { id: 'subtle', label: 'Subtle' },
+                        { id: 'normal', label: 'Normal' },
+                        { id: 'strong', label: 'Strong' },
+                      ] as const
+                    ).map((opt) => {
+                      const active = floatPref === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => handleSelectFloat(opt.id)}
+                          className={`min-w-[44px] min-h-[44px] px-3 rounded-lg text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] ${
+                            active ? '' : 'btn-glass-secondary'
+                          }`}
+                          style={
+                            active
+                              ? { backgroundColor: WARM_TOKENS.primary, color: WARM_TOKENS.primaryText }
+                              : undefined
+                          }
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Glass */}
+                <div className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                      Glass
+                    </div>
+                    <div className="text-xs" style={{ color: GLASS_TOKENS.fgMuted }}>
+                      Panel translucency and backdrop blur preset. Auto simplifies on low-power devices.
+                    </div>
+                  </div>
+                  <div role="radiogroup" aria-label="Glass" className="flex flex-wrap gap-1.5 shrink-0">
+                    {(
+                      [
+                        { id: 'auto', label: 'Auto' },
+                        { id: 'light', label: 'Light' },
+                        { id: 'frosted', label: 'Frosted' },
+                        { id: 'dense', label: 'Dense' },
+                        { id: 'solid', label: 'Solid' },
+                      ] as const
+                    ).map((opt) => {
+                      const active = glassPref === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => handleSelectGlass(opt.id)}
+                          className={`min-w-[44px] min-h-[44px] px-3 rounded-lg text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] ${
+                            active ? '' : 'btn-glass-secondary'
+                          }`}
+                          style={
+                            active
+                              ? { backgroundColor: WARM_TOKENS.primary, color: WARM_TOKENS.primaryText }
+                              : undefined
+                          }
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Background */}
+                <div className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <div className="text-xs font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                      Background
+                    </div>
+                    <div className="text-xs" style={{ color: GLASS_TOKENS.fgMuted }}>
+                      Contrast of topographic contour lines, ambient pools, and scattered icons.
+                    </div>
+                  </div>
+                  <div role="radiogroup" aria-label="Background" className="flex flex-wrap gap-1.5 shrink-0">
+                    {(
+                      [
+                        { id: 'subtle', label: 'Subtle' },
+                        { id: 'normal', label: 'Normal' },
+                        { id: 'strong', label: 'Strong' },
+                      ] as const
+                    ).map((opt) => {
+                      const active = bgLevelPref === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => handleSelectBgLevel(opt.id)}
+                          className={`min-w-[44px] min-h-[44px] px-3 rounded-lg text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] ${
+                            active ? '' : 'btn-glass-secondary'
+                          }`}
+                          style={
+                            active
+                              ? { backgroundColor: WARM_TOKENS.primary, color: WARM_TOKENS.primaryText }
+                              : undefined
+                          }
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </GlassPanel>
           </FloatCard>
 
           {/* 5. DELETE ACCOUNT */}
@@ -596,46 +742,35 @@ export function SettingsClient({ user }: SettingsClientProps) {
             id="delete-account"
             floatIndex={5}
             aria-labelledby="section-danger-title"
-            className="rounded-xl border-2 p-5 sm:p-6 shadow-sm space-y-4 scroll-mt-20"
-            style={{
-              backgroundColor: WARM_TOKENS.surface,
-              borderColor: WARM_TOKENS.primary,
-            }}
+            className="scroll-mt-20"
           >
-            <div
-              className="border-b pb-3 flex items-center gap-2"
-              style={{ borderColor: WARM_TOKENS.accentSoft }}
-            >
-              <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: WARM_TOKENS.primary }} aria-hidden="true" />
-              <div>
-                <h2 id="section-danger-title" className="font-display text-lg font-bold" style={{ color: WARM_TOKENS.primary }}>
-                  Delete account
-                </h2>
-                <p className="text-xs mt-0.5" style={{ color: WARM_TOKENS.muted }}>
-                  Permanent and irreversible account removal.
-                </p>
+            <GlassPanel variant="dense" accentBorder className="p-5 sm:p-6 space-y-4">
+              <div className="border-b glass-divider pb-3 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: GLASS_TOKENS.accentOnGlass }} aria-hidden="true" />
+                <div>
+                  <h2 id="section-danger-title" className="font-display text-lg font-bold" style={{ color: GLASS_TOKENS.fg }}>
+                    Delete account
+                  </h2>
+                  <p className="text-xs mt-0.5" style={{ color: GLASS_TOKENS.fgMuted }}>
+                    Permanent and irreversible account removal.
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <p className="text-xs leading-relaxed" style={{ color: WARM_TOKENS.muted }}>
-              Permanently delete your account and remove all personal information, master profile facts, documents, and telemetry. Once deleted, this data cannot be recovered.
-            </p>
+              <p className="text-xs leading-relaxed" style={{ color: GLASS_TOKENS.fgMuted }}>
+                Permanently delete your account and remove all personal information, master profile facts, documents, and telemetry. Once deleted, this data cannot be recovered.
+              </p>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <a
-                href="/api/account/export"
-                download
-                onClick={() => toast.show({ message: 'Export started', variant: 'success' })}
-                className="min-h-[44px] px-4 py-2 rounded-lg border text-xs font-semibold inline-flex items-center gap-2 hover:bg-[#F8F4ED] focus:outline-none focus:ring-2 focus:ring-[#800021]"
-                style={{
-                  backgroundColor: WARM_TOKENS.surface,
-                  borderColor: WARM_TOKENS.borderDefault,
-                  color: WARM_TOKENS.ink,
-                }}
-              >
-                <Download className="w-4 h-4" aria-hidden="true" />
-                <span>Export data first</span>
-              </a>
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="/api/account/export"
+                  download
+                  onClick={() => toast.show({ message: 'Export started', variant: 'success' })}
+                  className="btn-glass-secondary min-h-[44px] px-4 py-2 rounded-lg text-xs font-semibold inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#FFFDF9]"
+                >
+                  <Download className="w-4 h-4" aria-hidden="true" />
+                  <span>Export data first</span>
+                </a>
 
               <button
                 type="button"
@@ -650,6 +785,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
                 <span>Delete Account</span>
               </button>
             </div>
+            </GlassPanel>
           </FloatCard>
         </div>
       </div>

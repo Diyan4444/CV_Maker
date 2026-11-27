@@ -753,10 +753,10 @@ export function OnboardingSkeleton() {
             <SkeletonBlock className="h-8 w-64" />
             <SkeletonBlock className="h-4 w-80 max-w-full" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
             {[1, 2].map((i) => (
               <div key={i} className="bg-[#FFFDF9] border border-[#E7DDD0] rounded-xl p-4 space-y-3">
-                <SkeletonBlock className="h-56 w-full rounded-lg" />
+                <SkeletonBlock className="h-60 w-full rounded-lg" />
                 <SkeletonBlock className="h-3 w-36" />
                 <SkeletonBlock className="h-5 w-28" />
                 <SkeletonBlock className="h-3.5 w-48" />

@@ -451,7 +451,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 2: Education CRUD Panel */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <BookOpen className="w-5 h-5 text-[#800021]" />
             <h2 className="font-display text-lg font-bold text-[#0B0B0B]">2. Background &amp; Education</h2>
@@ -548,7 +548,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 3: Experience & Internships CRUD Panel */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <Briefcase className="w-5 h-5 text-[#800021]" />
             <h2 className="font-display text-lg font-bold text-[#0B0B0B]">3. Experience &amp; Internships</h2>
@@ -623,7 +623,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 4: Projects CRUD Panel */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <FolderGit2 className="w-5 h-5 text-[#800021]" />
             <h2 className="font-display text-lg font-bold text-[#0B0B0B]">4. Projects &amp; Initiatives</h2>
@@ -698,7 +698,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 5: Skills & Competencies CRUD Panel */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <Cpu className="w-5 h-5 text-[#800021]" />
             <h2 className="font-display text-lg font-bold text-[#0B0B0B]">5. Skills &amp; Competencies</h2>
@@ -775,7 +775,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 6: Publications Panel */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <FileText className="w-5 h-5 text-[#800021]" />
             <h2 className="font-display text-lg font-bold text-[#0B0B0B]">6. Publications &amp; Papers</h2>
@@ -848,7 +848,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 7: Achievements & Honors Panel (Item 4c: Separate solid panel) */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <Award className="w-5 h-5 text-[#800021]" />
             <div>
@@ -924,7 +924,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 8: Certifications & Licenses Panel (Item 4c: Separate solid panel) */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-5 h-5 text-[#800021]" />
             <div>
@@ -1000,7 +1000,7 @@ export function MasterProfileEditor({
 
       {/* SECTION 9: Custom Sections Panel */}
       <section className="bg-[#FFFFFF] border border-[#6B6B6B] rounded-xl p-6 sm:p-8 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#6B6B6B] pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#6B6B6B] pb-3">
           <div className="flex items-center gap-2.5">
             <LayoutGrid className="w-5 h-5 text-[#800021]" />
             <h2 className="font-display text-lg font-bold text-[#0B0B0B]">9. Custom Sections</h2>
@@ -1029,7 +1029,7 @@ export function MasterProfileEditor({
         ) : (
           <div className="space-y-4">
             {customSections.map((cs, idx) => (
-              <div key={cs.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex items-center justify-between gap-3">
+              <div key={cs.id || idx} className="p-4 rounded-xl border border-[#6B6B6B] bg-[#F1F7F7] flex flex-wrap items-center justify-between gap-3">
                 <input
                   type="text"
                   placeholder="Section Title (e.g. Leadership, Patents, Volunteer Work)"

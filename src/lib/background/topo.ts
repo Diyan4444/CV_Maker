@@ -45,19 +45,19 @@ export function getTopoColors() {
   const base = '#1A1A1A';
   return {
     base,
-    teal: mixHexOklab(base, '#0B2B26', 0.25),
-    slate: mixHexOklab(base, '#243A66', 0.2),
-    plum: mixHexOklab(base, '#881144', 0.14),
-    contourLow: '#6B6B6B',
+    teal: mixHexOklab(base, '#0B2B26', 0.45),
+    slate: mixHexOklab(base, '#243A66', 0.35),
+    plum: mixHexOklab(base, '#881144', 0.25),
+    contourLow: mixHexOklab('#6B6B6B', '#D9D9D9', 0.25),
     contourHigh: '#8EB69B',
     glow: '#8EB69B',
   };
 }
 
 const ICON_COLORS = [
-  mixHexOklab('#D9D9D9', '#6B6B6B', 0.35),
-  mixHexOklab('#6B6B6B', '#243A66', 0.35),
-  mixHexOklab('#D9D9D9', '#243A66', 0.45),
+  '#D9D9D9',
+  mixHexOklab('#D9D9D9', '#8EB69B', 0.35),
+  mixHexOklab('#D9D9D9', '#243A66', 0.25),
 ];
 
 /**
@@ -105,7 +105,7 @@ export function generateTopoIcons(targetCount: number, seed = 84729): TopoIconIn
     ny: p.ny,
     sizePx: Math.round(18 + rng() * 8), // 18..26px
     color: ICON_COLORS[idx % ICON_COLORS.length],
-    idleOpacity: Number((0.1 + rng() * 0.06).toFixed(3)), // 0.10..0.16
+    idleOpacity: Number((0.36 + rng() * 0.1).toFixed(3)), // 0.36..0.46 (>= 2.0:1 idle contrast)
     depth: Number((0.35 + rng() * 0.65).toFixed(2)),
   }));
 }

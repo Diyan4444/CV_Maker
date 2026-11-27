@@ -115,3 +115,9 @@ export const DOCUMENT_PURPOSES = [
   { id: 'research_fellowship', label: 'Research Fellowship / Grant' },
   { id: 'freelance_consulting', label: 'Freelancing & Consulting' },
 ];
+
+export function getBackgroundGroupLabel(idOrLabel?: string | null): string {
+  if (!idOrLabel) return '';
+  const match = BACKGROUND_GROUPS.find((g) => g.id === idOrLabel);
+  return match ? match.label : idOrLabel;
+}
