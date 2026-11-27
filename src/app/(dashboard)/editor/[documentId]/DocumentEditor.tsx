@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   DocumentMeta,
@@ -17,11 +18,13 @@ import {
   EntriesContent,
   SectionContent,
 } from '@/lib/documents/types';
-import { LivePdfPreview } from '@/components/editor/LivePdfPreview';
 import { scanDocumentForNonLatin } from '@/lib/validation/pdf-text';
-import { pdf } from '@react-pdf/renderer';
-import { DocumentPdfRenderer } from '@/components/pdf/DocumentPdfRenderer';
 import { sanitizePdfFilename } from '@/lib/pdf/filename';
+
+const LivePdfPreview = dynamic(
+  () => import('@/components/editor/LivePdfPreview').then((m) => m.LivePdfPreview),
+  { ssr: false }
+);
 import { resolvePdfLayout, getTemplateLayoutDefaults } from '@/lib/pdf/layout-settings';
 import { runAtsReadinessChecks } from '@/lib/ats/checker';
 import { AtsReadinessPanel } from '@/components/editor/AtsReadinessPanel';
@@ -345,6 +348,25 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
 
   // Tablet (768-1023px) collapsible preview toggle
   const [isTabletPreviewOpen, setIsTabletPreviewOpen] = useState(false);
+
+  // Lazy-mount PDF preview only when visible (desktop >= 1024px, tablet toggle, or mobile preview/ATS tab)
+  const [hasMountedPreview, setHasMountedPreview] = useState(false);
+  useEffect(() => {
+    if (
+      hasMountedPreview ||
+      typeof window === 'undefined'
+    ) {
+      return;
+    }
+    if (
+      window.innerWidth >= 1024 ||
+      isTabletPreviewOpen ||
+      mobileTab === 'preview' ||
+      mobileTab === 'ats'
+    ) {
+      queueMicrotask(() => setHasMountedPreview(true));
+    }
+  }, [hasMountedPreview, isTabletPreviewOpen, mobileTab]);
 
   // Measure toolbar height for sticky preview column
   const headerRef = useRef<HTMLElement | null>(null);
@@ -1180,7 +1202,11 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
     try {
       // Yield to event loop allowing UI to paint pending spinner and disable download button
       await new Promise((resolve) => setTimeout(resolve, 350));
-      // Generate PDF client-side from the exact same renderer
+      // Lazy-load PDF renderer only when user clicks Download PDF
+      const [{ pdf }, { DocumentPdfRenderer }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('@/components/pdf/DocumentPdfRenderer'),
+      ]);
       const docElement = <DocumentPdfRenderer meta={meta} sections={sections} />;
       const blob = await pdf(docElement).toBlob();
 
@@ -2946,17 +2972,19 @@ export function DocumentEditor({ initialDocument }: DocumentEditorProps) {
             </button>
           </div>
 
-          {/* Live Preview Container (kept mounted so preview compiles & extracts text) */}
+          {/* Live Preview Container (lazy-mounted only when preview is visible) */}
           <div
             className={`flex-1 min-h-0 ${
               (mobileTab === 'ats' || activeRightTab === 'ats') ? 'hidden' : 'block'
             }`}
           >
-            <LivePdfPreview
-              meta={meta}
-              sections={sections}
-              onTextExtracted={handlePreviewTextExtracted}
-            />
+            {hasMountedPreview && (
+              <LivePdfPreview
+                meta={meta}
+                sections={sections}
+                onTextExtracted={handlePreviewTextExtracted}
+              />
+            )}
           </div>
 
           {/* ATS Readiness Panel Container */}

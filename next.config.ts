@@ -1,10 +1,17 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 import { assertLegalConfigForProduction } from "./src/lib/legal/production-check";
 
 assertLegalConfigForProduction();
 
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
+
 const nextConfig: NextConfig = {
-  /* clean config: no experimental flags or turbopack loader overrides */
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

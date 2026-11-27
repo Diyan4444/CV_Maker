@@ -1,9 +1,10 @@
-import React from 'react';
-import { createClient } from '@/lib/supabase/server';
+import React, { Suspense } from 'react';
+import { createClient, getVerifiedUser } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/navigation/AppShell';
 import {
   DashboardDocumentList,
+  MasterProfileSummaryCard,
   DocumentItem,
   ProfileSummaryData,
 } from '@/components/dashboard/DashboardDocumentList';
@@ -22,33 +23,9 @@ import { count, eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-
-  // Fetch user master profile
-  const { data: profile } = await supabase
-    .from('master_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  // Fetch documents sorted by last edited
-  const { data: docs } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false });
-
-  const userDocs = (docs || []) as DocumentItem[];
-
-  // Fetch real counts per master profile section
+async function fetchProfileSummary(
+  profile: { id: string; background_group?: string | null; specialization?: string | null } | null
+): Promise<ProfileSummaryData> {
   let counts = {
     education: 0,
     experiences: 0,
@@ -85,7 +62,7 @@ export default async function DashboardPage() {
     };
   }
 
-  const profileSummary: ProfileSummaryData = {
+  return {
     hasProfile: Boolean(profile),
     backgroundGroup: profile?.background_group || null,
     specialization: profile?.specialization || null,
@@ -100,12 +77,58 @@ export default async function DashboardPage() {
       { key: 'customSections', label: 'Custom sections', count: counts.customSections, href: '/profile#custom-sections' },
     ],
   };
+}
+
+export default async function DashboardPage() {
+  const user = await getVerifiedUser();
+  if (!user) {
+    redirect('/login');
+  }
+
+  const supabase = await createClient();
+
+  // Fetch profile metadata and documents in parallel (1 round trip)
+  const [{ data: profile }, { data: docs }] = await Promise.all([
+    supabase
+      .from('master_profiles')
+      .select('id, background_group, specialization')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('documents')
+      .select('id, type, title, target_role, template_id, status, updated_at')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false }),
+  ]);
+
+  const userDocs = (docs || []) as DocumentItem[];
+  const profileSummaryPromise = fetchProfileSummary(profile);
 
   return (
     <AppShell userEmail={user.email || ''} currentPath="/dashboard">
       <main className="w-full">
-        <DashboardDocumentList initialDocuments={userDocs} profileSummary={profileSummary} />
+        <DashboardDocumentList
+          initialDocuments={userDocs}
+          profileSummaryNode={
+            <Suspense
+              fallback={
+                <div className="h-[280px] rounded-xl bg-[#FFFDF9] border border-[#D8D0C5] animate-pulse" />
+              }
+            >
+              <StreamedProfileSummary profileSummaryPromise={profileSummaryPromise} />
+            </Suspense>
+          }
+        />
       </main>
     </AppShell>
   );
+}
+
+async function StreamedProfileSummary({
+  profileSummaryPromise,
+}: {
+  profileSummaryPromise: Promise<ProfileSummaryData>;
+}) {
+  const profileSummary = await profileSummaryPromise;
+  return <MasterProfileSummaryCard profileSummary={profileSummary} />;
 }

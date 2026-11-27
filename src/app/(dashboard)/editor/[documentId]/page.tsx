@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, getVerifiedUser } from '@/lib/supabase/server';
 import { DocumentEditor } from './DocumentEditor';
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
 
@@ -10,36 +10,33 @@ export default async function EditorPage({
   params: Promise<{ documentId: string }>;
 }) {
   const { documentId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser();
 
   if (!user) {
     redirect(`/login?next=/editor/${documentId}`);
   }
 
-  // Fetch document
-  const { data: doc, error: docError } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('id', documentId)
-    .eq('user_id', user.id)
-    .maybeSingle();
+  const supabase = await createClient();
 
-  if (docError || !doc) {
-    notFound();
-  }
+  // Fetch document and sections in parallel
+  const [
+    { data: doc, error: docError },
+    { data: sections, error: secError },
+  ] = await Promise.all([
+    supabase
+      .from('documents')
+      .select('*')
+      .eq('id', documentId)
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('document_sections')
+      .select('*')
+      .eq('document_id', documentId)
+      .order('order_index', { ascending: true }),
+  ]);
 
-  // Fetch document sections ordered by order_index
-  const { data: sections, error: secError } = await supabase
-    .from('document_sections')
-    .select('*')
-    .eq('document_id', documentId)
-    .order('order_index', { ascending: true });
-
-  if (secError || !sections) {
+  if (docError || !doc || secError || !sections) {
     notFound();
   }
 

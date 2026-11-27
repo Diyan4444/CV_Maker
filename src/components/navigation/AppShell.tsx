@@ -110,7 +110,8 @@ export function AppShell({ children, userEmail, currentPath }: AppShellProps) {
 
           {/* Primary New Document Button */}
           <Link
-            href="/onboarding"
+            href="/dashboard?new=1"
+            prefetch={true}
             title="New document"
             className={`min-h-[44px] rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 ${
               collapsed ? 'w-full px-0' : 'w-full px-3'
@@ -133,6 +134,7 @@ export function AppShell({ children, userEmail, currentPath }: AppShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={true}
                   aria-current={active ? 'page' : undefined}
                   title={collapsed ? item.label : undefined}
                   className={`min-h-[44px] rounded-lg text-xs font-semibold flex items-center gap-3 transition-colors motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#800021] ${
@@ -203,7 +205,7 @@ export function AppShell({ children, userEmail, currentPath }: AppShellProps) {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/onboarding"
+            href="/dashboard?new=1"
             className="min-h-[44px] px-3 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-[#800021]"
             style={{
               backgroundColor: WARM_TOKENS.primary,

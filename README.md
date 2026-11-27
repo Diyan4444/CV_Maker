@@ -310,3 +310,30 @@ The following legal and compliance questions should be reviewed by legal counsel
 3. **Governing Law & Jurisdiction**: The operator must specify the governing state/country law and chosen dispute arbitration/court forum in `src/config/legal.ts` and `/privacy`.
 4. **Sub-Processor Data Processing Agreements (DPA)**: The operator must execute standard Data Processing Agreements with sub-processors: Supabase Inc. (database infrastructure in Tokyo) and Vercel Inc. (serverless edge execution).
 
+---
+
+## Cross-Browser Testing & Real Device Checks (Phase 8G)
+
+### 1. Installing Firefox & WebKit for Playwright
+Playwright runs cross-browser verification (`e2e/phase8g-browsers.spec.ts`) across Chromium, Firefox, and WebKit. Before running `npx playwright test` on a fresh machine, install the Firefox and WebKit browser binaries:
+```bash
+npx playwright install firefox webkit
+```
+
+### 2. Comparing Vercel Function Region vs Supabase Database Region
+1. Check Supabase region in **Supabase Dashboard -> Project Settings -> General -> Region** (production is `ap-northeast-1` Tokyo).
+2. Check Vercel region in **Vercel Dashboard -> Project Settings -> Functions -> Function Region** (`hnd1` Tokyo matches `ap-northeast-1`).
+3. Open Chrome DevTools **Network** tab on `/dashboard`, `/profile`, or `/editor/[id]` and inspect the `Server-Timing` response header:
+   - `db-count;dur=N`: sequential auth/DB round trips executed in the proxy/request layer.
+   - `auth;dur=X` and `db;dur=Y`: if either is consistently `> 100 ms` while `/login` is `< 30 ms`, your Vercel function region and Supabase database region are not co-located.
+
+### 3. Real Device Checks (Manual QA)
+Run the following manual checks on physical **iPhone Safari (iOS)** and **Android Chrome**:
+- **Landing (`/`)**: Verify sticky glass navbar blur/contrast, no horizontal overflow at `390px` and `320px`, and smooth native bounce (no custom wheel overscroll interference on iOS).
+- **Onboarding (`/onboarding`)**: Verify radio-card selection, keyboard/touch focus, and form submission.
+- **Dashboard (`/dashboard`)**: Tap **New document** to confirm the template chooser modal opens with crisp specimen thumbnails, type toggles, and no clipped buttons.
+- **Master Profile (`/profile`) & Settings (`/settings`)**: Verify mobile tab bar / sub-navigation wrapping, User ID eye reveal toggle, and JSON export download.
+- **Editor (`/editor/[id]`)**:
+  - Verify the **Edit** tab opens immediately without downloading the PDF worker until **Preview** or **ATS** is tapped.
+  - Tap **Preview** and verify A4 PDF rendering, zoom slider, **Fit to width**, section drag/reorder controls, and **Download PDF** save sheet on iOS Safari and Android Chrome.
+

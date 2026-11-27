@@ -7,8 +7,6 @@ import { registerNotoFonts } from '@/lib/pdf/fonts';
 import { resolvePdfLayout } from '@/lib/pdf/layout-settings';
 import { PRODUCT_NAME } from '@/config/app';
 
-registerNotoFonts();
-
 const styles = StyleSheet.create({
   page: {
     paddingTop: 36,
@@ -140,6 +138,7 @@ export function ModernProfessionalTemplate({ meta, sections }: TemplateProps) {
   const authorName = rawAuthor || undefined;
   const docSubject = (meta as any).target_role || (meta as any).targetRole || (meta.type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume');
   const layout = resolvePdfLayout('modern_professional', meta.layoutSettings ?? (meta as any).layout_settings);
+  registerNotoFonts(layout.fontFamily);
   const s = layout.fontScale;
 
   return (

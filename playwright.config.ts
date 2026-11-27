@@ -47,5 +47,19 @@ export default defineConfig({
         },
       },
     },
+    {
+      name: 'firefox',
+      testMatch: /phase8g-browsers\.spec\.ts/,
+      use: {
+        ...devices['Desktop Firefox'],
+      },
+    },
+    {
+      name: 'webkit',
+      testMatch: /phase8g-browsers\.spec\.ts/,
+      use: {
+        ...devices['Desktop Safari'],
+      },
+    },
   ],
 });

@@ -14,6 +14,7 @@ interface MetricRun {
   serverTotal: number;
   serverAuth: number;
   serverDb: number;
+  serverDbCount: number;
   domContentLoaded: number;
   load: number;
   lcp: number;
@@ -42,11 +43,17 @@ function computeSummary(values: number[]): SummaryMetric {
   };
 }
 
-function parseServerTiming(headerVal: string | null): { total: number; auth: number; db: number } {
-  if (!headerVal) return { total: 0, auth: 0, db: 0 };
+function parseServerTiming(headerVal: string | null): {
+  total: number;
+  auth: number;
+  db: number;
+  dbCount: number;
+} {
+  if (!headerVal) return { total: 0, auth: 0, db: 0, dbCount: 0 };
   let total = 0;
   let auth = 0;
   let db = 0;
+  let dbCount = 0;
 
   const parts = headerVal.split(',');
   for (const p of parts) {
@@ -55,9 +62,10 @@ function parseServerTiming(headerVal: string | null): { total: number; auth: num
     const dur = durMatch ? parseFloat(durMatch[1]) : 0;
     if (trimmed.startsWith('total')) total = dur;
     else if (trimmed.startsWith('auth')) auth = dur;
+    else if (trimmed.startsWith('db-count')) dbCount = dur;
     else if (trimmed.startsWith('db')) db = dur;
   }
-  return { total, auth, db };
+  return { total, auth, db, dbCount };
 }
 
 async function main() {
@@ -243,6 +251,8 @@ async function main() {
       { path: '/login', isAuth: false },
       { path: '/dashboard', isAuth: true },
       { path: '/profile', isAuth: true },
+      { path: '/settings', isAuth: true },
+      { path: '/onboarding', isAuth: true },
       { path: `/editor/${docId}`, isAuth: true },
     ];
 
@@ -357,6 +367,12 @@ async function main() {
           let editToPreview: number | undefined;
 
           if (r.path.startsWith('/editor/')) {
+            if (prof.width < 1024) {
+              const mobilePreviewBtn = page.locator('button[aria-label="Live A4 Preview Tab"]');
+              if (await mobilePreviewBtn.isVisible()) {
+                await mobilePreviewBtn.click();
+              }
+            }
             // Measure time to first rendered preview
             await page.waitForSelector('#pdf-preview-canvas-container canvas', {
               state: 'attached',
@@ -387,6 +403,7 @@ async function main() {
             serverTotal: timingParsed.total,
             serverAuth: timingParsed.auth,
             serverDb: timingParsed.db,
+            serverDbCount: timingParsed.dbCount,
             domContentLoaded: navMetrics.domContentLoaded,
             load: navMetrics.load,
             lcp: navMetrics.lcp,
@@ -407,6 +424,7 @@ async function main() {
         const sServerTotal = computeSummary(runs.map((x) => x.serverTotal));
         const sServerAuth = computeSummary(runs.map((x) => x.serverAuth));
         const sServerDb = computeSummary(runs.map((x) => x.serverDb));
+        const sServerDbCount = computeSummary(runs.map((x) => x.serverDbCount));
         const sDcl = computeSummary(runs.map((x) => x.domContentLoaded));
         const sLoad = computeSummary(runs.map((x) => x.load));
         const sLcp = computeSummary(runs.map((x) => x.lcp));
@@ -421,6 +439,7 @@ async function main() {
         console.log(`| Server-Timing (total) | ${sServerTotal.median} ms | ${sServerTotal.worst} ms |`);
         console.log(`| Server-Timing (auth) | ${sServerAuth.median} ms | ${sServerAuth.worst} ms |`);
         console.log(`| Server-Timing (db) | ${sServerDb.median} ms | ${sServerDb.worst} ms |`);
+        console.log(`| Server-Timing (db-count) | ${sServerDbCount.median} | ${sServerDbCount.worst} |`);
         console.log(`| DOMContentLoaded | ${sDcl.median} ms | ${sDcl.worst} ms |`);
         console.log(`| Load Event | ${sLoad.median} ms | ${sLoad.worst} ms |`);
         console.log(`| LCP / FCP | ${sLcp.median} ms | ${sLcp.worst} ms |`);

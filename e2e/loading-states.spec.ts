@@ -6,9 +6,12 @@ import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-gu
 test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invariants', () => {
   let adminClient: any;
   let testUserId: string;
+  let unonboardedUserId: string;
   let createdDocId: string = '';
   let capturedCookies: Record<string, string> = {};
+  let unonboardedCookies: Record<string, string> = {};
   const testEmail = `loading-spec-${Date.now()}@quillfolio.local`;
+  const unonboardedEmail = `loading-spec-unonb-${Date.now()}@quillfolio.local`;
   const testPassword = 'Password123!Secure';
 
   test.beforeAll(async () => {
@@ -56,6 +59,35 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       password: testPassword,
     });
     if (signInErr) throw signInErr;
+
+    // 2b. Create un-onboarded user so /dashboard renders <Link href="/onboarding"> ("Set up profile")
+    const { data: unonbRecord, error: unonbErr } = await adminClient.auth.admin.createUser({
+      email: unonboardedEmail,
+      password: testPassword,
+      email_confirm: true,
+      user_metadata: { full_name: 'Loading Spec Unonboarded' },
+    });
+    if (unonbErr) throw unonbErr;
+    unonboardedUserId = unonbRecord.user.id;
+
+    unonboardedCookies = {};
+    const unonbSsrClient = createServerClient(supabaseUrl, anonKey, {
+      cookies: {
+        getAll() {
+          return Object.entries(unonboardedCookies).map(([name, value]) => ({ name, value }));
+        },
+        setAll(toSet) {
+          toSet.forEach((c) => {
+            unonboardedCookies[c.name] = c.value;
+          });
+        },
+      },
+    });
+    const { error: unonbSignInErr } = await unonbSsrClient.auth.signInWithPassword({
+      email: unonboardedEmail,
+      password: testPassword,
+    });
+    if (unonbSignInErr) throw unonbSignInErr;
 
     // 3. Create master_profile
     const { error: profErr } = await adminClient.from('master_profiles').insert({
@@ -121,10 +153,15 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
         await adminClient.auth.admin.deleteUser(testUserId);
       } catch {}
     }
+    if (unonboardedUserId && adminClient) {
+      try {
+        await adminClient.auth.admin.deleteUser(unonboardedUserId);
+      } catch {}
+    }
   });
 
-  const applyCookies = async (context: any) => {
-    const cookiesToSet = Object.entries(capturedCookies).map(([name, value]) => ({
+  const applyCookies = async (context: any, cookies = capturedCookies) => {
+    const cookiesToSet = Object.entries(cookies).map(([name, value]) => ({
       name,
       value,
       domain: 'localhost',
@@ -225,15 +262,24 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await applyCookies(context);
       await page.setViewportSize({ width, height: 900 });
 
+      // Prevent prefetch from caching /dashboard before click, then delay real RSC navigation by 1200ms
+      let delayDashboard = false;
+      await page.route('**/dashboard**', async (route) => {
+        if (!delayDashboard && route.request().headers()['next-router-prefetch']) {
+          await route.abort();
+          return;
+        }
+        if (delayDashboard) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+        await route.continue();
+      });
+
       // Start at /profile
       await page.goto('/profile');
       await page.waitForSelector('main', { timeout: 15000 });
 
-      // Delay dashboard RSC navigation payload by 1200ms
-      await page.route('**/dashboard**', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        await route.continue();
-      });
+      delayDashboard = true;
 
       await clickNavLink(page, '/dashboard');
 
@@ -271,15 +317,24 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await applyCookies(context);
       await page.setViewportSize({ width, height: 900 });
 
+      // Prevent prefetch from caching /profile before click, then delay real RSC navigation by 1200ms
+      let delayProfile = false;
+      await page.route('**/profile**', async (route) => {
+        if (!delayProfile && route.request().headers()['next-router-prefetch']) {
+          await route.abort();
+          return;
+        }
+        if (delayProfile) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+        await route.continue();
+      });
+
       // Start at /dashboard
       await page.goto('/dashboard');
       await page.waitForSelector('main', { timeout: 15000 });
 
-      // Delay profile RSC navigation payload by 1200ms
-      await page.route('**/profile**', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        await route.continue();
-      });
+      delayProfile = true;
 
       await clickNavLink(page, '/profile');
 
@@ -313,7 +368,7 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       page,
       context,
     }) => {
-      await applyCookies(context);
+      await applyCookies(context, unonboardedCookies);
       await page.setViewportSize({ width, height: 900 });
 
       // Prevent prefetch from caching /onboarding before click, then delay real RSC navigation by 800ms
@@ -329,15 +384,13 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
         await route.continue();
       });
 
-      // Start at /dashboard
+      // Start at /dashboard (un-onboarded user sees <Link href="/onboarding">Set up profile</Link>)
       await page.goto('/dashboard');
       await page.waitForSelector('main', { timeout: 15000 });
 
       delayOnboarding = true;
 
-      const onboardingLink = page.locator(
-        width < 768 ? 'header a[href="/onboarding"]' : 'aside a[href="/onboarding"]'
-      ).first();
+      const onboardingLink = page.locator('a[href="/onboarding"]').first();
       await expect(onboardingLink).toBeVisible();
       await onboardingLink.click();
 
@@ -371,15 +424,24 @@ test.describe.serial('Quillfolio Loading States, Skeletons & Action Button Invar
       await applyCookies(context);
       await page.setViewportSize({ width, height: 900 });
 
+      // Prevent prefetch from caching /editor before click, then delay real RSC navigation by 800ms
+      let delayEditor = false;
+      await page.route('**/editor/**', async (route) => {
+        if (!delayEditor && route.request().headers()['next-router-prefetch']) {
+          await route.abort();
+          return;
+        }
+        if (delayEditor) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+        }
+        await route.continue();
+      });
+
       // Start at /dashboard
       await page.goto('/dashboard');
       await page.waitForSelector('main', { timeout: 15000 });
 
-      // Delay editor navigation payload by 800ms
-      await page.route('**/editor/**', async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        await route.continue();
-      });
+      delayEditor = true;
 
       const editorLink = page.locator(`a[href*="/editor/${createdDocId}"]`).first();
       await expect(editorLink).toBeVisible();

@@ -133,7 +133,7 @@ test.describe.serial('Mobile Navigation Accessibility & Disclosure Audit', () =>
         }
 
         // Compact top bar has New action and Sign out button
-        await expect(page.locator('header a[href="/onboarding"]')).toBeVisible();
+        await expect(page.locator('header a[href="/dashboard?new=1"]')).toBeVisible();
         await expect(page.locator('header button[aria-label="Sign out"]')).toBeVisible();
 
         await context.close();

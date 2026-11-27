@@ -1,5 +1,5 @@
 import React from 'react';
-import { requireAuthUser } from '@/lib/supabase/server';
+import { getVerifiedUser } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/navigation/AppShell';
 import { SettingsClient } from './SettingsClient';
@@ -13,22 +13,9 @@ export const metadata = {
 };
 
 export default async function SettingsPage() {
-  let user;
-  try {
-    user = await requireAuthUser();
-  } catch {
+  const user = await getVerifiedUser();
+  if (!user) {
     redirect('/login?next=/settings');
-  }
-
-  const providers = Array.from(
-    new Set(
-      (user.identities || [])
-        .map((identity) => identity.provider)
-        .filter((p): p is string => Boolean(p))
-    )
-  );
-  if (providers.length === 0) {
-    providers.push('email');
   }
 
   return (
@@ -39,7 +26,7 @@ export default async function SettingsPage() {
             email: user.email || '',
             emailVerified: Boolean(user.email_confirmed_at),
             createdAt: user.created_at,
-            providers,
+            providers: user.providers,
           }}
         />
       </main>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
@@ -53,27 +54,37 @@ export interface ProfileSummaryData {
 
 interface DashboardDocumentListProps {
   initialDocuments: DocumentItem[];
-  profileSummary: ProfileSummaryData;
+  profileSummary?: ProfileSummaryData;
+  profileSummaryNode?: React.ReactNode;
 }
 
-const TEMPLATE_OPTIONS: { id: TemplateId; name: string; description: string; type: DocumentType }[] = [
+const TEMPLATE_OPTIONS: {
+  id: TemplateId;
+  name: string;
+  description: string;
+  type: DocumentType;
+  image: string;
+}[] = [
   {
     id: 'ats_single_column',
     name: 'ATS Single Column',
-    description: 'Classic linear layout designed for parsing precision across high-volume applicant tracking systems.',
+    description: 'Linear single-column layout for applicant tracking systems.',
     type: 'resume',
+    image: '/landing/ats_single_column.png',
   },
   {
     id: 'modern_professional',
     name: 'Modern Professional',
-    description: 'Clean structured design featuring clear visual hierarchy, subtle accent lines, and balanced typography.',
+    description: 'Structured hierarchy with subtle accent bars and balanced spacing.',
     type: 'resume',
+    image: '/landing/modern_professional.png',
   },
   {
     id: 'academic_cv',
     name: 'Academic CV',
-    description: 'Scholarly multi-page dossier formatted for publications, research experience, teaching, and grants.',
+    description: 'Serif typography tailored for publications, research, and grants.',
     type: 'cv',
+    image: '/landing/academic_cv.png',
   },
 ];
 
@@ -100,6 +111,7 @@ function formatRelativeTime(isoDate: string): string {
 export function DashboardDocumentList({
   initialDocuments,
   profileSummary,
+  profileSummaryNode,
 }: DashboardDocumentListProps) {
   const router = useRouter();
   const toast = useToast();
@@ -118,6 +130,20 @@ export function DashboardDocumentList({
   const [newTitle, setNewTitle] = useState('');
   const [newTargetRole, setNewTargetRole] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('new') === '1') {
+        queueMicrotask(() => {
+          setNewType('resume');
+          setNewTemplate('ats_single_column');
+          setNewTitle('Professional Resume');
+          setIsCreateOpen(true);
+        });
+      }
+    }
+  }, []);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -637,67 +663,7 @@ export function DashboardDocumentList({
       </FloatCard>
 
       {/* Master Profile Summary (Kept as bordered card per Phase 8B spec) */}
-      <FloatCard
-        as="section"
-        floatIndex={2}
-        aria-labelledby="master-profile-summary-heading"
-        className="rounded-xl border p-5 sm:p-6 shadow-sm space-y-4"
-        style={{
-          backgroundColor: WARM_TOKENS.surface,
-          borderColor: WARM_TOKENS.borderDefault,
-        }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h2
-              id="master-profile-summary-heading"
-              className="font-display text-lg font-bold"
-              style={{ color: WARM_TOKENS.ink }}
-            >
-              Your master profile
-            </h2>
-            <p className="text-xs mt-0.5 max-w-[70ch]" style={{ color: WARM_TOKENS.muted }}>
-              {profileSummary.hasProfile
-                ? `${profileSummary.backgroundGroup || 'Background configured'}${profileSummary.specialization ? ` · ${profileSummary.specialization}` : ''}`
-                : 'Complete onboarding to set up your reusable master profile.'}
-            </p>
-          </div>
-          <Link
-            href={profileSummary.hasProfile ? '/profile' : '/onboarding'}
-            className="min-h-[44px] inline-flex items-center gap-1.5 text-xs font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded px-1"
-            style={{ color: WARM_TOKENS.accentStrong }}
-          >
-            <span>{profileSummary.hasProfile ? 'Edit master profile' : 'Set up profile'}</span>
-            <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {profileSummary.sections.map((sec) => (
-            <div
-              key={sec.key}
-              className="rounded-lg p-3 flex items-center justify-between gap-2"
-              style={{ backgroundColor: WARM_TOKENS.surface2 }}
-            >
-              <div className="min-w-0">
-                <div className="text-xs font-semibold truncate" style={{ color: WARM_TOKENS.ink }}>
-                  {sec.label}
-                </div>
-                <div className="text-xs font-bold mt-0.5" style={{ color: WARM_TOKENS.muted }}>
-                  {sec.count}
-                </div>
-              </div>
-              <Link
-                href={profileSummary.hasProfile ? sec.href : '/onboarding'}
-                className="min-h-[44px] px-2 inline-flex items-center text-xs font-semibold hover:underline shrink-0 focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
-                style={{ color: WARM_TOKENS.accentStrong }}
-              >
-                {sec.count === 0 ? 'Add' : 'View'}
-              </Link>
-            </div>
-          ))}
-        </div>
-      </FloatCard>
+      {profileSummaryNode ?? (profileSummary ? <MasterProfileSummaryCard profileSummary={profileSummary} /> : null)}
 
       {/* CREATE DOCUMENT MODAL */}
       {isCreateOpen && (
@@ -783,30 +749,42 @@ export function DashboardDocumentList({
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: WARM_TOKENS.ink }}>
                   Template Style
                 </label>
-                <div className="space-y-2">
-                  {TEMPLATE_OPTIONS.filter((opt) => opt.type === newType || newType === 'resume').map((opt) => (
-                    <label
-                      key={opt.id}
-                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer text-xs transition-colors ${
-                        newTemplate === opt.id
-                          ? 'border-[#800021] bg-[#FFE4D8]'
-                          : 'border-[#6B6B6B] bg-[#FFFDF9]'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="template"
-                        value={opt.id}
-                        checked={newTemplate === opt.id}
-                        onChange={() => setNewTemplate(opt.id)}
-                        className="mt-0.5 text-[#800021] focus:ring-[#800021]"
-                      />
-                      <div>
-                        <div className="font-semibold text-[#24221F]">{opt.name}</div>
-                        <div className="text-[11px] text-[#706A63] leading-snug">{opt.description}</div>
-                      </div>
-                    </label>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {TEMPLATE_OPTIONS.filter((opt) => opt.type === newType || newType === 'resume').map((opt) => {
+                    const selected = newTemplate === opt.id;
+                    return (
+                      <label
+                        key={opt.id}
+                        className={`flex flex-col gap-2 p-2.5 rounded-lg border cursor-pointer text-xs transition-colors ${
+                          selected
+                            ? 'border-[#800021] bg-[#FFE4D8] ring-1 ring-[#800021]'
+                            : 'border-[#D8D0C5] bg-[#FFFDF9] hover:bg-[#EFE8DE]/50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="template"
+                          value={opt.id}
+                          checked={selected}
+                          onChange={() => setNewTemplate(opt.id)}
+                          className="sr-only"
+                        />
+                        <div className="relative w-full aspect-[3/4] rounded border border-[#D8D0C5] bg-[#FFFFFF] overflow-hidden">
+                          <Image
+                            src={opt.image}
+                            alt={`${opt.name} specimen preview`}
+                            fill
+                            sizes="160px"
+                            className="object-cover object-top"
+                          />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-[#24221F]">{opt.name}</div>
+                          <div className="text-[11px] text-[#706A63] leading-snug mt-0.5">{opt.description}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -927,5 +905,75 @@ export function DashboardDocumentList({
         </div>
       )}
     </div>
+  );
+}
+
+export function MasterProfileSummaryCard({
+  profileSummary,
+}: {
+  profileSummary: ProfileSummaryData;
+}) {
+  return (
+    <FloatCard
+      as="section"
+      floatIndex={2}
+      aria-labelledby="master-profile-summary-heading"
+      className="rounded-xl border p-5 sm:p-6 shadow-sm space-y-4"
+      style={{
+        backgroundColor: WARM_TOKENS.surface,
+        borderColor: WARM_TOKENS.borderDefault,
+      }}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2
+            id="master-profile-summary-heading"
+            className="font-display text-lg font-bold"
+            style={{ color: WARM_TOKENS.ink }}
+          >
+            Your master profile
+          </h2>
+          <p className="text-xs mt-0.5 max-w-[70ch]" style={{ color: WARM_TOKENS.muted }}>
+            {profileSummary.hasProfile
+              ? `${profileSummary.backgroundGroup || 'Background configured'}${profileSummary.specialization ? ` · ${profileSummary.specialization}` : ''}`
+              : 'Complete onboarding to set up your reusable master profile.'}
+          </p>
+        </div>
+        <Link
+          href={profileSummary.hasProfile ? '/profile' : '/onboarding'}
+          className="min-h-[44px] inline-flex items-center gap-1.5 text-xs font-semibold hover:underline focus:outline-none focus:ring-2 focus:ring-[#800021] rounded px-1"
+          style={{ color: WARM_TOKENS.accentStrong }}
+        >
+          <span>{profileSummary.hasProfile ? 'Edit master profile' : 'Set up profile'}</span>
+          <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {profileSummary.sections.map((sec) => (
+          <div
+            key={sec.key}
+            className="rounded-lg p-3 flex items-center justify-between gap-2"
+            style={{ backgroundColor: WARM_TOKENS.surface2 }}
+          >
+            <div className="min-w-0">
+              <div className="text-xs font-semibold truncate" style={{ color: WARM_TOKENS.ink }}>
+                {sec.label}
+              </div>
+              <div className="text-xs font-bold mt-0.5" style={{ color: WARM_TOKENS.muted }}>
+                {sec.count}
+              </div>
+            </div>
+            <Link
+              href={profileSummary.hasProfile ? sec.href : '/onboarding'}
+              className="min-h-[44px] px-2 inline-flex items-center text-xs font-semibold hover:underline shrink-0 focus:outline-none focus:ring-2 focus:ring-[#800021] rounded"
+              style={{ color: WARM_TOKENS.accentStrong }}
+            >
+              {sec.count === 0 ? 'Add' : 'View'}
+            </Link>
+          </div>
+        ))}
+      </div>
+    </FloatCard>
   );
 }
