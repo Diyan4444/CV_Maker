@@ -31,7 +31,7 @@ test.describe('Phase 6B: Editorial Landing Page Verification & Screenshots', () 
     // Assert one single h1 element exists
     const h1s = await page.locator('h1').all();
     expect(h1s.length).toBe(1);
-    await expect(page.locator('h1')).toHaveText(/Build one profile, produce a resume or academic CV/i);
+    await expect(page.locator('h1')).toHaveText(/A resume builder for people who do the real work/i);
   });
 
   test('Skip-to-content link functions and focuses #main-content', async ({ page }) => {
@@ -172,13 +172,11 @@ test.describe('Phase 6B: Editorial Landing Page Verification & Screenshots', () 
 
     const sections = [
       { id: 'hero', name: 'hero' },
-      { id: 'templates', name: 'templates' },
       { id: 'how-it-works', name: 'how_it_works' },
+      { id: 'templates', name: 'templates' },
       { id: 'backgrounds', name: 'backgrounds' },
-      { id: 'readiness-checks', name: 'readiness_checks' },
-      { id: 'your-data', name: 'your_data' },
-      { id: 'coming-next', name: 'coming_next' },
       { id: 'faq', name: 'faq' },
+      { id: 'coming-next', name: 'coming_next' },
     ];
 
     for (const vp of viewports) {

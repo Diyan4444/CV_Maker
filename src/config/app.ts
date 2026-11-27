@@ -4,3 +4,5 @@ export const FLOAT = {
   enabled: true,
   amplitudePx: 3,
 } as const;
+
+export const OVERSCROLL_EFFECT = true;

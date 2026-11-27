@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { safeNextPath } from '@/lib/navigation/safe-redirect';
 import { useToast } from '@/components/ui/ToastProvider';
 import { FloatCard } from '@/components/ui/FloatCard';
+import { Emph } from '@/components/ui/Emph';
 import { EXPORT_DATA_CATEGORIES } from '@/lib/account/export-schema';
 import {
   applyMotionPreference,
@@ -244,7 +245,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
           className="font-display text-2xl sm:text-3xl font-bold tracking-tight"
           style={{ color: ON_DARK_TOKENS.onDarkInk }}
         >
-          Account &amp; Settings
+          <Emph headingKey="settings" onDark />
         </h1>
         <p
           className="text-xs sm:text-sm mt-1 leading-relaxed max-w-[70ch]"

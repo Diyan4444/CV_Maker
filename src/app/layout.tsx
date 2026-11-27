@@ -6,6 +6,7 @@ import { TopoBackground } from '@/components/canvas/TopoBackground';
 import { NavigationProgressBar } from '@/components/navigation/NavigationProgressBar';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { MotionInitializer } from '@/components/ui/MotionInitializer';
+import { OverscrollController } from '@/components/ui/OverscrollController';
 import { WARM_CSS_VARIABLES } from '@/styles/tokens';
 import './globals.css';
 
@@ -33,9 +34,9 @@ export default function RootLayout({
         </Suspense>
         {/* Persistent Topographic Canvas & Icon Layer */}
         <TopoBackground />
-        <div className="relative z-10 min-h-screen">
+        <OverscrollController>
           <ToastProvider>{children}</ToastProvider>
-        </div>
+        </OverscrollController>
       </body>
     </html>
   );

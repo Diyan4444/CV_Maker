@@ -23,6 +23,7 @@ import { DocumentStatus, DocumentType, TemplateId } from '@/lib/documents/types'
 import { WARM_TOKENS } from '@/styles/tokens';
 import { useToast } from '@/components/ui/ToastProvider';
 import { FloatCard } from '@/components/ui/FloatCard';
+import { Emph } from '@/components/ui/Emph';
 
 export interface DocumentItem {
   id: string;
@@ -324,7 +325,7 @@ export function DashboardDocumentList({
               className="font-display text-2xl sm:text-3xl font-bold tracking-tight"
               style={{ color: WARM_TOKENS.ink }}
             >
-              Documents
+              <Emph headingKey="dashboard" />
             </h1>
             <span
               className="text-xs font-semibold px-2.5 py-0.5 rounded-full"

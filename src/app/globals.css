@@ -41,6 +41,40 @@ input::placeholder, textarea::placeholder {
   opacity: 1 !important;
 }
 
+/* Glass surface (navbar & large landing panels) with solid fallback & static mode */
+.landing-glass {
+  background-color: rgba(255, 253, 249, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@supports not ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  .landing-glass {
+    background-color: #FFFDF9;
+  }
+}
+
+html[data-motion="off"] .landing-glass {
+  background-color: #FFFDF9;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Hover-capable lift for editorial cards (inner element inside FloatCard) */
+.card-lift-inner {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease;
+}
+
+@media (hover: hover) {
+  .card-lift-inner:hover {
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+.card-lift-inner:focus-within {
+  transform: translate3d(0, -3px, 0);
+}
+
 /* Accessible focus ring style */
 :focus-visible {
   outline: 2px solid var(--accent);

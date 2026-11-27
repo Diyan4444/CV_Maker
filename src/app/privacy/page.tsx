@@ -11,6 +11,7 @@ import { PRODUCT_NAME } from '@/config/app';
 import { PublicHeader } from '@/components/public/PublicHeader';
 import { PublicFooter } from '@/components/public/PublicFooter';
 import { FloatCard } from '@/components/ui/FloatCard';
+import { Emph } from '@/components/ui/Emph';
 import {
   Shield,
   Server,
@@ -48,7 +49,7 @@ export default function PrivacyPage() {
             </span>
           </div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0B0B0B] tracking-tight">
-            Privacy &amp; Data Rights Policy
+            <Emph headingKey="privacy" />
           </h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#333333] pt-1">
             <span><strong>Version:</strong> {PRIVACY_VERSION}</span>
