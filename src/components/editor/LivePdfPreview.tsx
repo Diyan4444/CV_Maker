@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { pdf } from '@react-pdf/renderer';
 import { DocumentMeta, DocumentSection } from '@/lib/documents/types';
-import { DocumentPdfRenderer } from '@/components/pdf/DocumentPdfRenderer';
+import { compilePdfBytes, warmPdfWorker } from '@/lib/pdf/compilePdfClient';
 import { ZoomIn, ZoomOut, AlertCircle, RefreshCw } from 'lucide-react';
 import { QuillfolioWordmark, SkeletonBlock } from '@/components/ui/LoadingSystem';
 
@@ -12,6 +11,16 @@ interface LivePdfPreviewProps {
   sections: DocumentSection[];
   onPageCountChange?: (count: number) => void;
   onTextExtracted?: (text: string, pageCount: number) => void;
+}
+
+function hashDocumentPayload(meta: DocumentMeta, sections: DocumentSection[]): string {
+  const str = JSON.stringify({ meta, sections });
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${(hash >>> 0).toString(16)}-${str.length}`;
 }
 
 export function LivePdfPreview({
@@ -26,10 +35,13 @@ export function LivePdfPreview({
   const [hasRenderedOnce, setHasRenderedOnce] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const hasRenderedOnceRef = useRef<boolean>(false);
   const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const renderVersionRef = useRef<number>(0);
   const prevPdfDocRef = useRef<any>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const pdfCacheRef = useRef<Map<string, Uint8Array>>(new Map());
   const onPageCountChangeRef = useRef(onPageCountChange);
   const onTextExtractedRef = useRef(onTextExtracted);
 
@@ -37,6 +49,27 @@ export function LivePdfPreview({
     onPageCountChangeRef.current = onPageCountChange;
     onTextExtractedRef.current = onTextExtracted;
   });
+
+  // Warm the PDF compilation worker, pdfjs-dist chunk, and pdf.worker.min.mjs immediately on mount
+  useEffect(() => {
+    warmPdfWorker();
+    if (typeof document !== 'undefined' && !document.querySelector('link[data-pdf-worker-preload]')) {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'fetch';
+      link.href = '/pdf.worker.min.mjs';
+      link.crossOrigin = 'anonymous';
+      link.setAttribute('data-pdf-worker-preload', 'true');
+      document.head.appendChild(link);
+    }
+    import('pdfjs-dist')
+      .then((pdfjs) => {
+        if (typeof window !== 'undefined') {
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Debounced compilation and render
   useEffect(() => {
@@ -51,30 +84,52 @@ export function LivePdfPreview({
       }
 
       try {
-        // 1. Compile with @react-pdf/renderer
-        const docElement = <DocumentPdfRenderer meta={meta} sections={sections} />;
-        const blob = await pdf(docElement).toBlob();
+        const contentHash = hashDocumentPayload(meta, sections);
+        const cachedBytes = pdfCacheRef.current.get(contentHash);
+
+        // Start PDF compilation (in Web Worker) AND pdfjs-dist loading in parallel
+        const pdfBytesPromise = cachedBytes
+          ? Promise.resolve({ bytes: cachedBytes, mode: 'cache' as const })
+          : compilePdfBytes(meta, sections);
+
+        const pdfjsPromise = import('pdfjs-dist').then((pdfjs) => {
+          if (typeof window !== 'undefined') {
+            pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+          }
+          return pdfjs;
+        });
+
+        const [compiled, pdfjs] = await Promise.all([pdfBytesPromise, pdfjsPromise]);
         if (isCancelled || renderVersionRef.current !== currentVersion) return;
 
-        // 2. Parse PDF with pdfjs-dist
-        const pdfjs = await import('pdfjs-dist');
-        if (typeof window !== 'undefined') {
-          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        if (!cachedBytes) {
+          if (pdfCacheRef.current.size >= 5) {
+            const oldestKey = pdfCacheRef.current.keys().next().value;
+            if (oldestKey) pdfCacheRef.current.delete(oldestKey);
+          }
+          pdfCacheRef.current.set(contentHash, compiled.bytes);
         }
 
-        const arrayBuffer = await blob.arrayBuffer();
-        const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
+        // Pass a copy because pdfjs transfers the underlying ArrayBuffer to its worker
+        const loadingTask = pdfjs.getDocument({ data: compiled.bytes.slice() });
         const pdfDoc = await loadingTask.promise;
 
-        if (isCancelled || renderVersionRef.current !== currentVersion) return;
+        if (isCancelled || renderVersionRef.current !== currentVersion) {
+          try {
+            (pdfDoc as any).destroy();
+          } catch {}
+          return;
+        }
 
         setNumPages(pdfDoc.numPages);
         onPageCountChangeRef.current?.(pdfDoc.numPages);
 
         // Extract full text for ATS readiness checks
         let extractedFullText = '';
+        const pages: any[] = [];
         for (let pIdx = 1; pIdx <= pdfDoc.numPages; pIdx++) {
           const pageObj = await pdfDoc.getPage(pIdx);
+          pages.push(pageObj);
           const textContent = await pageObj.getTextContent();
           const pageStrings = textContent.items
             .filter((item: any) => 'str' in item)
@@ -83,35 +138,34 @@ export function LivePdfPreview({
         }
         onTextExtractedRef.current?.(extractedFullText.trim(), pdfDoc.numPages);
 
+        if (isCancelled || renderVersionRef.current !== currentVersion) {
+          try {
+            (pdfDoc as any).destroy();
+          } catch {}
+          return;
+        }
+
         const container = canvasContainerRef.current;
         if (!container) return;
 
-        // Destroy previous PDF.js document to release worker memory and font caches
-        if (prevPdfDocRef.current) {
-          try {
-            prevPdfDocRef.current.destroy();
-          } catch {}
-        }
-        prevPdfDocRef.current = pdfDoc;
+        // Cap devicePixelRatio at 2 while keeping at least 1.5x crispness
+        const rawDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+        const effectiveDpr = Math.min(Math.max(rawDpr, 1.5), 2);
+        const renderScale = scale * effectiveDpr;
 
-        // Save current scroll position before drawing
-        const currentScrollTop = scrollContainerRef.current?.scrollTop || 0;
+        // Build new page cards off-DOM so previous page images stay visible while regenerating
+        const newCards: HTMLDivElement[] = [];
+        const lazyQueue: Array<{ pageObj: any; canvas: HTMLCanvasElement; viewport: any }> = [];
 
-        // Clear previous canvases and release canvas backing stores
-        const oldCanvases = container.querySelectorAll('canvas');
-        oldCanvases.forEach((c) => {
-          c.width = 0;
-          c.height = 0;
-        });
-        container.innerHTML = '';
-        for (let i = 1; i <= pdfDoc.numPages; i++) {
-          const page = await pdfDoc.getPage(i);
-          const viewport = page.getViewport({ scale: scale * 1.5 }); // 1.5x sharp retina preview
+        for (let i = 0; i < pages.length; i++) {
+          const pageObj = pages[i];
+          const viewport = pageObj.getViewport({ scale: renderScale });
 
           const pageCard = document.createElement('div');
           pageCard.className =
             'mb-6 bg-white border border-[#6B6B6B] rounded shadow-md overflow-hidden transition-shadow';
           pageCard.style.width = '100%';
+          pageCard.setAttribute('data-page-number', String(i + 1));
 
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
@@ -120,31 +174,111 @@ export function LivePdfPreview({
           canvas.style.height = 'auto';
           canvas.style.display = 'block';
 
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            await (page.render as any)({ canvasContext: ctx, viewport, canvas }).promise;
-          }
-
           pageCard.appendChild(canvas);
-          container.appendChild(pageCard);
+          newCards.push(pageCard);
+
+          if (i === 0) {
+            // Always render page 1 before swapping so the visible image never blanks
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              await (pageObj.render as any)({ canvasContext: ctx, viewport, canvas }).promise;
+            }
+          } else {
+            lazyQueue.push({ pageObj, canvas, viewport });
+          }
         }
 
-        // Restore scroll position cleanly
+        if (isCancelled || renderVersionRef.current !== currentVersion) {
+          try {
+            (pdfDoc as any).destroy();
+          } catch {}
+          return;
+        }
+
+        // Save scroll position, release old canvases/doc, and swap in new cards atomically
+        const currentScrollTop = scrollContainerRef.current?.scrollTop || 0;
+        if (observerRef.current) {
+          observerRef.current.disconnect();
+          observerRef.current = null;
+        }
+        const oldCanvases = container.querySelectorAll('canvas');
+        oldCanvases.forEach((c) => {
+          c.width = 0;
+          c.height = 0;
+        });
+        container.replaceChildren(...newCards);
+
+        if (prevPdfDocRef.current && prevPdfDocRef.current !== pdfDoc) {
+          try {
+            prevPdfDocRef.current.destroy();
+          } catch {}
+        }
+        prevPdfDocRef.current = pdfDoc;
+
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = currentScrollTop;
         }
 
+        // Render remaining pages lazily when visible (with immediate fallback if IntersectionObserver unavailable)
+        if (lazyQueue.length > 0) {
+          const renderedPages = new Set<HTMLCanvasElement>();
+          const renderLazyItem = async (item: { pageObj: any; canvas: HTMLCanvasElement; viewport: any }) => {
+            if (renderedPages.has(item.canvas) || isCancelled || renderVersionRef.current !== currentVersion) return;
+            renderedPages.add(item.canvas);
+            const ctx = item.canvas.getContext('2d');
+            if (ctx) {
+              try {
+                await (item.pageObj.render as any)({
+                  canvasContext: ctx,
+                  viewport: item.viewport,
+                  canvas: item.canvas,
+                }).promise;
+              } catch {}
+            }
+          };
+
+          if (typeof IntersectionObserver !== 'undefined' && scrollContainerRef.current) {
+            const obs = new IntersectionObserver(
+              (entries) => {
+                for (const entry of entries) {
+                  if (entry.isIntersecting) {
+                    const idx = Number((entry.target as HTMLElement).getAttribute('data-page-number')) - 2;
+                    const item = lazyQueue[idx];
+                    if (item) {
+                      void renderLazyItem(item);
+                      obs.unobserve(entry.target);
+                    }
+                  }
+                }
+              },
+              { root: scrollContainerRef.current, rootMargin: '200px 0px' }
+            );
+            observerRef.current = obs;
+            for (const item of lazyQueue) {
+              if (item.canvas.parentElement) {
+                obs.observe(item.canvas.parentElement);
+              }
+            }
+          } else {
+            for (const item of lazyQueue) {
+              await renderLazyItem(item);
+            }
+          }
+        }
+
+        container.setAttribute('data-compile-mode', compiled.mode);
         container.setAttribute('data-rendered-version', String(currentVersion));
         container.setAttribute('data-rendered-at', String(performance.now()));
         container.setAttribute('data-compiling', 'false');
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('preview-canvas-rendered', {
-              detail: { version: currentVersion, timestamp: performance.now() },
+              detail: { version: currentVersion, timestamp: performance.now(), mode: compiled.mode },
             })
           );
         }
 
+        hasRenderedOnceRef.current = true;
         setHasRenderedOnce(true);
         setIsCompiling(false);
       } catch {
@@ -154,18 +288,27 @@ export function LivePdfPreview({
           setIsCompiling(false);
         }
       }
-    }, 200); // 200ms debounce ensures responsive live updates
+    }, hasRenderedOnceRef.current ? 200 : 0);
 
     return () => {
       isCancelled = true;
       clearTimeout(timer);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+    };
+  }, [meta, sections, scale]);
+
+  useEffect(() => {
+    return () => {
       if (prevPdfDocRef.current) {
         try {
           prevPdfDocRef.current.destroy();
         } catch {}
       }
     };
-  }, [meta, sections, scale]);
+  }, []);
 
   const handleZoomIn = () => setScale((s) => Math.min(1.5, Number((s + 0.15).toFixed(2))));
   const handleZoomOut = () => setScale((s) => Math.max(0.6, Number((s - 0.15).toFixed(2))));

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { safeNextPath } from '@/lib/navigation/safe-redirect';
 import { mapLoginError } from '@/lib/auth/login-error-map';
 import { PublicHeader } from '@/components/public/PublicHeader';
@@ -30,15 +29,18 @@ function LoginForm() {
     initialMappedError ? { text: initialMappedError, error: true } : null
   );
 
-  const supabase = createClient();
-
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        router.replace('/dashboard');
-      }
-    });
-  }, [supabase, router]);
+    if (typeof document !== 'undefined' && document.cookie.includes('sb-')) {
+      import('@/lib/supabase/client').then(({ createClient }) => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            router.replace('/dashboard');
+          }
+        });
+      });
+    }
+  }, [router]);
 
   useEffect(() => {
     const hashParams = new URLSearchParams(
@@ -86,6 +88,8 @@ function LoginForm() {
     setMessage(null);
 
     const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+    const { createClient } = await import('@/lib/supabase/client');
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -114,6 +118,8 @@ function LoginForm() {
     if (loading) return;
     setLoading(true);
     const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+    const { createClient } = await import('@/lib/supabase/client');
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

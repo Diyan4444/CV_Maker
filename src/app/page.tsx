@@ -166,7 +166,7 @@ export default function LandingPage() {
 
                 <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                   <Link
-                    href="/login"
+                    href="/login" prefetch={false}
                     className="group inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] bg-[#800021] hover:bg-[#881144] text-[#FFFFFF] font-semibold text-sm rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors"
                   >
                     <span>Get started</span>
@@ -176,7 +176,7 @@ export default function LandingPage() {
                     />
                   </Link>
                   <Link
-                    href="/login"
+                    href="/login" prefetch={false}
                     className="inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[44px] btn-glass-secondary font-semibold text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 transition-colors"
                   >
                     <LogIn className="w-4 h-4 text-[var(--glass-accent)]" aria-hidden="true" />

@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { spawn, ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
 import dotenv from 'dotenv';
 import path from 'path';
 import { assertTestProjectRefAllowed } from '../src/lib/test-utils/production-guard';
@@ -256,7 +257,28 @@ async function main() {
       { path: `/editor/${docId}`, isAuth: true },
     ];
 
+    const budgetMode = process.argv.includes('--budget');
+    const jsonReport: {
+      generatedAt: string;
+      profiles: Record<string, Record<string, any>>;
+      budgets: Array<{
+        profile: string;
+        route: string;
+        metric: string;
+        actual: number;
+        budget: number;
+        maxAllowed: number;
+        unit: string;
+        passed: boolean;
+      }>;
+    } = {
+      generatedAt: new Date().toISOString(),
+      profiles: {},
+      budgets: [],
+    };
+
     for (const prof of profiles) {
+      jsonReport.profiles[prof.name] = {};
       console.log(`\n======================================================`);
       console.log(` PROFILE: ${prof.name}`);
       console.log(`======================================================\n`);
@@ -301,41 +323,49 @@ async function main() {
           }
 
           let jsBytes = 0;
+          let initialJsBytes = 0;
+          let loadCompleted = false;
           let cssBytes = 0;
           let fontBytes = 0;
           let workerBytes = 0;
           let serverTimingHeader: string | null = null;
 
-          page.on('response', async (res) => {
+          const reqMeta = new Map<string, { url: string; kind: 'js' | 'css' | 'font' | 'worker' | 'other' }>();
+          await client.send('Network.enable');
+          client.on('Network.responseReceived', (ev: any) => {
+            const url: string = ev.response?.url || '';
+            let kind: 'js' | 'css' | 'font' | 'worker' | 'other' = 'other';
+            if (url.includes('worker') || url.includes('.worker.')) kind = 'worker';
+            else if (url.includes('.js') || url.includes('/_next/static/chunks/')) kind = 'js';
+            else if (url.includes('.css')) kind = 'css';
+            else if (url.includes('.woff') || url.includes('.woff2') || url.includes('.ttf')) kind = 'font';
+            reqMeta.set(ev.requestId, { url, kind });
+          });
+          client.on('Network.loadingFinished', (ev: any) => {
+            const meta = reqMeta.get(ev.requestId);
+            if (!meta) return;
+            const len = Number(ev.encodedDataLength || 0);
+            if (meta.kind === 'js') {
+              jsBytes += len;
+              if (!loadCompleted) initialJsBytes += len;
+            } else if (meta.kind === 'css') cssBytes += len;
+            else if (meta.kind === 'font') fontBytes += len;
+            else if (meta.kind === 'worker') workerBytes += len;
+          });
+
+          page.on('response', (res) => {
             const url = res.url();
             const headers = res.headers();
-            let length = parseInt(headers['content-length'] || '0', 10);
-            if (!length) {
-              try {
-                const b = await res.body();
-                length = b.length;
-              } catch {}
-            }
-
             if (url.endsWith(r.path) || url.includes(r.path)) {
               if (headers['server-timing']) {
                 serverTimingHeader = headers['server-timing'];
               }
             }
-
-            if (url.includes('.js') || url.includes('/_next/static/chunks/')) {
-              jsBytes += length;
-            } else if (url.includes('.css')) {
-              cssBytes += length;
-            } else if (url.includes('.woff') || url.includes('.woff2') || url.includes('.ttf')) {
-              fontBytes += length;
-            } else if (url.includes('worker') || url.includes('.worker.')) {
-              workerBytes += length;
-            }
           });
 
           const navStart = performance.now();
           const response = await page.goto(`${BASE_URL}${r.path}`, { waitUntil: 'load' });
+          loadCompleted = true;
           if (!serverTimingHeader && response) {
             serverTimingHeader = response.headers()['server-timing'] || null;
           }
@@ -407,7 +437,7 @@ async function main() {
             domContentLoaded: navMetrics.domContentLoaded,
             load: navMetrics.load,
             lcp: navMetrics.lcp,
-            jsBytes: Math.round(jsBytes / 1024),
+            jsBytes: Math.round((r.path.startsWith('/editor/') ? initialJsBytes : jsBytes) / 1024),
             cssBytes: Math.round(cssBytes / 1024),
             fontBytes: Math.round(fontBytes / 1024),
             workerBytes: Math.round(workerBytes / 1024),
@@ -448,17 +478,81 @@ async function main() {
         console.log(`| Transferred Fonts | ${sFont.median} KB | ${sFont.worst} KB |`);
         console.log(`| Transferred Workers | ${sWorker.median} KB | ${sWorker.worst} KB |`);
 
+        let sFirstPrev: SummaryMetric | undefined;
+        let sEditPrev: SummaryMetric | undefined;
         if (r.path.startsWith('/editor/')) {
-          const sFirstPrev = computeSummary(runs.map((x) => x.firstPreview || 0));
-          const sEditPrev = computeSummary(runs.map((x) => x.editToPreview || 0));
+          sFirstPrev = computeSummary(runs.map((x) => x.firstPreview || 0));
+          sEditPrev = computeSummary(runs.map((x) => x.editToPreview || 0));
           console.log(`| First Rendered PDF Preview | ${sFirstPrev.median} ms | ${sFirstPrev.worst} ms |`);
           console.log(`| Edit to Updated Preview | ${sEditPrev.median} ms | ${sEditPrev.worst} ms |`);
         }
         console.log('\n');
+
+        jsonReport.profiles[prof.name][routeLabel] = {
+          jsMedianKB: sJs.median,
+          jsWorstKB: sJs.worst,
+          cssMedianKB: sCss.median,
+          fontMedianKB: sFont.median,
+          workerMedianKB: sWorker.median,
+          ttfbMedianMs: sTtfb.median,
+          lcpMedianMs: sLcp.median,
+          ...(sFirstPrev ? { firstPreviewMedianMs: sFirstPrev.median, firstPreviewWorstMs: sFirstPrev.worst } : {}),
+          ...(sEditPrev ? { editToPreviewMedianMs: sEditPrev.median } : {}),
+        };
       }
     }
 
+    // Evaluate Phase 8I Budgets (fail when > 10% over budget)
+    const mobileProfile = 'Mobile Throttled (Mid-Range 4G, 4x CPU, 390px)';
+    const desktopProfile = 'Unthrottled (Desktop 1440px)';
+    const checks = [
+      { profile: mobileProfile, route: '/', metric: 'jsMedianKB', budget: 450, unit: 'KB' },
+      { profile: mobileProfile, route: '/login', metric: 'jsMedianKB', budget: 650, unit: 'KB' },
+      { profile: mobileProfile, route: '/dashboard', metric: 'jsMedianKB', budget: 550, unit: 'KB' },
+      { profile: mobileProfile, route: '/editor/[id]', metric: 'jsMedianKB', budget: 1228.8, unit: 'KB' },
+      { profile: mobileProfile, route: '/editor/[id]', metric: 'firstPreviewMedianMs', budget: 8000, unit: 'ms' },
+      { profile: desktopProfile, route: '/editor/[id]', metric: 'firstPreviewMedianMs', budget: 3000, unit: 'ms' },
+    ];
+
+    for (const c of checks) {
+      const actual = Number(jsonReport.profiles[c.profile]?.[c.route]?.[c.metric] ?? 0);
+      const maxAllowed = Math.round(c.budget * 1.1 * 10) / 10;
+      const passed = actual <= maxAllowed;
+      jsonReport.budgets.push({
+        profile: c.profile,
+        route: c.route,
+        metric: c.metric,
+        actual,
+        budget: c.budget,
+        maxAllowed,
+        unit: c.unit,
+        passed,
+      });
+    }
+
+    fs.mkdirSync(path.resolve(process.cwd(), 'reports'), { recursive: true });
+    fs.writeFileSync(
+      path.resolve(process.cwd(), 'reports/perf-budget.json'),
+      JSON.stringify(jsonReport, null, 2) + '\n',
+      'utf8'
+    );
+    console.log('Performance budget JSON written to reports/perf-budget.json');
+    console.table(jsonReport.budgets.map((b) => ({
+      Route: b.route,
+      Profile: b.profile.startsWith('Mobile') ? 'Mobile 4G' : 'Desktop',
+      Metric: b.metric,
+      Actual: `${b.actual} ${b.unit}`,
+      Budget: `${b.budget} ${b.unit}`,
+      Max10Pct: `${b.maxAllowed} ${b.unit}`,
+      Status: b.passed ? 'PASS' : 'FAIL',
+    })));
+
     await browser.close();
+
+    if (budgetMode && jsonReport.budgets.some((b) => !b.passed)) {
+      console.error('PERF BUDGET FAILED: one or more metrics exceeded budget by > 10%.');
+      process.exitCode = 1;
+    }
   } catch (err) {
     console.error('[Benchmark Error]:', err);
   } finally {

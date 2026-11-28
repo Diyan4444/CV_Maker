@@ -199,14 +199,14 @@ export function PublicHeader() {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-3">
           <Link
-            href="/login"
+            href="/login" prefetch={false}
             className="btn-glass-secondary inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FFFDF9] transition-colors"
           >
             <LogIn className="w-4 h-4 text-[var(--glass-accent)]" aria-hidden="true" />
             Sign in
           </Link>
           <Link
-            href="/login"
+            href="/login" prefetch={false}
             className="group inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-semibold text-[#FFFFFF] bg-[#800021] hover:bg-[#881144] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800021] focus:ring-offset-2 shadow-xs transition-colors"
           >
             <span>Get started</span>
@@ -220,7 +220,7 @@ export function PublicHeader() {
         {/* Mobile Menu Button */}
         <div className="flex md:hidden items-center gap-2">
           <Link
-            href="/login"
+            href="/login" prefetch={false}
             className="inline-flex items-center justify-center px-3 py-2 min-h-[44px] text-xs font-semibold text-[#FFFFFF] bg-[#800021] hover:bg-[#881144] rounded-md focus:outline-none focus:ring-2 focus:ring-[#800021]"
           >
             Sign in
@@ -257,7 +257,7 @@ export function PublicHeader() {
           </nav>
           <div className="pt-2 border-t border-[#D8D0C5] flex flex-col gap-2">
             <Link
-              href="/login"
+              href="/login" prefetch={false}
               onClick={handleLinkClick}
               className="group w-full inline-flex items-center justify-center gap-2 px-4 py-2 min-h-[44px] text-sm font-semibold text-[#FFFFFF] bg-[#800021] hover:bg-[#881144] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800021]"
             >

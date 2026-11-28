@@ -133,7 +133,7 @@ export function AtsSingleColumnTemplate({ meta, sections }: TemplateProps) {
   const authorName = rawAuthor || undefined;
   const docSubject = (meta as any).target_role || (meta as any).targetRole || (meta.type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume');
   const layout = resolvePdfLayout('ats_single_column', meta.layoutSettings ?? (meta as any).layout_settings);
-  registerNotoFonts(layout.fontFamily);
+  registerNotoFonts(layout.fontFamily, ['regular', 'bold', 'italic']);
   const s = layout.fontScale;
 
   return (

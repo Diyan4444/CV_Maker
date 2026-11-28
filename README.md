@@ -247,7 +247,12 @@ Quillfolio enforces strict isolation between test suites, active development ser
 
 4. **Dev Template Gallery & Background Renderers**
    - **Vitest Render Spec**: `npx vitest run src/tests/dev-templates-gallery.test.ts`
-   - **Interactive Dev Gallery**: In development mode (`NODE_ENV !== 'production'`), accessible at `http://localhost:3000/dev/templates` and `http://localhost:3000/dev/backgrounds`. In production deployments, these routes unconditionally trigger Next.js `notFound()`.
+   - **Interactive Dev Gallery**: In development mode (`NODE_ENV !== 'production'`), accessible at `http://localhost:3000/dev/templates`, `http://localhost:3000/dev/backgrounds`, and `http://localhost:3000/dev/glass`. In production deployments, these routes unconditionally trigger Next.js `notFound()`.
+
+5. **Performance Budgets (`npm run perf:budget`)**
+   - **Command**: `npm run perf:budget` (runs `scripts/measure-routes.ts --budget` against the local production build, writes `reports/perf-budget.json`, and fails if any median exceeds its budget by > 10%).
+   - **Budgets (median of 5, mobile throttled 4x CPU / mid-range 4G)**: `/` JS `<= 450 KB`, `/login` JS `<= 650 KB`, `/dashboard` JS `<= 550 KB`, `/editor/[id]` initial JS `<= 1.2 MB`, first rendered PDF preview `<= 8 s` (`<= 3 s` desktop unthrottled).
+   - **Font Subsetting**: `npm run subset:fonts` runs `scripts/subset-fonts.ts` using Python `fonttools` (`pyftsubset`) to regenerate the subsetted `.woff` fonts in `public/fonts/`.
 
 5. **Production Safety & Test Project Allowlist**
    - **CRITICAL**: Automated test suites and user-manipulation scripts (`npm test`, `npm run test:integration`, `scripts/*.ts`) must **NEVER** be pointed at production databases or production Supabase projects.

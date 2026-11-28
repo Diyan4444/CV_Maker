@@ -11,15 +11,15 @@ import {
   EXTREME_EDGE_CASE_FIXTURE,
 } from '@/lib/fixtures/document-fixtures';
 
-const REGISTERED_TTF_FILES = [
-  'NotoSans-Regular.ttf',
-  'NotoSans-Bold.ttf',
-  'NotoSans-Italic.ttf',
-  'NotoSans-BoldItalic.ttf',
-  'NotoSerif-Regular.ttf',
-  'NotoSerif-Bold.ttf',
-  'NotoSerif-Italic.ttf',
-  'NotoSerif-BoldItalic.ttf',
+const REGISTERED_WOFF_FILES = [
+  'NotoSans-Regular.woff',
+  'NotoSans-Bold.woff',
+  'NotoSans-Italic.woff',
+  'NotoSans-BoldItalic.woff',
+  'NotoSerif-Regular.woff',
+  'NotoSerif-Bold.woff',
+  'NotoSerif-Italic.woff',
+  'NotoSerif-BoldItalic.woff',
 ];
 
 const SPEC_TEST_NAMES = [
@@ -73,9 +73,9 @@ describe('Fontkit TTF Glyph Coverage Test', () => {
     }
   }
 
-  for (const ttfName of REGISTERED_TTF_FILES) {
-    it(`asserts that every character in fixtures and test names exists in ${ttfName}`, () => {
-      const fontPath = path.resolve(process.cwd(), 'public/fonts', ttfName);
+  for (const woffName of REGISTERED_WOFF_FILES) {
+    it(`asserts that every character in fixtures and test names exists in ${woffName}`, () => {
+      const fontPath = path.resolve(process.cwd(), 'public/fonts', woffName);
       const font = fontkit.openSync(fontPath);
 
       const missingGlyphs: Array<{ char: string; codePoint: string }> = [];
@@ -91,22 +91,33 @@ describe('Fontkit TTF Glyph Coverage Test', () => {
 
       if (missingGlyphs.length > 0) {
         console.error(
-          `Missing glyphs in ${ttfName} (${missingGlyphs.length}):`,
+          `Missing glyphs in ${woffName} (${missingGlyphs.length}):`,
           missingGlyphs.slice(0, 10)
         );
       }
 
       expect(
         missingGlyphs,
-        `Font ${ttfName} is missing ${missingGlyphs.length} glyphs: ${missingGlyphs.map((g) => `${g.char} (${g.codePoint})`).join(', ')}`
+        `Font ${woffName} is missing ${missingGlyphs.length} glyphs: ${missingGlyphs.map((g) => `${g.char} (${g.codePoint})`).join(', ')}`
       ).toHaveLength(0);
     });
   }
 
-  it('fails if an unsupported glyph is tested (negative verification)', () => {
-    const fontPath = path.resolve(process.cwd(), 'public/fonts/NotoSans-Regular.ttf');
+  it('verifies subset coverage (Vietnamese, currency, arrows, punctuation) and kerning in WOFF', () => {
+    const fontPath = path.resolve(process.cwd(), 'public/fonts/NotoSans-Regular.woff');
     const font = fontkit.openSync(fontPath);
-    // Devanagari character 'क' (U+0915) is not in Noto Sans Latin TTF
+    for (const ch of ['A', 'é', 'Ł', 'ơ', 'ậ', '–', '—', '•', '“', '”', '€', '£', '$', '₹']) {
+      expect(font.hasGlyphForCodePoint(ch.codePointAt(0)!), `Missing ${ch}`).toBe(true);
+    }
+    const run = font.layout('AVATAR');
+    expect(run.glyphs.length).toBe(6);
+    expect(font.availableFeatures).toContain('kern');
+  });
+
+  it('fails if an unsupported glyph is tested (negative verification)', () => {
+    const fontPath = path.resolve(process.cwd(), 'public/fonts/NotoSans-Regular.woff');
+    const font = fontkit.openSync(fontPath);
+    // Devanagari character 'क' (U+0915) is not in Noto Sans Latin WOFF
     const devanagariCp = 'क'.codePointAt(0)!;
     expect(font.hasGlyphForCodePoint(devanagariCp)).toBe(false);
   });

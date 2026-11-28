@@ -15,11 +15,19 @@
     "db:apply": "tsx scripts/apply-migrations.ts",
     "db:verify": "tsx scripts/verify-database.ts",
     "copy:pdf-worker": "node scripts/copy-pdf-worker.mjs",
+    "subset:fonts": "tsx scripts/subset-fonts.ts",
+    "perf:budget": "tsx scripts/measure-routes.ts --budget",
     "postinstall": "npm run copy:pdf-worker"
   },
   "engines": {
     "node": ">=22.13.0"
   },
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 111",
+    "safari >= 16.4"
+  ],
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -27,7 +35,6 @@
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
-    "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.75.0",
     "next": "16.4.6",
@@ -35,7 +42,6 @@
     "postgres": "^4.1.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
